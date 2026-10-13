@@ -1,0 +1,3 @@
+# Raw G25 exports stay local; the calculator uses its bundled references.js.
+data/
+*.py

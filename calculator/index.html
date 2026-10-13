@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#14243b">
+  <title>G25 Family Calculator</title>
+  <link rel="stylesheet" href="style.css">
+  <script defer src="references.js"></script>
+  <script defer src="core.js"></script>
+  <script defer src="app.js"></script>
+</head>
+<body>
+  <main class="shell">
+    <header class="page-header">
+      <div class="eyebrow">REFERENCE DATA FROM WORLD GENETICS</div>
+      <h1>G25 Family Calculator</h1>
+      <p>Combine 2, 4, 8, or 16 ancestors. Add an offspring row to calculate the contribution of any missing ancestors.</p>
+    </header>
+
+    <section class="panel input-panel" aria-labelledby="inputs-title">
+      <div class="section-head">
+        <div>
+          <h2 id="inputs-title">Family inputs</h2>
+          <p>Choose a reference population or paste any G25 row for each person.</p>
+        </div>
+        <button id="clear-all" class="text-button" type="button">Clear all</button>
+      </div>
+
+      <div class="mode-switch" role="group" aria-label="Ancestor generation">
+        <button class="mode-button active" type="button" data-mode="2" aria-pressed="true">2 parents</button>
+        <button class="mode-button" type="button" data-mode="4" aria-pressed="false">4 grandparents</button>
+        <button class="mode-button" type="button" data-mode="8" aria-pressed="false">8 great-grandparents</button>
+        <button class="mode-button" type="button" data-mode="16" aria-pressed="false">16 great-great-grandparents</button>
+      </div>
+      <label id="male-option" class="male-option">
+        <input id="male-toggle" type="checkbox">
+        <span>Male</span>
+        <small id="male-weight-note">Mother 50% · Father 50%</small>
+      </label>
+      <p id="selection-hint" class="selection-hint">Fill the offspring and every ancestor to compare any person.</p>
+
+      <div class="group-label"><span>OFFSPRING</span><span>Optional when all ancestors are entered</span></div>
+      <div id="offspring-row"></div>
+
+      <div class="group-label ancestor-label"><span id="generation-label">PARENTS</span><span>Fill all, or leave blanks with offspring supplied</span></div>
+      <div id="ancestor-rows" class="ancestor-rows"></div>
+    </section>
+
+    <section class="panel result-panel" aria-labelledby="result-title">
+      <div class="section-head">
+        <div>
+          <h2 id="result-title">Calculated G25 row</h2>
+          <p id="result-status" role="status">Add your inputs to begin.</p>
+        </div>
+        <button id="copy-result" class="primary-button" type="button" disabled>Copy coordinates</button>
+      </div>
+      <textarea id="result-line" rows="4" readonly spellcheck="false" aria-label="Calculated G25 coordinates" placeholder="The calculated row will appear here."></textarea>
+      <p id="comparison" class="comparison" hidden></p>
+      <p id="method-note" class="method-note">The estimate is an arithmetic average of the entered G25 coordinates.</p>
+    </section>
+
+    <section id="matches-panel" class="panel matches-panel" aria-labelledby="matches-title" hidden>
+      <div class="section-head">
+        <div>
+          <h2 id="matches-title">Closest populations</h2>
+          <p>Each list ranks all reference populations by genetic distance from its selected target. Distances use Euclidean G25 × 100.</p>
+        </div>
+        <label class="match-filter">Reference set for all tables
+          <select id="match-category" aria-label="Comparison reference category">
+            <option value="modern">Modern</option>
+            <option value="ancient">Ancient</option>
+            <option value="all">All</option>
+          </select>
+        </label>
+      </div>
+      <div class="match-group">
+        <h3 id="actual-matches-title">Up to 10 closest to entered offspring</h3>
+        <div id="actual-matches" class="table-scroll"></div>
+      </div>
+      <div class="match-group">
+        <h3 id="calculated-matches-title">Up to 10 closest to calculated offspring</h3>
+        <div id="calculated-matches" class="table-scroll"></div>
+      </div>
+      <p class="method-note">The calculated or entered target appears in the opposite list only if it ranks among that list's 10 closest candidates.</p>
+    </section>
+
+    <section id="metric-controls" class="panel matches-panel" aria-labelledby="metric-limit-title" hidden>
+      <div class="metric-limit-heading">
+        <div>
+          <h2 id="metric-limit-title">Difference, ratio and D3 distance limit</h2>
+          <p class="panel-intro">Only populations with both AC and BC at or below this value appear in the three tables below. The closest-population tables have no distance limit.</p>
+        </div>
+        <output id="metric-limit-value" for="metric-limit">10.000</output>
+      </div>
+      <input id="metric-limit" type="range" min="0" max="10" step="any" value="10" aria-label="Maximum AC and BC for difference, ratio and D3 tables">
+      <div class="metric-limit-ends"><span>0</span><span>Furthest reference: <span id="metric-max-label">10.000</span></span></div>
+    </section>
+
+    <section id="difference-panel" class="panel matches-panel" aria-labelledby="difference-title" hidden>
+      <h2 id="difference-title">Difference · AC − BC</h2>
+      <p class="panel-intro">AC is distance from the entered selected person; BC is distance from their calculated counterpart. Smaller values favor the entered person; larger values favor the calculated counterpart.</p>
+      <div class="extreme-grid">
+        <div class="match-group">
+          <h3>Up to 10 smallest differences</h3>
+          <div id="smallest-difference" class="table-scroll"></div>
+        </div>
+        <div class="match-group">
+          <h3>Up to 10 largest differences</h3>
+          <div id="largest-difference" class="table-scroll"></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="ratio-panel" class="panel matches-panel" aria-labelledby="ratio-title" hidden>
+      <h2 id="ratio-title">Ratio · AC / BC</h2>
+      <p class="panel-intro">Ratios below 1 favor the entered person; ratios above 1 favor their calculated counterpart. References with BC = 0 are excluded because the ratio is undefined.</p>
+      <div class="extreme-grid">
+        <div class="match-group">
+          <h3>Up to 10 smallest ratios</h3>
+          <div id="smallest-ratio" class="table-scroll"></div>
+        </div>
+        <div class="match-group">
+          <h3>Up to 10 largest ratios</h3>
+          <div id="largest-ratio" class="table-scroll"></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="d3-panel" class="panel matches-panel" aria-labelledby="d3-title" hidden>
+      <h2 id="d3-title">D3 · (AC − BC) / (AC + BC)</h2>
+      <p class="panel-intro">D3 ranges from −1 to +1. Smaller values favor the entered person; larger values favor their calculated counterpart. Rows with AC + BC = 0 are excluded.</p>
+      <div class="extreme-grid">
+        <div class="match-group">
+          <h3>Up to 10 smallest D3 values</h3>
+          <div id="smallest-d3" class="table-scroll"></div>
+        </div>
+        <div class="match-group">
+          <h3>Up to 10 largest D3 values</h3>
+          <div id="largest-d3" class="table-scroll"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <dialog id="picker" aria-labelledby="picker-title">
+    <div class="dialog-head">
+      <div>
+        <div class="eyebrow">ADD COORDINATES</div>
+        <h2 id="picker-title">Choose a population</h2>
+      </div>
+      <button id="close-picker" class="close-button" type="button" aria-label="Close">×</button>
+    </div>
+    <div class="search-controls">
+      <input id="reference-search" type="search" placeholder="Search population name…" autocomplete="off" aria-label="Search reference populations">
+      <select id="reference-category" aria-label="Reference category">
+        <option value="all">All</option>
+        <option value="modern">Modern</option>
+        <option value="ancient">Ancient</option>
+      </select>
+    </div>
+    <div id="reference-results" class="reference-results" aria-live="polite"></div>
+    <div class="paste-section">
+      <label for="pasted-line">Or paste a G25 coordinate row</label>
+      <textarea id="pasted-line" rows="3" placeholder="Sample_name,0.123456,0.234567,…"></textarea>
+      <div class="paste-actions">
+        <span id="paste-error" role="alert"></span>
+        <button id="use-pasted" class="primary-button" type="button">Use pasted row</button>
+      </div>
+    </div>
+  </dialog>
+</body>
+</html>
