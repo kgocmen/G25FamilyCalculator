@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="style.css">
   <script defer src="references.js"></script>
   <script defer src="core.js"></script>
+  <script defer src="mixture.js"></script>
   <script defer src="app.js"></script>
 </head>
 <body>
@@ -35,7 +36,7 @@
         <button class="mode-button" type="button" data-mode="16" aria-pressed="false">16 great-great-grandparents</button>
       </div>
       <div id="single-input" hidden>
-        <p class="selection-hint">Choose a population or paste one G25 row to see its closest reference populations.</p>
+        <p class="selection-hint">Choose a population or paste one G25 row to see distances and possible two-way and four-way reference mixtures.</p>
         <div id="single-row"></div>
       </div>
       <div id="family-inputs">
@@ -90,6 +91,18 @@
         <div id="calculated-matches" class="table-scroll" tabindex="0" role="region" aria-label="Calculated closest populations table"></div>
       </div>
       <p id="matches-note" class="method-note">The calculated or entered target appears in the opposite list only if it ranks among that list's 10 closest candidates.</p>
+    </section>
+
+    <section id="parent-estimates-panel" class="panel matches-panel" aria-labelledby="parent-estimates-title" hidden>
+      <h2 id="parent-estimates-title">Parent estimates · 2-way</h2>
+      <p class="panel-intro">Top 10 fits from distinct reference populations. Each share is optimized between 40% and 60%; every pair in the selected reference set is checked.</p>
+      <div id="parent-estimates" class="table-scroll mixture-scroll" tabindex="0" role="region" aria-label="Two-way mixture estimates table"></div>
+    </section>
+
+    <section id="grandparent-estimates-panel" class="panel matches-panel" aria-labelledby="grandparent-estimates-title" hidden>
+      <h2 id="grandparent-estimates-title">Grandparent estimates · 4-way</h2>
+      <p class="panel-intro">Top 10 fits found with four distinct populations, each contributing 20–30%. This faster search uses a shortlist built from nearby references and strong two-way fits, so it is not an exhaustive ranking. These mixtures are coordinate matches, not proof of actual ancestors.</p>
+      <div id="grandparent-estimates" class="table-scroll mixture-scroll" tabindex="0" role="region" aria-label="Four-way mixture estimates table"></div>
     </section>
 
     <section id="metric-controls" class="panel matches-panel" aria-labelledby="metric-limit-title" hidden>

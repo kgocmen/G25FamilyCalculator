@@ -32,6 +32,14 @@
   const picker = $("#picker");
   let preparedMatches = null;
   let preparedSelectedName = "";
+  let mixtureWorker = null;
+  let mixtureRequest = 0;
+
+  function cancelMixtures() {
+    mixtureRequest += 1;
+    if (mixtureWorker) mixtureWorker.terminate();
+    mixtureWorker = null;
+  }
 
   function normalizeSearch(value) {
     return String(value).normalize("NFKD").replace(/[\u0300-\u036f]/g, "")
@@ -152,6 +160,9 @@
       renderSingle();
       return;
     }
+    cancelMixtures();
+    $("#parent-estimates-panel").hidden = true;
+    $("#grandparent-estimates-panel").hidden = true;
     $("#matches-intro").textContent = "Each list ranks all reference populations by genetic distance from its selected target. Distances use Euclidean G25 × 100.";
     const ancestors = state.slots[mode];
     const male = mode === 2 && state.male;
@@ -234,18 +245,113 @@
   }
 
   function renderSingle() {
+    cancelMixtures();
     preparedMatches = null;
     $("#single-row").replaceChildren(createRow("Sample", { type: "single" }, state.single, null));
     for (const selector of ["#metric-controls", "#difference-panel", "#ratio-panel", "#d3-panel"]) {
       $(selector).hidden = true;
     }
     $("#matches-panel").hidden = !state.single || !references.length;
+    $("#parent-estimates-panel").hidden = !state.single || !references.length;
+    $("#grandparent-estimates-panel").hidden = !state.single || !references.length;
     if (!state.single || !references.length) return;
     $("#matches-intro").textContent = "Reference populations ranked by genetic distance from the input. Distances use Euclidean G25 × 100.";
     const category = $("#match-category").value;
     const candidates = category === "all" ? references : references.filter((row) => row[0] === category);
     $("#actual-matches-title").textContent = `Up to 10 closest to ${state.single.label}`;
     renderMatchTable($("#actual-matches"), core.nearestMatches(state.single, candidates), { distanceKey: "distance" });
+    renderMixtureStatus("#parent-estimates", "Calculating two-way fits…");
+    renderMixtureStatus("#grandparent-estimates", "Calculating four-way fits…");
+    startMixtures(state.single, candidates, mixtureRequest);
+  }
+
+  function renderMixtureStatus(selector, message) {
+    const status = document.createElement("p");
+    status.className = "mixture-status";
+    status.textContent = message;
+    $(selector).replaceChildren(status);
+  }
+
+  function renderMixtureTable(selector, fits, count) {
+    const table = document.createElement("table");
+    table.className = "matches-table mixture-table";
+    const head = document.createElement("thead");
+    const heading = document.createElement("tr");
+    const title = count === 2 ? "Parent" : "Grandparent";
+    for (const label of ["#", ...Array.from({ length: count }, (_, index) => `${title} ${index + 1}`), "Genetic distance (Euclidean)"]) {
+      const cell = document.createElement("th");
+      cell.textContent = label;
+      heading.append(cell);
+    }
+    head.append(heading);
+    table.append(head);
+    const body = document.createElement("tbody");
+    fits.forEach((fit, index) => {
+      const row = document.createElement("tr");
+      const cells = [String(index + 1), ...fit.parts.map((part) =>
+        `${part.label} · ${part.category} (${(part.weight * 100).toFixed(1)}%)`), fit.distance.toFixed(3)];
+      for (const value of cells) {
+        const cell = document.createElement("td");
+        cell.textContent = value;
+        row.append(cell);
+      }
+      body.append(row);
+    });
+    if (!fits.length) {
+      const row = document.createElement("tr");
+      const cell = document.createElement("td");
+      cell.colSpan = count + 2;
+      cell.className = "empty-matches";
+      cell.textContent = `At least ${count} distinct references are needed in this set.`;
+      row.append(cell);
+      body.append(row);
+    }
+    table.append(body);
+    $(selector).replaceChildren(table);
+  }
+
+  function startMixtures(target, candidates, requestId) {
+    const receive = (kind, fits) => {
+      if (requestId !== mixtureRequest || state.mode !== 1) return;
+      if (kind === "parents") renderMixtureTable("#parent-estimates", fits, 2);
+      if (kind === "grandparents") renderMixtureTable("#grandparent-estimates", fits, 4);
+    };
+    const fallback = () => window.setTimeout(() => {
+      if (requestId !== mixtureRequest || state.mode !== 1) return;
+      try {
+        const result = window.G25Mixtures.estimate(target, candidates, (fits) => receive("parents", fits));
+        receive("grandparents", result.grandparents);
+      } catch (error) {
+        renderMixtureStatus("#parent-estimates", error.message);
+        renderMixtureStatus("#grandparent-estimates", error.message);
+      }
+    }, 0);
+    try {
+      const worker = new Worker("mixture-worker.js");
+      mixtureWorker = worker;
+      worker.onmessage = ({ data }) => {
+        if (data.requestId !== mixtureRequest) return;
+        if (data.kind === "error") {
+          renderMixtureStatus("#parent-estimates", data.message);
+          renderMixtureStatus("#grandparent-estimates", data.message);
+        } else receive(data.kind, data.fits);
+        if (data.kind === "grandparents" || data.kind === "error") {
+          worker.terminate();
+          if (mixtureWorker === worker) mixtureWorker = null;
+        }
+      };
+      worker.onerror = () => {
+        if (mixtureWorker !== worker) return;
+        worker.terminate();
+        mixtureWorker = null;
+        fallback();
+      };
+      worker.postMessage({ requestId, target, references: candidates });
+    } catch (_error) {
+      if (mixtureWorker) mixtureWorker.terminate();
+      mixtureWorker = null;
+      fallback();
+    }
   }
 
   function renderMatches(targetComparison, selectedName) {
