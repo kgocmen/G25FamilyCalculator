@@ -41,7 +41,9 @@ test("strict four-way search finds a balanced combination outside the shortlist"
   });
   const balanced = [[1, 0], [0, 1], [-0.7, -0.2], [-0.3, -0.8]].map((coordinates, index) =>
     row(`Balanced ${index}`, [...coordinates, ...Array(23).fill(0)]));
-  const result = estimateStrict(row("Target", Array(25).fill(0)), [...decoys, ...balanced]);
+  const progress = [];
+  const result = estimateStrict(row("Target", Array(25).fill(0)), [...decoys, ...balanced], null,
+    (value) => progress.push(value));
   assert.equal(result.grandparents.length, 10);
   assert.ok(result.grandparents[0].distance < 1e-8);
   assert.deepEqual(result.grandparents[0].parts.map((part) => part.label),
@@ -49,6 +51,10 @@ test("strict four-way search finds a balanced combination outside the shortlist"
   for (let index = 1; index < result.grandparents.length; index += 1) {
     assert.ok(result.grandparents[index].distance >= result.grandparents[index - 1].distance - 1e-8);
   }
+  assert.equal(progress[0], 0);
+  assert.equal(progress.at(-1), 100);
+  assert.ok(progress.some((value) => value > 10 && value < 100));
+  assert.ok(progress.every((value, index) => index === 0 || value >= progress[index - 1]));
 });
 
 test("strict four-way indexed search matches an exhaustive small-set ranking", () => {

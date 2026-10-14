@@ -34,14 +34,41 @@
   let preparedMatches = null;
   let preparedSelectedName = "";
   let mixtureWorker = null;
+  let mixtureWorkerUrl = null;
   let mixtureRequest = 0;
   let relaxedFits = { modern: [], ancient: [] };
-  let relaxedReady = false;
+  let relaxedReady = { modern: false, ancient: false };
 
   function cancelMixtures() {
     mixtureRequest += 1;
     if (mixtureWorker) mixtureWorker.terminate();
+    if (mixtureWorkerUrl) URL.revokeObjectURL(mixtureWorkerUrl);
     mixtureWorker = null;
+    mixtureWorkerUrl = null;
+  }
+
+  function mixtureWorkerMain() {
+    self.onmessage = ({ data }) => {
+      const { requestId, target, modernReferences, references: allReferences } = data;
+      const send = (kind, extras = {}) => self.postMessage({ requestId, kind, ...extras });
+      try {
+        send("relaxedModern", { fits: self.G25Mixtures.estimateRelaxed(target, modernReferences, 100) });
+        const ancientReferences = allReferences.filter((row) => row[0] === "ancient");
+        send("relaxedAncient", { fits: self.G25Mixtures.estimateRelaxed(target, ancientReferences, 100) });
+        let lastProgress = -1;
+        const strict = self.G25Mixtures.estimateStrict(target, modernReferences,
+          (fits) => send("strictParents", { fits }),
+          (value) => {
+            if (value !== lastProgress) {
+              send("strictProgress", { value });
+              lastProgress = value;
+            }
+          });
+        send("strictGrandparents", { fits: strict.grandparents });
+      } catch (error) {
+        send("error", { message: error.message });
+      }
+    };
   }
 
   function normalizeSearch(value) {
@@ -153,6 +180,7 @@
     $("#single-input").hidden = mode !== 1;
     $("#family-inputs").hidden = mode === 1;
     $("#result-panel").hidden = mode === 1;
+    $("#single-ancient-matches-group").hidden = mode !== 1;
     $("#calculated-matches-group").hidden = mode === 1;
     $("#matches-note").hidden = mode === 1;
     $("#match-filter").hidden = mode === 1;
@@ -252,7 +280,7 @@
   function renderSingle() {
     cancelMixtures();
     relaxedFits = { modern: [], ancient: [] };
-    relaxedReady = false;
+    relaxedReady = { modern: false, ancient: false };
     $("#relaxed-count").value = String(state.relaxedCount);
     $("#relaxed-count-value").textContent = String(state.relaxedCount);
     preparedMatches = null;
@@ -265,13 +293,20 @@
     $("#parent-estimates-panel").hidden = !state.single || !references.length;
     $("#grandparent-estimates-panel").hidden = !state.single || !references.length;
     if (!state.single || !references.length) return;
-    $("#matches-intro").textContent = "Modern reference populations ranked by genetic distance from the input. Distances use Euclidean G25 × 100.";
+    $("#matches-intro").textContent = "Modern and ancient reference populations ranked separately by genetic distance from the input. Distances use Euclidean G25 × 100.";
     const modernReferences = references.filter((row) => row[0] === "modern");
-    $("#actual-matches-title").textContent = `Up to 10 closest to ${state.single.label}`;
-    renderMatchTable($("#actual-matches"), core.nearestMatches(state.single, modernReferences), { distanceKey: "distance" });
-    renderRelaxedStatus("Calculating unsupervised fits…");
-    renderMixtureStatus("#parent-estimates", "Calculating strict two-way fits…");
-    renderMixtureStatus("#grandparent-estimates", "Calculating strict four-way fits…");
+    const ancientReferences = references.filter((row) => row[0] === "ancient");
+    $("#actual-matches-title").textContent = `Up to 10 closest modern populations to ${state.single.label}`;
+    $("#single-ancient-matches-title").textContent = `Up to 10 closest ancient populations to ${state.single.label}`;
+    renderMatchTable($("#actual-matches"), core.nearestMatches(state.single, modernReferences),
+      { distanceKey: "distance", omitCategory: true });
+    renderMatchTable($("#single-ancient-matches"), core.nearestMatches(state.single, ancientReferences),
+      { distanceKey: "distance", omitCategory: true });
+    renderMixtureStatus("#relaxed-modern", "Calculating unsupervised modern fits…");
+    renderMixtureStatus("#relaxed-ancient", "Waiting for modern fits…");
+    renderMixtureStatus("#parent-estimates", "Waiting for unsupervised fits…");
+    renderMixtureStatus("#grandparent-estimates", "Waiting for earlier analyses…");
+    updateStrictProgress(0, "Waiting for earlier analyses…");
     startMixtures(state.single, modernReferences, references, mixtureRequest);
   }
 
@@ -282,9 +317,10 @@
     $(selector).replaceChildren(status);
   }
 
-  function renderRelaxedStatus(message) {
-    renderMixtureStatus("#relaxed-modern", message);
-    renderMixtureStatus("#relaxed-ancient", message);
+  function updateStrictProgress(value, label) {
+    $("#strict-four-progress-bar").value = value;
+    $("#strict-four-progress-value").textContent = `${value}%`;
+    $("#strict-four-progress-label").textContent = label;
   }
 
   function renderMixtureTable(selector, fits, count, title, emptyMessage, showWeights = false) {
@@ -302,9 +338,10 @@
     const body = document.createElement("tbody");
     fits.forEach((fit, index) => {
       const row = document.createElement("tr");
-      const cells = [String(index + 1), ...fit.parts.map((part) =>
+      const parts = showWeights ? [...fit.parts].sort((first, second) => second.weight - first.weight) : fit.parts;
+      const cells = [String(index + 1), ...parts.map((part) =>
         showWeights ? `${part.label} · ${(part.weight * 100).toFixed(1)}%`
-          : `${part.label} · ${part.category}`), fit.distance.toFixed(3)];
+          : part.label), fit.distance.toFixed(3)];
       for (const value of cells) {
         const cell = document.createElement("td");
         cell.textContent = value;
@@ -327,63 +364,79 @@
 
   function renderRelaxedTable() {
     $("#relaxed-count-value").textContent = String(state.relaxedCount);
-    if (!relaxedReady) return;
     for (const category of ["modern", "ancient"]) {
-      renderMixtureTable(`#relaxed-${category}`, relaxedFits[category].slice(0, state.relaxedCount), 2, "Population",
-        "No two-reference fit with two contributing populations was found.", true);
+      if (relaxedReady[category]) {
+        renderMixtureTable(`#relaxed-${category}`, relaxedFits[category].slice(0, state.relaxedCount), 2, "Population",
+          "No two-reference fit with two contributing populations was found.", true);
+      }
     }
   }
 
   function startMixtures(target, modernReferences, allReferences, requestId) {
-    const receive = (kind, fits) => {
+    const receive = ({ kind, fits, value, message }) => {
       if (requestId !== mixtureRequest || state.mode !== 1) return;
-      if (kind === "strictParents") renderMixtureTable("#parent-estimates", fits, 2, "Parent");
-      if (kind === "strictGrandparents") renderMixtureTable("#grandparent-estimates", fits, 4, "Grandparent");
-      if (kind === "relaxed") {
-        relaxedFits = fits;
-        relaxedReady = true;
+      if (kind === "relaxedModern" || kind === "relaxedAncient") {
+        const category = kind === "relaxedModern" ? "modern" : "ancient";
+        relaxedFits[category] = fits;
+        relaxedReady[category] = true;
         renderRelaxedTable();
+        if (category === "modern") renderMixtureStatus("#relaxed-ancient", "Calculating unsupervised ancient fits…");
+        else renderMixtureStatus("#parent-estimates", "Calculating strict two-way fits…");
+      }
+      if (kind === "strictParents") {
+        renderMixtureTable("#parent-estimates", fits, 2, "Parent");
+        renderMixtureStatus("#grandparent-estimates", "Building exact four-way search index…");
+        updateStrictProgress(0, "Building exact four-way search index…");
+      }
+      if (kind === "strictProgress") {
+        updateStrictProgress(value, value === 100 ? "Complete" : value < 10
+          ? "Building exact four-way search index…" : "Checking four-population combinations…");
+      }
+      if (kind === "strictGrandparents") {
+        renderMixtureTable("#grandparent-estimates", fits, 4, "Grandparent");
+        updateStrictProgress(100, "Complete");
+      }
+      if (kind === "error") {
+        if (!relaxedReady.modern) renderMixtureStatus("#relaxed-modern", message);
+        if (!relaxedReady.ancient) renderMixtureStatus("#relaxed-ancient", message);
+        renderMixtureStatus("#parent-estimates", message);
+        renderMixtureStatus("#grandparent-estimates", message);
+        updateStrictProgress(0, "Analysis unavailable");
       }
     };
-    const fallback = () => window.setTimeout(() => {
-      if (requestId !== mixtureRequest || state.mode !== 1) return;
-      try {
-        receive("relaxed", window.G25Mixtures.estimateRelaxedByCategory(target, allReferences, 100));
-        const strict = window.G25Mixtures.estimateStrict(target, modernReferences,
-          (fits) => receive("strictParents", fits));
-        receive("strictGrandparents", strict.grandparents);
-      } catch (error) {
-        renderRelaxedStatus(error.message);
-        renderMixtureStatus("#parent-estimates", error.message);
-        renderMixtureStatus("#grandparent-estimates", error.message);
-      }
-    }, 0);
     try {
-      const worker = new Worker("mixture-worker.js");
+      const source = `(${window.G25MixtureModule.toString()})(self);\n(${mixtureWorkerMain.toString()})();`;
+      const url = URL.createObjectURL(new Blob([source], { type: "text/javascript" }));
+      mixtureWorkerUrl = url;
+      const worker = new Worker(url);
       mixtureWorker = worker;
       worker.onmessage = ({ data }) => {
         if (data.requestId !== mixtureRequest) return;
-        if (data.kind === "error") {
-          renderRelaxedStatus(data.message);
-          renderMixtureStatus("#parent-estimates", data.message);
-          renderMixtureStatus("#grandparent-estimates", data.message);
-        } else receive(data.kind, data.fits);
+        receive(data);
         if (data.kind === "strictGrandparents" || data.kind === "error") {
           worker.terminate();
-          if (mixtureWorker === worker) mixtureWorker = null;
+          if (mixtureWorker === worker) {
+            URL.revokeObjectURL(mixtureWorkerUrl);
+            mixtureWorker = null;
+            mixtureWorkerUrl = null;
+          }
         }
       };
       worker.onerror = () => {
         if (mixtureWorker !== worker) return;
         worker.terminate();
+        URL.revokeObjectURL(mixtureWorkerUrl);
         mixtureWorker = null;
-        fallback();
+        mixtureWorkerUrl = null;
+        receive({ kind: "error", message: "Background analysis could not start in this browser." });
       };
       worker.postMessage({ requestId, target, modernReferences, references: allReferences });
-    } catch (_error) {
+    } catch (error) {
       if (mixtureWorker) mixtureWorker.terminate();
+      if (mixtureWorkerUrl) URL.revokeObjectURL(mixtureWorkerUrl);
       mixtureWorker = null;
-      fallback();
+      mixtureWorkerUrl = null;
+      receive({ kind: "error", message: `Background analysis could not start: ${error.message}` });
     }
   }
 
@@ -425,7 +478,7 @@
     renderMatchTable($("#largest-d3"), lists.largestD3, { metric: "d3", emptyMessage });
   }
 
-  function renderMatchTable(container, matches, { otherTargetName = "", distanceKey = null, metric = null, emptyMessage = "No matching populations in this reference set." }) {
+  function renderMatchTable(container, matches, { otherTargetName = "", distanceKey = null, metric = null, omitCategory = false, emptyMessage = "No matching populations in this reference set." }) {
     const table = document.createElement("table");
     table.className = `matches-table${distanceKey ? " closest-table" : ""}`;
     const head = document.createElement("thead");
@@ -448,7 +501,7 @@
       const row = document.createElement("tr");
       if (match.category === "target") row.className = "target-row";
       const displayName = match.category === "target"
-        ? `${otherTargetName}: ${match.label}` : `${match.label} · ${match.category}`;
+        ? `${otherTargetName}: ${match.label}` : omitCategory ? match.label : `${match.label} · ${match.category}`;
       const cells = [String(index + 1), displayName];
       if (distanceKey) cells.push(match[distanceKey].toFixed(3));
       else cells.push(match.ac.toFixed(3), match.bc.toFixed(3));

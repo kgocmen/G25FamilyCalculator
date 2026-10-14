@@ -1,4 +1,4 @@
-(function (root) {
+function G25MixtureModule(root) {
   "use strict";
 
   const DIMENSIONS = 25;
@@ -135,7 +135,7 @@
     return square / 16;
   }
 
-  function exhaustiveGrandparents(rows, shortlist) {
+  function exhaustiveGrandparents(rows, shortlist, onProgress) {
     const n = rows.length;
     if (n < 4) return [];
     const best = [];
@@ -149,6 +149,7 @@
             }
           }
         }
+        if (onProgress) onProgress(Math.round(100 * (a + 1) / (n - 3)));
       }
       return sortFits(best);
     }
@@ -230,6 +231,7 @@
     }
 
     const root = buildIndex(0, pairCount, 0);
+    if (onProgress) onProgress(10);
     const query = new Float64Array(DIMENSIONS);
     const stack = [];
     function lowerBound(node, threshold) {
@@ -282,6 +284,9 @@
           }
         }
       }
+      if (onProgress && (i + 1 === n || (i + 1) % Math.max(1, Math.floor(n / 100)) === 0)) {
+        onProgress(Math.round(10 + 90 * (i + 1) / n));
+      }
     }
     return sortFits(best);
   }
@@ -295,13 +300,15 @@
     };
   }
 
-  function estimateStrict(target, references, onParents) {
+  function estimateStrict(target, references, onParents, onProgress) {
     const rows = prepare(target, references);
     const pairFits = bestPairs(rows, { fixed: 0.5, collectPool: true });
     const parents = pairFits.best.map((fit) => decorate(fit, rows));
     if (onParents) onParents(parents);
+    if (onProgress) onProgress(0);
     const shortlist = bestGrandparents(rows, pairFits.pool);
-    const grandparents = exhaustiveGrandparents(rows, shortlist).map((fit) => decorate(fit, rows));
+    const grandparents = exhaustiveGrandparents(rows, shortlist, onProgress).map((fit) => decorate(fit, rows));
+    if (onProgress) onProgress(100);
     return { parents, grandparents };
   }
 
@@ -321,5 +328,9 @@
 
   const api = { estimateStrict, estimateRelaxed, estimateRelaxedByCategory };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
-  else root.G25Mixtures = api;
-})(typeof window !== "undefined" ? window : globalThis);
+  else {
+    root.G25Mixtures = api;
+    root.G25MixtureModule = G25MixtureModule;
+  }
+}
+G25MixtureModule(typeof window !== "undefined" ? window : globalThis);

@@ -86,6 +86,10 @@
         <h3 id="actual-matches-title">Up to 10 closest to entered offspring</h3>
         <div id="actual-matches" class="table-scroll" tabindex="0" role="region" aria-label="Closest populations table"></div>
       </div>
+      <div id="single-ancient-matches-group" class="match-group" hidden>
+        <h3 id="single-ancient-matches-title">Up to 10 closest ancient populations</h3>
+        <div id="single-ancient-matches" class="table-scroll" tabindex="0" role="region" aria-label="Closest ancient populations table"></div>
+      </div>
       <div id="calculated-matches-group" class="match-group">
         <h3 id="calculated-matches-title">Up to 10 closest to calculated offspring</h3>
         <div id="calculated-matches" class="table-scroll" tabindex="0" role="region" aria-label="Calculated closest populations table"></div>
@@ -122,6 +126,10 @@
     <section id="grandparent-estimates-panel" class="panel matches-panel" aria-labelledby="grandparent-estimates-title" hidden>
       <h2 id="grandparent-estimates-title">Strict 4-way fit · 25% each</h2>
       <p class="panel-intro">The top 10 fits from all four-population combinations of modern references, at exactly 25% each. An exact pair-sum search skips combinations that cannot beat the current top 10; this table may take longer to finish. These coordinate matches cannot identify actual ancestors.</p>
+      <div id="strict-four-progress" class="analysis-progress" role="group" aria-label="Strict four-way calculation progress">
+        <div class="analysis-progress-head"><span id="strict-four-progress-label" role="status">Waiting for earlier analyses…</span><output id="strict-four-progress-value" for="strict-four-progress-bar">0%</output></div>
+        <progress id="strict-four-progress-bar" max="100" value="0">0%</progress>
+      </div>
       <div id="grandparent-estimates" class="table-scroll mixture-scroll" tabindex="0" role="region" aria-label="Four-way mixture estimates table"></div>
     </section>
 
