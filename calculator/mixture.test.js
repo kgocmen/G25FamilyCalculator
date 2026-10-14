@@ -57,7 +57,7 @@ test("strict four-way search finds a balanced combination outside the shortlist"
   assert.ok(progress.every((value, index) => index === 0 || value >= progress[index - 1]));
 });
 
-test("strict four-way indexed search matches an exhaustive small-set ranking", () => {
+test("strict four-way indexed search matches exhaustive top 10 and top 100 rankings", () => {
   let seed = 42;
   const random = () => {
     seed = (1664525 * seed + 1013904223) >>> 0;
@@ -77,20 +77,24 @@ test("strict four-way indexed search matches an exhaustive small-set ranking", (
               references[c].values[k] + references[d].values[k]) / 4;
             square += (average - target.values[k]) ** 2;
           }
-          if (expected.length < 10 || square < expected[9]) {
+          if (expected.length < 100 || square < expected[99]) {
             expected.push(square);
             expected.sort((first, second) => first - second);
-            expected.length = Math.min(10, expected.length);
+            expected.length = Math.min(100, expected.length);
           }
         }
       }
     }
   }
-  const actual = estimateStrict(target, references).grandparents;
-  assert.equal(actual.length, 10);
-  actual.forEach((fit, index) => {
-    assert.ok(Math.abs((fit.distance / 100) ** 2 - expected[index]) < 1e-10);
-  });
+  for (const limit of [10, 100]) {
+    const result = estimateStrict(target, references, null, null, limit);
+    assert.equal(result.parents.length, limit);
+    assert.equal(result.grandparents.length, limit);
+    result.grandparents.forEach((fit, index) => {
+      assert.ok(Math.abs((fit.distance / 100) ** 2 - expected[index]) < 1e-10);
+    });
+  }
+  assert.throws(() => estimateStrict(target, references, null, null, 101), /1 to 100/);
 });
 
 test("relaxed two-way fit optimizes freely across modern and ancient references", () => {

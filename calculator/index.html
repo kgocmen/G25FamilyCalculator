@@ -118,14 +118,28 @@
     </section>
 
     <section id="parent-estimates-panel" class="panel matches-panel" aria-labelledby="parent-estimates-title" hidden>
-      <h2 id="parent-estimates-title">Strict 2-way fit · 50/50</h2>
-      <p class="panel-intro">Top 10 fits from distinct modern populations. Every pair is averaged equally.</p>
+      <div class="section-head">
+        <div>
+          <h2 id="parent-estimates-title">Strict 2-way fit · 50/50</h2>
+          <p class="panel-intro">Top fits from distinct modern populations. Every pair is averaged equally.</p>
+        </div>
+        <label class="result-count"><span>Show top <output id="strict-parent-count-value" for="strict-parent-count">10</output></span>
+          <input id="strict-parent-count" type="range" min="10" max="100" step="1" value="10" aria-label="Number of strict two-way fits to show">
+        </label>
+      </div>
       <div id="parent-estimates" class="table-scroll mixture-scroll" tabindex="0" role="region" aria-label="Two-way mixture estimates table"></div>
     </section>
 
     <section id="grandparent-estimates-panel" class="panel matches-panel" aria-labelledby="grandparent-estimates-title" hidden>
-      <h2 id="grandparent-estimates-title">Strict 4-way fit · 25% each</h2>
-      <p class="panel-intro">The top 10 fits from all four-population combinations of modern references, at exactly 25% each. An exact pair-sum search skips combinations that cannot beat the current top 10; this table may take longer to finish. These coordinate matches cannot identify actual ancestors.</p>
+      <div class="section-head">
+        <div>
+          <h2 id="grandparent-estimates-title">Strict 4-way fit · 25% each</h2>
+          <p class="panel-intro">Top fits from all four-population combinations of modern references, at exactly 25% each. An exact pair-sum search skips combinations that cannot beat the current top 100; this table may take longer to finish. These coordinate matches cannot identify actual ancestors.</p>
+        </div>
+        <label class="result-count"><span>Show top <output id="strict-grandparent-count-value" for="strict-grandparent-count">10</output></span>
+          <input id="strict-grandparent-count" type="range" min="10" max="100" step="1" value="10" aria-label="Number of strict four-way fits to show">
+        </label>
+      </div>
       <div id="strict-four-progress" class="analysis-progress" role="group" aria-label="Strict four-way calculation progress">
         <div class="analysis-progress-head"><span id="strict-four-progress-label" role="status">Waiting for earlier analyses…</span><output id="strict-four-progress-value" for="strict-four-progress-bar">0%</output></div>
         <progress id="strict-four-progress-bar" max="100" value="0">0%</progress>

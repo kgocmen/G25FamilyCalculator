@@ -98,7 +98,7 @@ function G25MixtureModule(root) {
     return [...selected].sort((a, b) => a - b);
   }
 
-  function bestGrandparents(rows, pairs) {
+  function bestGrandparents(rows, pairs, limit) {
     const pool = buildGrandparentPool(rows, pairs);
     if (pool.length < 4) return [];
     const dots = pool.map((id) => pool.map((other) => dot(rows[id].centered, rows[other].centered)));
@@ -111,12 +111,12 @@ function G25MixtureModule(root) {
               dots[a][a] + dots[b][b] + dots[c][c] + dots[d][d] +
               2 * (dots[a][b] + dots[a][c] + dots[a][d] + dots[b][c] + dots[b][d] + dots[c][d])
             ) / 16);
-            if (best.length < 10 || score < best[0].score) {
+            if (best.length < limit || score < best[0].score) {
               heapPush(best, {
                 ids: [pool[a], pool[b], pool[c], pool[d]],
                 weights: [0.25, 0.25, 0.25, 0.25],
                 score,
-              }, 10);
+              }, limit);
             }
           }
         }
@@ -135,7 +135,7 @@ function G25MixtureModule(root) {
     return square / 16;
   }
 
-  function exhaustiveGrandparents(rows, shortlist, onProgress) {
+  function exhaustiveGrandparents(rows, shortlist, onProgress, limit) {
     const n = rows.length;
     if (n < 4) return [];
     const best = [];
@@ -145,7 +145,7 @@ function G25MixtureModule(root) {
           for (let c = b + 1; c < n - 1; c += 1) {
             for (let d = c + 1; d < n; d += 1) {
               const ids = [a, b, c, d];
-              heapPush(best, { ids, weights: [0.25, 0.25, 0.25, 0.25], score: fourWayScore(rows, ids) }, 10);
+              heapPush(best, { ids, weights: [0.25, 0.25, 0.25, 0.25], score: fourWayScore(rows, ids) }, limit);
             }
           }
         }
@@ -154,10 +154,10 @@ function G25MixtureModule(root) {
       return sortFits(best);
     }
 
-    // A valid top 10 from the fast search gives an upper bound. Pair sums outside
+    // Valid leading fits from the fast search give an upper bound. Pair sums outside
     // that radius cannot improve it, so the spatial search can safely prune them.
     for (const fit of shortlist) {
-      heapPush(best, { ...fit, score: fourWayScore(rows, fit.ids) }, 10);
+      heapPush(best, { ...fit, score: fourWayScore(rows, fit.ids) }, limit);
     }
     const pairCount = n * (n - 1) / 2;
     const pairIds = new Uint32Array(pairCount);
@@ -256,7 +256,8 @@ function G25MixtureModule(root) {
         const firstPairId = i * n + j;
         while (stack.length) {
           const node = stack.pop();
-          if (lowerBound(node, 16 * best[0].score) >= 16 * best[0].score) continue;
+          const bound = best.length === limit ? 16 * best[0].score : Infinity;
+          if (lowerBound(node, bound) >= bound) continue;
           if (node.left) {
             stack.push(node.left, node.right);
             continue;
@@ -270,7 +271,7 @@ function G25MixtureModule(root) {
             const cc = vectors[c];
             const dd = vectors[d];
             let square = 0;
-            const threshold = 16 * best[0].score;
+            const threshold = best.length === limit ? 16 * best[0].score : Infinity;
             for (let k = 0; k < DIMENSIONS; k += 1) {
               const sum = a[k] + b[k] + cc[k] + dd[k];
               square += sum * sum;
@@ -280,7 +281,7 @@ function G25MixtureModule(root) {
             const ids = [i, j, c, d].sort((x, y) => x - y);
             if (best.some((fit) => fit.ids.every((id, k) => id === ids[k]))) continue;
             const score = square / 16;
-            heapPush(best, { ids, weights: [0.25, 0.25, 0.25, 0.25], score }, 10);
+            heapPush(best, { ids, weights: [0.25, 0.25, 0.25, 0.25], score }, limit);
           }
         }
       }
@@ -300,14 +301,15 @@ function G25MixtureModule(root) {
     };
   }
 
-  function estimateStrict(target, references, onParents, onProgress) {
+  function estimateStrict(target, references, onParents, onProgress, limit = 10) {
+    if (!Number.isInteger(limit) || limit < 1 || limit > 100) throw new Error("Choose 1 to 100 strict fits.");
     const rows = prepare(target, references);
-    const pairFits = bestPairs(rows, { fixed: 0.5, collectPool: true });
+    const pairFits = bestPairs(rows, { fixed: 0.5, limit, collectPool: true });
     const parents = pairFits.best.map((fit) => decorate(fit, rows));
     if (onParents) onParents(parents);
     if (onProgress) onProgress(0);
-    const shortlist = bestGrandparents(rows, pairFits.pool);
-    const grandparents = exhaustiveGrandparents(rows, shortlist, onProgress).map((fit) => decorate(fit, rows));
+    const shortlist = bestGrandparents(rows, pairFits.pool, limit);
+    const grandparents = exhaustiveGrandparents(rows, shortlist, onProgress, limit).map((fit) => decorate(fit, rows));
     if (onProgress) onProgress(100);
     return { parents, grandparents };
   }

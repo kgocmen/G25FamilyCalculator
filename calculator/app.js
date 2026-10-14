@@ -26,6 +26,8 @@
     output: "",
     metricLimit: 10,
     relaxedCount: 10,
+    strictParentCount: 10,
+    strictGrandparentCount: 10,
     male: false,
   };
 
@@ -38,6 +40,8 @@
   let mixtureRequest = 0;
   let relaxedFits = { modern: [], ancient: [] };
   let relaxedReady = { modern: false, ancient: false };
+  let strictFits = { parents: [], grandparents: [] };
+  let strictReady = { parents: false, grandparents: false };
 
   function cancelMixtures() {
     mixtureRequest += 1;
@@ -63,7 +67,7 @@
               send("strictProgress", { value });
               lastProgress = value;
             }
-          });
+          }, 100);
         send("strictGrandparents", { fits: strict.grandparents });
       } catch (error) {
         send("error", { message: error.message });
@@ -305,8 +309,14 @@
     cancelMixtures();
     relaxedFits = { modern: [], ancient: [] };
     relaxedReady = { modern: false, ancient: false };
+    strictFits = { parents: [], grandparents: [] };
+    strictReady = { parents: false, grandparents: false };
     $("#relaxed-count").value = String(state.relaxedCount);
     $("#relaxed-count-value").textContent = String(state.relaxedCount);
+    $("#strict-parent-count").value = String(state.strictParentCount);
+    $("#strict-parent-count-value").textContent = String(state.strictParentCount);
+    $("#strict-grandparent-count").value = String(state.strictGrandparentCount);
+    $("#strict-grandparent-count-value").textContent = String(state.strictGrandparentCount);
     preparedMatches = null;
     $("#single-row").replaceChildren(createRow("Sample", { type: "single" }, state.single, null));
     for (const selector of ["#metric-controls", "#difference-panel", "#ratio-panel", "#d3-panel"]) {
@@ -396,6 +406,16 @@
     }
   }
 
+  function renderStrictTable(kind) {
+    const parent = kind === "parents";
+    const count = parent ? state.strictParentCount : state.strictGrandparentCount;
+    $(parent ? "#strict-parent-count-value" : "#strict-grandparent-count-value").textContent = String(count);
+    if (strictReady[kind]) {
+      renderMixtureTable(parent ? "#parent-estimates" : "#grandparent-estimates",
+        strictFits[kind].slice(0, count), parent ? 2 : 4, parent ? "Parent" : "Grandparent");
+    }
+  }
+
   function startMixtures(target, modernReferences, allReferences, requestId) {
     const receive = ({ kind, fits, value, message }) => {
       if (requestId !== mixtureRequest || state.mode !== 1) return;
@@ -408,7 +428,9 @@
         else renderMixtureStatus("#parent-estimates", "Calculating strict two-way fits…");
       }
       if (kind === "strictParents") {
-        renderMixtureTable("#parent-estimates", fits, 2, "Parent");
+        strictFits.parents = fits;
+        strictReady.parents = true;
+        renderStrictTable("parents");
         renderMixtureStatus("#grandparent-estimates", "Building exact four-way search index…");
         updateStrictProgress(0, "Building exact four-way search index…");
       }
@@ -417,7 +439,9 @@
           ? "Building exact four-way search index…" : "Checking four-population combinations…");
       }
       if (kind === "strictGrandparents") {
-        renderMixtureTable("#grandparent-estimates", fits, 4, "Grandparent");
+        strictFits.grandparents = fits;
+        strictReady.grandparents = true;
+        renderStrictTable("grandparents");
         updateStrictProgress(100, "Complete");
       }
       if (kind === "error") {
@@ -641,6 +665,8 @@
     }
     state.metricLimit = 10;
     state.relaxedCount = 10;
+    state.strictParentCount = 10;
+    state.strictGrandparentCount = 10;
     state.male = false;
     render();
   });
@@ -654,6 +680,14 @@
   $("#relaxed-count").addEventListener("input", (event) => {
     state.relaxedCount = Number(event.currentTarget.value);
     renderRelaxedTable();
+  });
+  $("#strict-parent-count").addEventListener("input", (event) => {
+    state.strictParentCount = Number(event.currentTarget.value);
+    renderStrictTable("parents");
+  });
+  $("#strict-grandparent-count").addEventListener("input", (event) => {
+    state.strictGrandparentCount = Number(event.currentTarget.value);
+    renderStrictTable("grandparents");
   });
   $("#metric-limit").addEventListener("input", () => {
     state.metricLimit = Number($("#metric-limit").value);
