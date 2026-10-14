@@ -5,9 +5,13 @@
   const PARENT_PAIR_POOL = 500;
   const GRANDPARENT_POOL = 64;
   const GRANDPARENT_SCREEN = 3000;
+  const PARENT_MIN = 0.45;
+  const PARENT_MAX = 0.55;
+  const GRANDPARENT_MIN = 0.225;
+  const GRANDPARENT_MAX = 0.275;
   const FOUR_CORNERS = [
-    [0.2, 0.2, 0.3, 0.3], [0.2, 0.3, 0.2, 0.3], [0.2, 0.3, 0.3, 0.2],
-    [0.3, 0.2, 0.2, 0.3], [0.3, 0.2, 0.3, 0.2], [0.3, 0.3, 0.2, 0.2],
+    [0.225, 0.225, 0.275, 0.275], [0.225, 0.275, 0.225, 0.275], [0.225, 0.275, 0.275, 0.225],
+    [0.275, 0.225, 0.225, 0.275], [0.275, 0.225, 0.275, 0.225], [0.275, 0.275, 0.225, 0.225],
   ];
 
   function heapPush(heap, item, limit) {
@@ -69,7 +73,7 @@
         const cross = dot(a.centered, b.centered);
         const denominator = Math.max(0, a.norm + b.norm - 2 * cross);
         const weight = denominator < 1e-20 ? 0.5
-          : Math.max(0.4, Math.min(0.6, (b.norm - cross) / denominator));
+          : Math.max(PARENT_MIN, Math.min(PARENT_MAX, (b.norm - cross) / denominator));
         const score = Math.max(0, b.norm + 2 * weight * (cross - b.norm) + weight * weight * denominator);
         if (best.length < 10 || score < best[0].score) heapPush(best, { ids: [i, j], weights: [weight, 1 - weight], score }, 10);
         if (pool.length < PARENT_PAIR_POOL || score < pool[0].score) {
@@ -104,17 +108,17 @@
   }
 
   function projectWeights(values) {
-    let low = Math.min(...values) - 0.3;
-    let high = Math.max(...values) - 0.2;
+    let low = Math.min(...values) - GRANDPARENT_MAX;
+    let high = Math.max(...values) - GRANDPARENT_MIN;
     for (let iteration = 0; iteration < 32; iteration += 1) {
       const middle = (low + high) / 2;
       let sum = 0;
-      for (const value of values) sum += Math.max(0.2, Math.min(0.3, value - middle));
+      for (const value of values) sum += Math.max(GRANDPARENT_MIN, Math.min(GRANDPARENT_MAX, value - middle));
       if (sum > 1) low = middle;
       else high = middle;
     }
     const offset = (low + high) / 2;
-    return values.map((value) => Math.max(0.2, Math.min(0.3, value - offset)));
+    return values.map((value) => Math.max(GRANDPARENT_MIN, Math.min(GRANDPARENT_MAX, value - offset)));
   }
 
   function fitFour(gram) {

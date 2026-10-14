@@ -36,7 +36,7 @@
         <button class="mode-button" type="button" data-mode="16" aria-pressed="false">16 great-great-grandparents</button>
       </div>
       <div id="single-input" hidden>
-        <p class="selection-hint">Choose a population or paste one G25 row to see distances and possible two-way and four-way reference mixtures.</p>
+        <p class="selection-hint">Choose a population or paste one G25 row to compare it with modern reference populations.</p>
         <div id="single-row"></div>
       </div>
       <div id="family-inputs">
@@ -74,7 +74,7 @@
           <h2 id="matches-title">Closest populations</h2>
           <p id="matches-intro">Each list ranks all reference populations by genetic distance from its selected target. Distances use Euclidean G25 × 100.</p>
         </div>
-        <label class="match-filter">Reference set for all tables
+        <label id="match-filter" class="match-filter">Reference set for all tables
           <select id="match-category" aria-label="Comparison reference category">
             <option value="modern">Modern</option>
             <option value="ancient">Ancient</option>
@@ -95,13 +95,13 @@
 
     <section id="parent-estimates-panel" class="panel matches-panel" aria-labelledby="parent-estimates-title" hidden>
       <h2 id="parent-estimates-title">Parent estimates · 2-way</h2>
-      <p class="panel-intro">Top 10 fits from distinct reference populations. Each share is optimized between 40% and 60%; every pair in the selected reference set is checked.</p>
+      <p class="panel-intro">Top 10 fits from distinct modern populations. Shares are optimized within 45–55% around an equal 50/50 split; every pair is checked.</p>
       <div id="parent-estimates" class="table-scroll mixture-scroll" tabindex="0" role="region" aria-label="Two-way mixture estimates table"></div>
     </section>
 
     <section id="grandparent-estimates-panel" class="panel matches-panel" aria-labelledby="grandparent-estimates-title" hidden>
       <h2 id="grandparent-estimates-title">Grandparent estimates · 4-way</h2>
-      <p class="panel-intro">Top 10 fits found with four distinct populations, each contributing 20–30%. This faster search uses a shortlist built from nearby references and strong two-way fits, so it is not an exhaustive ranking. These mixtures are coordinate matches, not proof of actual ancestors.</p>
+      <p class="panel-intro">Top 10 fits found with four distinct modern populations, each contributing 22.5–27.5% around an equal 25% share. This faster search uses a shortlist built from nearby references and strong two-way fits, so it is not an exhaustive ranking. These mixtures are coordinate matches, not proof of actual ancestors.</p>
       <div id="grandparent-estimates" class="table-scroll mixture-scroll" tabindex="0" role="region" aria-label="Four-way mixture estimates table"></div>
     </section>
 

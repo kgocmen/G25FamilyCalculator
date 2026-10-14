@@ -152,6 +152,7 @@
     $("#result-panel").hidden = mode === 1;
     $("#calculated-matches-group").hidden = mode === 1;
     $("#matches-note").hidden = mode === 1;
+    $("#match-filter").hidden = mode === 1;
     $("#inputs-title").textContent = mode === 1 ? "G25 input" : "Family inputs";
     $("#inputs-intro").textContent = mode === 1
       ? "Choose a reference population or paste one G25 row."
@@ -255,9 +256,8 @@
     $("#parent-estimates-panel").hidden = !state.single || !references.length;
     $("#grandparent-estimates-panel").hidden = !state.single || !references.length;
     if (!state.single || !references.length) return;
-    $("#matches-intro").textContent = "Reference populations ranked by genetic distance from the input. Distances use Euclidean G25 × 100.";
-    const category = $("#match-category").value;
-    const candidates = category === "all" ? references : references.filter((row) => row[0] === category);
+    $("#matches-intro").textContent = "Modern reference populations ranked by genetic distance from the input. Distances use Euclidean G25 × 100.";
+    const candidates = references.filter((row) => row[0] === "modern");
     $("#actual-matches-title").textContent = `Up to 10 closest to ${state.single.label}`;
     renderMatchTable($("#actual-matches"), core.nearestMatches(state.single, candidates), { distanceKey: "distance" });
     renderMixtureStatus("#parent-estimates", "Calculating two-way fits…");

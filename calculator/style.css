@@ -51,6 +51,7 @@ p { margin: 0; }
 .comparison { margin-top: 12px; color: #365a72; font-size: 13px; }
 .method-note { margin-top: 12px; color: #718092; font-size: 12px; line-height: 1.5; }
 .match-filter { display: grid; gap: 5px; flex: 0 0 auto; color: #5b6d80; font-size: 12px; font-weight: 700; }
+.match-filter[hidden] { display: none; }
 .match-filter select { min-width: 120px; border: 1px solid #cbd8e2; border-radius: 8px; background: white; padding: 8px 10px; color: #14243b; }
 .match-group { min-width: 0; margin-top: 23px; }
 .match-group h3 { margin: 0 0 10px; font-size: 15px; }
