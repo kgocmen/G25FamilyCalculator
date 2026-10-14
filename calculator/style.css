@@ -52,17 +52,18 @@ p { margin: 0; }
 .method-note { margin-top: 12px; color: #718092; font-size: 12px; line-height: 1.5; }
 .match-filter { display: grid; gap: 5px; flex: 0 0 auto; color: #5b6d80; font-size: 12px; font-weight: 700; }
 .match-filter select { min-width: 120px; border: 1px solid #cbd8e2; border-radius: 8px; background: white; padding: 8px 10px; color: #14243b; }
-.match-group { margin-top: 23px; }
+.match-group { min-width: 0; margin-top: 23px; }
 .match-group h3 { margin: 0 0 10px; font-size: 15px; }
-.matches-panel { width: min(1480px, calc(100vw - 32px)); margin-left: 50%; transform: translateX(-50%); }
+.matches-panel { width: min(1480px, calc(100vw - 32px)); min-width: 0; margin-left: 50%; transform: translateX(-50%); }
 .panel-intro { color: #5b6d80; font-size: 13px; line-height: 1.5; }
 .metric-limit-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; }
 .metric-limit-heading .panel-intro { max-width: 900px; }
 #metric-limit-value { flex: 0 0 auto; padding: 8px 12px; border-radius: 9px; background: #e5f2f7; color: #075b75; font-variant-numeric: tabular-nums; font-weight: 800; }
 #metric-limit { display: block; width: 100%; margin: 20px 0 7px; accent-color: #176e8d; cursor: pointer; }
 .metric-limit-ends { display: flex; justify-content: space-between; gap: 12px; color: #607286; font-size: 12px; font-variant-numeric: tabular-nums; }
-.extreme-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
-.table-scroll { max-width: 100%; overflow-x: auto; border: 1px solid #dfe7ed; border-radius: 10px; }
+.extreme-grid { display: grid; min-width: 0; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.table-scroll { width: 100%; min-width: 0; max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; overscroll-behavior-inline: contain; border: 1px solid #dfe7ed; border-radius: 10px; }
+.table-scroll:focus-visible { outline: 3px solid #8dbbff; outline-offset: 2px; }
 .matches-table { width: 100%; border-collapse: collapse; font-size: 12px; font-variant-numeric: tabular-nums; }
 .matches-table th { background: #f3f7fa; color: #567187; text-align: left; font-weight: 750; }
 .matches-table th, .matches-table td { padding: 9px 10px; border-bottom: 1px solid #e9eef2; white-space: nowrap; }

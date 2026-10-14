@@ -15,39 +15,46 @@
     <header class="page-header">
       <div class="eyebrow">REFERENCE DATA FROM WORLD GENETICS</div>
       <h1>G25 Family Calculator</h1>
-      <p>Combine 2, 4, 8, or 16 ancestors. Add an offspring row to calculate the contribution of any missing ancestors.</p>
+      <p>Find the closest populations for one G25 row, or combine 2, 4, 8, or 16 ancestors to calculate family coordinates.</p>
     </header>
 
     <section class="panel input-panel" aria-labelledby="inputs-title">
       <div class="section-head">
         <div>
           <h2 id="inputs-title">Family inputs</h2>
-          <p>Choose a reference population or paste any G25 row for each person.</p>
+          <p id="inputs-intro">Choose a reference population or paste any G25 row for each person.</p>
         </div>
         <button id="clear-all" class="text-button" type="button">Clear all</button>
       </div>
 
-      <div class="mode-switch" role="group" aria-label="Ancestor generation">
+      <div class="mode-switch" role="group" aria-label="Calculator mode">
+        <button class="mode-button" type="button" data-mode="1" aria-pressed="false">1 input</button>
         <button class="mode-button active" type="button" data-mode="2" aria-pressed="true">2 parents</button>
         <button class="mode-button" type="button" data-mode="4" aria-pressed="false">4 grandparents</button>
         <button class="mode-button" type="button" data-mode="8" aria-pressed="false">8 great-grandparents</button>
         <button class="mode-button" type="button" data-mode="16" aria-pressed="false">16 great-great-grandparents</button>
       </div>
-      <label id="male-option" class="male-option">
-        <input id="male-toggle" type="checkbox">
-        <span>Male</span>
-        <small id="male-weight-note">Mother 50% · Father 50%</small>
-      </label>
-      <p id="selection-hint" class="selection-hint">Fill the offspring and every ancestor to compare any person.</p>
+      <div id="single-input" hidden>
+        <p class="selection-hint">Choose a population or paste one G25 row to see its closest reference populations.</p>
+        <div id="single-row"></div>
+      </div>
+      <div id="family-inputs">
+        <label id="male-option" class="male-option">
+          <input id="male-toggle" type="checkbox">
+          <span>Male</span>
+          <small id="male-weight-note">Mother 50% · Father 50%</small>
+        </label>
+        <p id="selection-hint" class="selection-hint">Fill the offspring and every ancestor to compare any person.</p>
 
-      <div class="group-label"><span>OFFSPRING</span><span>Optional when all ancestors are entered</span></div>
-      <div id="offspring-row"></div>
+        <div class="group-label"><span>OFFSPRING</span><span>Optional when all ancestors are entered</span></div>
+        <div id="offspring-row"></div>
 
-      <div class="group-label ancestor-label"><span id="generation-label">PARENTS</span><span>Fill all, or leave blanks with offspring supplied</span></div>
-      <div id="ancestor-rows" class="ancestor-rows"></div>
+        <div class="group-label ancestor-label"><span id="generation-label">PARENTS</span><span>Fill all, or leave blanks with offspring supplied</span></div>
+        <div id="ancestor-rows" class="ancestor-rows"></div>
+      </div>
     </section>
 
-    <section class="panel result-panel" aria-labelledby="result-title">
+    <section id="result-panel" class="panel result-panel" aria-labelledby="result-title">
       <div class="section-head">
         <div>
           <h2 id="result-title">Calculated G25 row</h2>
@@ -64,7 +71,7 @@
       <div class="section-head">
         <div>
           <h2 id="matches-title">Closest populations</h2>
-          <p>Each list ranks all reference populations by genetic distance from its selected target. Distances use Euclidean G25 × 100.</p>
+          <p id="matches-intro">Each list ranks all reference populations by genetic distance from its selected target. Distances use Euclidean G25 × 100.</p>
         </div>
         <label class="match-filter">Reference set for all tables
           <select id="match-category" aria-label="Comparison reference category">
@@ -76,13 +83,13 @@
       </div>
       <div class="match-group">
         <h3 id="actual-matches-title">Up to 10 closest to entered offspring</h3>
-        <div id="actual-matches" class="table-scroll"></div>
+        <div id="actual-matches" class="table-scroll" tabindex="0" role="region" aria-label="Closest populations table"></div>
       </div>
-      <div class="match-group">
+      <div id="calculated-matches-group" class="match-group">
         <h3 id="calculated-matches-title">Up to 10 closest to calculated offspring</h3>
-        <div id="calculated-matches" class="table-scroll"></div>
+        <div id="calculated-matches" class="table-scroll" tabindex="0" role="region" aria-label="Calculated closest populations table"></div>
       </div>
-      <p class="method-note">The calculated or entered target appears in the opposite list only if it ranks among that list's 10 closest candidates.</p>
+      <p id="matches-note" class="method-note">The calculated or entered target appears in the opposite list only if it ranks among that list's 10 closest candidates.</p>
     </section>
 
     <section id="metric-controls" class="panel matches-panel" aria-labelledby="metric-limit-title" hidden>
@@ -103,11 +110,11 @@
       <div class="extreme-grid">
         <div class="match-group">
           <h3>Up to 10 smallest differences</h3>
-          <div id="smallest-difference" class="table-scroll"></div>
+          <div id="smallest-difference" class="table-scroll" tabindex="0" role="region" aria-label="Smallest differences table"></div>
         </div>
         <div class="match-group">
           <h3>Up to 10 largest differences</h3>
-          <div id="largest-difference" class="table-scroll"></div>
+          <div id="largest-difference" class="table-scroll" tabindex="0" role="region" aria-label="Largest differences table"></div>
         </div>
       </div>
     </section>
@@ -118,11 +125,11 @@
       <div class="extreme-grid">
         <div class="match-group">
           <h3>Up to 10 smallest ratios</h3>
-          <div id="smallest-ratio" class="table-scroll"></div>
+          <div id="smallest-ratio" class="table-scroll" tabindex="0" role="region" aria-label="Smallest ratios table"></div>
         </div>
         <div class="match-group">
           <h3>Up to 10 largest ratios</h3>
-          <div id="largest-ratio" class="table-scroll"></div>
+          <div id="largest-ratio" class="table-scroll" tabindex="0" role="region" aria-label="Largest ratios table"></div>
         </div>
       </div>
     </section>
@@ -133,11 +140,11 @@
       <div class="extreme-grid">
         <div class="match-group">
           <h3>Up to 10 smallest D3 values</h3>
-          <div id="smallest-d3" class="table-scroll"></div>
+          <div id="smallest-d3" class="table-scroll" tabindex="0" role="region" aria-label="Smallest D3 values table"></div>
         </div>
         <div class="match-group">
           <h3>Up to 10 largest D3 values</h3>
-          <div id="largest-d3" class="table-scroll"></div>
+          <div id="largest-d3" class="table-scroll" tabindex="0" role="region" aria-label="Largest D3 values table"></div>
         </div>
       </div>
     </section>

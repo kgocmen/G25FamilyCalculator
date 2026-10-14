@@ -18,6 +18,7 @@
   const singular = { 2: "parent", 4: "grandparent", 8: "great_grandparent", 16: "great_great_grandparent" };
   const state = {
     mode: 2,
+    single: null,
     offspring: null,
     slots: { 2: Array(2).fill(null), 4: Array(4).fill(null), 8: Array(8).fill(null), 16: Array(16).fill(null) },
     selectedIndexByMode: { 2: null, 4: null, 8: null, 16: null },
@@ -46,7 +47,8 @@
   }
 
   function setTarget(item) {
-    if (state.pickerTarget.type === "offspring") state.offspring = item;
+    if (state.pickerTarget.type === "single") state.single = item;
+    else if (state.pickerTarget.type === "offspring") state.offspring = item;
     else state.slots[state.mode][state.pickerTarget.index] = item;
     picker.close();
     render();
@@ -54,8 +56,9 @@
 
   function openPicker(target, pasteFirst) {
     state.pickerTarget = target;
-    $("#picker-title").textContent = target.type === "offspring"
-      ? "Add offspring coordinates" : `Add ${names[state.mode][target.index].toLowerCase()}`;
+    $("#picker-title").textContent = target.type === "single" ? "Add sample coordinates"
+      : target.type === "offspring" ? "Add offspring coordinates"
+        : `Add ${names[state.mode][target.index].toLowerCase()}`;
     $("#reference-search").value = "";
     $("#reference-category").value = "all";
     $("#pasted-line").value = "";
@@ -119,7 +122,8 @@
     }
     if (item) {
       actions.append(makeButton("Clear", () => {
-        if (target.type === "offspring") state.offspring = null;
+        if (target.type === "single") state.single = null;
+        else if (target.type === "offspring") state.offspring = null;
         else state.slots[state.mode][target.index] = null;
         render();
       }));
@@ -130,6 +134,25 @@
 
   function render() {
     const mode = state.mode;
+    document.querySelectorAll(".mode-button").forEach((button) => {
+      const active = Number(button.dataset.mode) === mode;
+      button.classList.toggle("active", active);
+      button.setAttribute("aria-pressed", String(active));
+    });
+    $("#single-input").hidden = mode !== 1;
+    $("#family-inputs").hidden = mode === 1;
+    $("#result-panel").hidden = mode === 1;
+    $("#calculated-matches-group").hidden = mode === 1;
+    $("#matches-note").hidden = mode === 1;
+    $("#inputs-title").textContent = mode === 1 ? "G25 input" : "Family inputs";
+    $("#inputs-intro").textContent = mode === 1
+      ? "Choose a reference population or paste one G25 row."
+      : "Choose a reference population or paste any G25 row for each person.";
+    if (mode === 1) {
+      renderSingle();
+      return;
+    }
+    $("#matches-intro").textContent = "Each list ranks all reference populations by genetic distance from its selected target. Distances use Euclidean G25 × 100.";
     const ancestors = state.slots[mode];
     const male = mode === 2 && state.male;
     const weights = core.ancestorWeights(mode, male);
@@ -161,11 +184,6 @@
         { onCompare: complete ? () => select(index) : null, selected: complete && selectedIndex === index });
     }));
 
-    document.querySelectorAll(".mode-button").forEach((button) => {
-      const active = Number(button.dataset.mode) === mode;
-      button.classList.toggle("active", active);
-      button.setAttribute("aria-pressed", String(active));
-    });
     $("#male-option").hidden = mode !== 2;
     $("#male-toggle").checked = state.male;
     $("#male-weight-note").textContent = male ? "Mother 51% · Father 49%" : "Mother 50% · Father 50%";
@@ -189,7 +207,7 @@
     } else {
       message = `Fill all ${mode} ancestors to calculate offspring, or add offspring to calculate the missing contribution.`;
     }
-    if (!references.length) message = "No reference data found. Run build_calculator_data.py from the project folder.";
+    if (!references.length) message = "Reference data is unavailable. Reload the page.";
     $("#result-status").textContent = message;
     $("#result-line").value = output;
     $("#copy-result").disabled = !output;
@@ -213,6 +231,21 @@
           ? `Residual = offspring − ${1 / mode} × each known ancestor. With one blank, that ancestor's full inferred coordinates are ${mode} × residual.`
           : "The calculated offspring is the arithmetic average of all entered G25 ancestor rows.";
     renderMatches(targetComparison, selectedName);
+  }
+
+  function renderSingle() {
+    preparedMatches = null;
+    $("#single-row").replaceChildren(createRow("Sample", { type: "single" }, state.single, null));
+    for (const selector of ["#metric-controls", "#difference-panel", "#ratio-panel", "#d3-panel"]) {
+      $(selector).hidden = true;
+    }
+    $("#matches-panel").hidden = !state.single || !references.length;
+    if (!state.single || !references.length) return;
+    $("#matches-intro").textContent = "Reference populations ranked by genetic distance from the input. Distances use Euclidean G25 × 100.";
+    const category = $("#match-category").value;
+    const candidates = category === "all" ? references : references.filter((row) => row[0] === category);
+    $("#actual-matches-title").textContent = `Up to 10 closest to ${state.single.label}`;
+    renderMatchTable($("#actual-matches"), core.nearestMatches(state.single, candidates), { distanceKey: "distance" });
   }
 
   function renderMatches(targetComparison, selectedName) {
@@ -384,6 +417,7 @@
     button.addEventListener("click", () => { state.mode = Number(button.dataset.mode); render(); });
   });
   $("#clear-all").addEventListener("click", () => {
+    state.single = null;
     state.offspring = null;
     for (const mode of [2, 4, 8, 16]) {
       state.slots[mode].fill(null);

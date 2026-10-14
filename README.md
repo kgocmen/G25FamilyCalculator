@@ -2,7 +2,7 @@
 
 ## Family calculator
 
-Open [calculator/index.html](calculator/index.html) in a browser. It works offline and needs no installation. Choose **2 parents**, **4 grandparents**, **8 great-grandparents**, or **16 great-great-grandparents**, then use **Choose** to search the bundled reference populations or **Paste** to enter a custom G25 row.
+Open [calculator/index.html](calculator/index.html) in a browser. It works offline and needs no installation. Choose **1 input** to see the 10 closest reference populations and their Euclidean G25 distances for one G25 row. Or choose **2 parents**, **4 grandparents**, **8 great-grandparents**, or **16 great-great-grandparents** to calculate family coordinates. Use **Choose** to search the bundled reference populations or **Paste** to enter a custom G25 row. Tables scroll horizontally on narrow screens.
 
 Fill every ancestor slot to calculate an offspring average. Its output label joins the ancestor names with `+`. If offspring is also entered, click any person (or use **Compare**) to select a comparison target. Clicking the offspring compares its entered coordinates with the calculated offspring. Clicking an ancestor compares their entered coordinates with the estimate inferred from the offspring and all other ancestors (`N × offspring − sum(other ancestors)` with equal weights). The selected row is highlighted and the output G25 row and all tables update for that person.
 

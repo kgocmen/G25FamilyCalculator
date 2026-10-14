@@ -1,6 +1,6 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
-const { ancestorWeights, calculate, calculateComparison, closestMatches, formatLine, parseLine, prepareMatches, rankMatches, resultLabel } = require("./core.js");
+const { ancestorWeights, calculate, calculateComparison, closestMatches, formatLine, nearestMatches, parseLine, prepareMatches, rankMatches, resultLabel } = require("./core.js");
 
 function person(label, value) {
   return { label, values: Array(25).fill(value) };
@@ -98,6 +98,20 @@ test("pasted rows parse and copy as 25-coordinate G25 rows", () => {
   });
   assert.throws(() => parseLine("Sample,0.1,0.2"), /25 numbers/);
   assert.throws(() => parseLine(`Sample,${Array(24).fill("0").join(",")},oops`), /finite number/);
+});
+
+test("one input ranks references by Euclidean distance without a cutoff", () => {
+  const target = person("Sample", 0);
+  const references = [
+    { category: "modern", label: "Far", values: Array(25).fill(0.03) },
+    ["ancient", "Exact", ...Array(25).fill(0)],
+    { category: "modern", label: "Near", values: Array(25).fill(0.001) },
+  ];
+  const matches = nearestMatches(target, references, 2);
+  assert.deepEqual(matches.map((row) => row.label), ["Exact", "Near"]);
+  assert.equal(matches[0].distance, 0);
+  assert.ok(Math.abs(matches[1].distance - 0.5) < 1e-12);
+  assert.deepEqual(nearestMatches(target, references).map((row) => row.label), ["Exact", "Near", "Far"]);
 });
 
 test("both closest lists rank reference populations and can include the other offspring", () => {

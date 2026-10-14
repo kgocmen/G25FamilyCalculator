@@ -55,6 +55,16 @@
     return Math.hypot(...first.map((value, index) => value - second[index])) * 100;
   }
 
+  function nearestMatches(target, references, limit = 10) {
+    if (!target || !validateVector(target.values)) throw new Error("The target needs valid G25 coordinates.");
+    return references.map((row, index) => ({
+      id: index,
+      category: Array.isArray(row) ? row[0] : row.category,
+      label: Array.isArray(row) ? row[1] : row.label,
+      distance: distance(target.values, Array.isArray(row) ? row.slice(2) : row.values),
+    })).sort((a, b) => a.distance - b.distance || a.id - b.id).slice(0, limit);
+  }
+
   function prepareMatches(actual, calculated, references) {
     if (!validateVector(actual.values) || !validateVector(calculated.values)) {
       throw new Error("Both targets need valid G25 coordinates.");
@@ -189,7 +199,7 @@
     return [csvLabel, ...values.map(formatNumber)].join(",");
   }
 
-  const api = { ancestorWeights, calculate, calculateComparison, closestMatches, distance, formatLine, parseLine, prepareMatches, rankMatches, resultLabel };
+  const api = { ancestorWeights, calculate, calculateComparison, closestMatches, distance, formatLine, nearestMatches, parseLine, prepareMatches, rankMatches, resultLabel };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.G25Core = api;
 })(typeof window !== "undefined" ? window : globalThis);
