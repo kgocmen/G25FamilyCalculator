@@ -35,7 +35,7 @@
   let preparedSelectedName = "";
   let mixtureWorker = null;
   let mixtureRequest = 0;
-  let relaxedFits = [];
+  let relaxedFits = { modern: [], ancient: [] };
   let relaxedReady = false;
 
   function cancelMixtures() {
@@ -251,7 +251,7 @@
 
   function renderSingle() {
     cancelMixtures();
-    relaxedFits = [];
+    relaxedFits = { modern: [], ancient: [] };
     relaxedReady = false;
     $("#relaxed-count").value = String(state.relaxedCount);
     $("#relaxed-count-value").textContent = String(state.relaxedCount);
@@ -269,7 +269,7 @@
     const modernReferences = references.filter((row) => row[0] === "modern");
     $("#actual-matches-title").textContent = `Up to 10 closest to ${state.single.label}`;
     renderMatchTable($("#actual-matches"), core.nearestMatches(state.single, modernReferences), { distanceKey: "distance" });
-    renderMixtureStatus("#relaxed-estimates", "Calculating unsupervised fits…");
+    renderRelaxedStatus("Calculating unsupervised fits…");
     renderMixtureStatus("#parent-estimates", "Calculating strict two-way fits…");
     renderMixtureStatus("#grandparent-estimates", "Calculating strict four-way fits…");
     startMixtures(state.single, modernReferences, references, mixtureRequest);
@@ -282,7 +282,12 @@
     $(selector).replaceChildren(status);
   }
 
-  function renderMixtureTable(selector, fits, count, title, emptyMessage) {
+  function renderRelaxedStatus(message) {
+    renderMixtureStatus("#relaxed-modern", message);
+    renderMixtureStatus("#relaxed-ancient", message);
+  }
+
+  function renderMixtureTable(selector, fits, count, title, emptyMessage, showWeights = false) {
     const table = document.createElement("table");
     table.className = "matches-table mixture-table";
     const head = document.createElement("thead");
@@ -298,7 +303,8 @@
     fits.forEach((fit, index) => {
       const row = document.createElement("tr");
       const cells = [String(index + 1), ...fit.parts.map((part) =>
-        `${part.label} · ${part.category}`), fit.distance.toFixed(3)];
+        showWeights ? `${part.label} · ${(part.weight * 100).toFixed(1)}%`
+          : `${part.label} · ${part.category}`), fit.distance.toFixed(3)];
       for (const value of cells) {
         const cell = document.createElement("td");
         cell.textContent = value;
@@ -322,8 +328,10 @@
   function renderRelaxedTable() {
     $("#relaxed-count-value").textContent = String(state.relaxedCount);
     if (!relaxedReady) return;
-    renderMixtureTable("#relaxed-estimates", relaxedFits.slice(0, state.relaxedCount), 2, "Population",
-      "No two-reference fit with two contributing populations was found.");
+    for (const category of ["modern", "ancient"]) {
+      renderMixtureTable(`#relaxed-${category}`, relaxedFits[category].slice(0, state.relaxedCount), 2, "Population",
+        "No two-reference fit with two contributing populations was found.", true);
+    }
   }
 
   function startMixtures(target, modernReferences, allReferences, requestId) {
@@ -343,9 +351,9 @@
         const strict = window.G25Mixtures.estimateStrict(target, modernReferences,
           (fits) => receive("strictParents", fits));
         receive("strictGrandparents", strict.grandparents);
-        receive("relaxed", window.G25Mixtures.estimateRelaxed(target, allReferences, 100));
+        receive("relaxed", window.G25Mixtures.estimateRelaxedByCategory(target, allReferences, 100));
       } catch (error) {
-        renderMixtureStatus("#relaxed-estimates", error.message);
+        renderRelaxedStatus(error.message);
         renderMixtureStatus("#parent-estimates", error.message);
         renderMixtureStatus("#grandparent-estimates", error.message);
       }
@@ -356,7 +364,7 @@
       worker.onmessage = ({ data }) => {
         if (data.requestId !== mixtureRequest) return;
         if (data.kind === "error") {
-          renderMixtureStatus("#relaxed-estimates", data.message);
+          renderRelaxedStatus(data.message);
           renderMixtureStatus("#parent-estimates", data.message);
           renderMixtureStatus("#grandparent-estimates", data.message);
         } else receive(data.kind, data.fits);

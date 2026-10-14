@@ -96,14 +96,21 @@
     <section id="relaxed-estimates-panel" class="panel matches-panel" aria-labelledby="relaxed-estimates-title" hidden>
       <div class="section-head">
         <div>
-          <h2 id="relaxed-estimates-title">Unsupervised 2-way fit · modern + ancient</h2>
-          <p class="panel-intro">Every pair is tested, including modern–ancient pairs. Shares are chosen freely to minimize distance; pairs with a zero-share component are excluded.</p>
+          <h2 id="relaxed-estimates-title">Unsupervised 2-way fit</h2>
+          <p class="panel-intro">Modern and ancient references are fitted separately. Each pair's percentages are chosen freely to minimize distance; pairs with a zero-share component are excluded.</p>
         </div>
         <label class="result-count"><span>Show top <output id="relaxed-count-value" for="relaxed-count">10</output></span>
           <input id="relaxed-count" type="range" min="10" max="100" step="1" value="10" aria-label="Number of unsupervised fits to show">
         </label>
       </div>
-      <div id="relaxed-estimates" class="table-scroll mixture-scroll" tabindex="0" role="region" aria-label="Unsupervised two-way fit table"></div>
+      <div class="match-group">
+        <h3>Modern populations</h3>
+        <div id="relaxed-modern" class="table-scroll mixture-scroll" tabindex="0" role="region" aria-label="Modern unsupervised two-way fits"></div>
+      </div>
+      <div class="match-group">
+        <h3>Ancient populations</h3>
+        <div id="relaxed-ancient" class="table-scroll mixture-scroll" tabindex="0" role="region" aria-label="Ancient unsupervised two-way fits"></div>
+      </div>
     </section>
 
     <section id="parent-estimates-panel" class="panel matches-panel" aria-labelledby="parent-estimates-title" hidden>

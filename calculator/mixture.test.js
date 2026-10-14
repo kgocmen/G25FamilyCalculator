@@ -1,6 +1,6 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
-const { estimateStrict, estimateRelaxed } = require("./mixture.js");
+const { estimateStrict, estimateRelaxed, estimateRelaxedByCategory } = require("./mixture.js");
 
 function row(label, values, category = "modern") {
   return { category, label, values };
@@ -45,6 +45,27 @@ test("relaxed two-way fit optimizes freely across modern and ancient references"
   assert.ok(Math.abs(result[0].parts[0].weight - 0.6) < 1e-8);
   assert.ok(Math.abs(result[0].parts[1].weight - 0.4) < 1e-8);
   assert.equal(estimateRelaxed(row("Target", Array(25).fill(0.4)), references, 1).length, 1);
+});
+
+test("relaxed category tables keep modern and ancient pairs separate with optimized shares", () => {
+  const references = [
+    row("M0", Array(25).fill(0)),
+    row("M1", Array(25).fill(1)),
+    row("A0", Array(25).fill(-1), "ancient"),
+    row("A1", Array(25).fill(2), "ancient"),
+  ];
+  const { modern, ancient } = estimateRelaxedByCategory(row("Target", Array(25).fill(0.4)), references);
+  assert.equal(modern.length, 1);
+  assert.equal(ancient.length, 1);
+  assert.deepEqual(modern[0].parts.map((part) => part.label), ["M0", "M1"]);
+  assert.deepEqual(ancient[0].parts.map((part) => part.label), ["A0", "A1"]);
+  for (const fit of [modern[0], ancient[0]]) {
+    assert.ok(fit.distance < 1e-8);
+    assert.ok(Math.abs(fit.parts.reduce((sum, part) => sum + part.weight, 0) - 1) < 1e-8);
+    assert.ok(fit.parts.every((part) => part.weight > 0));
+  }
+  assert.ok(Math.abs(modern[0].parts[0].weight - 0.6) < 1e-8);
+  assert.ok(Math.abs(ancient[0].parts[0].weight - (1.6 / 3)) < 1e-8);
 });
 
 test("relaxed search excludes pairs whose best fit has a zero-share partner", () => {

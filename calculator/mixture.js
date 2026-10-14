@@ -149,7 +149,15 @@
     return bestPairs(rows, { limit }).best.map((fit) => decorate(fit, rows));
   }
 
-  const api = { estimateStrict, estimateRelaxed };
+  function estimateRelaxedByCategory(target, references, limit = 100) {
+    const categoryOf = (row) => Array.isArray(row) ? row[0] : row.category;
+    return {
+      modern: estimateRelaxed(target, references.filter((row) => categoryOf(row) === "modern"), limit),
+      ancient: estimateRelaxed(target, references.filter((row) => categoryOf(row) === "ancient"), limit),
+    };
+  }
+
+  const api = { estimateStrict, estimateRelaxed, estimateRelaxedByCategory };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.G25Mixtures = api;
 })(typeof window !== "undefined" ? window : globalThis);
