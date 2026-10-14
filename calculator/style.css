@@ -110,7 +110,7 @@ dialog::backdrop { background: rgba(13, 35, 54, .55); }
   .person-row { grid-template-columns: 1fr; gap: 7px; }
   .row-actions { justify-content: flex-start; margin-left: -5px; }
   .section-head { align-items: flex-start; }
-  #relaxed-estimates-panel .section-head, #parent-estimates-panel .section-head, #grandparent-estimates-panel .section-head { flex-wrap: wrap; }
+  #matches-panel .section-head, #relaxed-estimates-panel .section-head, #parent-estimates-panel .section-head, #grandparent-estimates-panel .section-head { flex-wrap: wrap; }
   .group-label span:last-child { text-align: right; }
   .matches-table { min-width: 680px; }
   .matches-table.closest-table { min-width: 420px; }

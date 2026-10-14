@@ -90,14 +90,14 @@
     return { actual, calculated, candidates, between, furthestDistance };
   }
 
-  function rankMatches(prepared, limit = 10, metricLimit = 10) {
+  function rankMatches(prepared, limit = 10, metricLimit = 10, closestLimit = limit) {
     if (!Number.isFinite(metricLimit) || metricLimit < 0) throw new Error("Choose a valid distance limit.");
     const { actual, calculated, candidates, between } = prepared;
     const metricCandidates = candidates.filter((row) => row.ac <= metricLimit && row.bc <= metricLimit);
     // The opposing target competes with every reference for a place in each closest list.
     const rank = (key, other) => [...candidates, other]
       .sort((a, b) => a[key] - b[key] || (a.category === "target" ? -1 : b.category === "target" ? 1 : a.id - b.id))
-      .slice(0, limit);
+      .slice(0, closestLimit);
     const extremes = (key, ascending) => metricCandidates
       .filter((row) => Number.isFinite(row[key]))
       .sort((a, b) => (ascending ? a[key] - b[key] : b[key] - a[key]) || a.id - b.id)

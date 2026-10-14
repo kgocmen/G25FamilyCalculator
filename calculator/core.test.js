@@ -242,3 +242,25 @@ test("closest lists have no cutoff while metric lists follow the adjustable AC a
     assert.deepEqual(new Set(furthestLists[key].map((row) => row.label)), new Set(references.map((row) => row.label)));
   }
 });
+
+test("closest lists can show 100 while difference, ratio, and D3 stay at 10", () => {
+  const actual = person("Actual", 0);
+  const calculated = person("Calculated", 0.02);
+  const references = Array.from({ length: 120 }, (_, index) => ({
+    category: "modern",
+    label: `R${index}`,
+    values: Array(25).fill(index * 0.0001),
+  }));
+  assert.equal(nearestMatches(actual, references, 100).length, 100);
+  const prepared = prepareMatches(actual, calculated, references);
+  const ranked = rankMatches(prepared, 10, 100, 100);
+  assert.equal(ranked.actual.length, 100);
+  assert.equal(ranked.calculated.length, 100);
+  for (const key of ["smallestDifference", "largestDifference", "smallestRatio", "largestRatio", "smallestD3", "largestD3"]) {
+    assert.equal(ranked[key].length, 10);
+  }
+  const filtered = rankMatches(prepared, 10, 0, 100);
+  assert.equal(filtered.actual.length, 100);
+  assert.equal(filtered.calculated.length, 100);
+  assert.deepEqual(filtered.smallestDifference, []);
+});

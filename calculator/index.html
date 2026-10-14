@@ -74,6 +74,9 @@
           <h2 id="matches-title">Closest populations</h2>
           <p id="matches-intro">Each list ranks all reference populations by genetic distance from its selected target. Distances use Euclidean G25 × 100.</p>
         </div>
+        <label class="result-count"><span>Show top <output id="closest-count-value" for="closest-count">10</output></span>
+          <input id="closest-count" type="range" min="10" max="100" step="1" value="10" aria-label="Number of closest populations to show">
+        </label>
         <label id="match-filter" class="match-filter">Reference set for all tables
           <select id="match-category" aria-label="Comparison reference category">
             <option value="modern">Modern</option>

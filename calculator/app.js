@@ -25,6 +25,7 @@
     pickerTarget: null,
     output: "",
     metricLimit: 10,
+    closestCount: 10,
     relaxedCount: 10,
     strictParentCount: 10,
     strictGrandparentCount: 10,
@@ -176,6 +177,8 @@
 
   function render() {
     const mode = state.mode;
+    $("#closest-count").value = String(state.closestCount);
+    $("#closest-count-value").textContent = String(state.closestCount);
     document.querySelectorAll(".mode-button").forEach((button) => {
       const active = Number(button.dataset.mode) === mode;
       button.classList.toggle("active", active);
@@ -330,18 +333,26 @@
     $("#matches-intro").textContent = "Modern and ancient reference populations ranked separately by genetic distance from the input. Distances use Euclidean G25 × 100.";
     const modernReferences = references.filter((row) => row[0] === "modern");
     const ancientReferences = references.filter((row) => row[0] === "ancient");
-    $("#actual-matches-title").textContent = `Up to 10 closest modern populations to ${state.single.label}`;
-    $("#single-ancient-matches-title").textContent = `Up to 10 closest ancient populations to ${state.single.label}`;
-    renderMatchTable($("#actual-matches"), core.nearestMatches(state.single, modernReferences),
-      { distanceKey: "distance", omitCategory: true });
-    renderMatchTable($("#single-ancient-matches"), core.nearestMatches(state.single, ancientReferences),
-      { distanceKey: "distance", omitCategory: true });
+    renderSingleClosestTables(modernReferences, ancientReferences);
     renderMixtureStatus("#relaxed-modern", "Calculating unsupervised modern fits…");
     renderMixtureStatus("#relaxed-ancient", "Waiting for modern fits…");
     renderMixtureStatus("#parent-estimates", "Waiting for unsupervised fits…");
     renderMixtureStatus("#grandparent-estimates", "Waiting for earlier analyses…");
     updateStrictProgress(0, "Waiting for earlier analyses…");
     startMixtures(state.single, modernReferences, references, mixtureRequest);
+  }
+
+  function renderSingleClosestTables(
+    modernReferences = references.filter((row) => row[0] === "modern"),
+    ancientReferences = references.filter((row) => row[0] === "ancient"),
+  ) {
+    if (!state.single || !references.length) return;
+    $("#actual-matches-title").textContent = `Up to ${state.closestCount} closest modern populations to ${state.single.label}`;
+    $("#single-ancient-matches-title").textContent = `Up to ${state.closestCount} closest ancient populations to ${state.single.label}`;
+    renderMatchTable($("#actual-matches"), core.nearestMatches(state.single, modernReferences, state.closestCount),
+      { distanceKey: "distance", omitCategory: true });
+    renderMatchTable($("#single-ancient-matches"), core.nearestMatches(state.single, ancientReferences, state.closestCount),
+      { distanceKey: "distance", omitCategory: true });
   }
 
   function renderMixtureStatus(selector, message) {
@@ -512,10 +523,11 @@
     if (!preparedMatches) return;
     const metricLimit = Number($("#metric-limit").value);
     $("#metric-limit-value").textContent = metricLimit.toFixed(3);
-    const lists = core.rankMatches(preparedMatches, 10, metricLimit);
+    const lists = core.rankMatches(preparedMatches, 10, metricLimit, state.closestCount);
     const selectedName = preparedSelectedName;
-    $("#actual-matches-title").textContent = `Up to 10 closest to entered ${selectedName}`;
-    $("#calculated-matches-title").textContent = `Up to 10 closest to calculated ${selectedName}`;
+    $("#actual-matches-title").textContent = `Up to ${state.closestCount} closest to entered ${selectedName}`;
+    $("#calculated-matches-title").textContent = `Up to ${state.closestCount} closest to calculated ${selectedName}`;
+    $("#matches-note").textContent = `The calculated or entered target appears in the opposite list only if it ranks among that list's ${state.closestCount} closest candidates.`;
     renderMatchTable($("#actual-matches"), lists.actual, { otherTargetName: `calculated ${selectedName}`, distanceKey: "ac" });
     renderMatchTable($("#calculated-matches"), lists.calculated, { otherTargetName: `entered ${selectedName}`, distanceKey: "bc" });
     const emptyMessage = `No entries have both AC and BC at or below ${metricLimit.toFixed(3)} in this reference set.`;
@@ -665,6 +677,7 @@
       state.selectedIndexByMode[mode] = null;
     }
     state.metricLimit = 10;
+    state.closestCount = 10;
     state.relaxedCount = 10;
     state.strictParentCount = 10;
     state.strictGrandparentCount = 10;
@@ -678,6 +691,12 @@
   $("#reference-search").addEventListener("input", renderReferences);
   $("#reference-category").addEventListener("change", renderReferences);
   $("#match-category").addEventListener("change", render);
+  $("#closest-count").addEventListener("input", (event) => {
+    state.closestCount = Number(event.currentTarget.value);
+    $("#closest-count-value").textContent = String(state.closestCount);
+    if (state.mode === 1) renderSingleClosestTables();
+    else renderRankedMatches();
+  });
   $("#relaxed-count").addEventListener("input", (event) => {
     state.relaxedCount = Number(event.currentTarget.value);
     renderRelaxedTable();
