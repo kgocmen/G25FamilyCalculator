@@ -348,10 +348,10 @@
     const fallback = () => window.setTimeout(() => {
       if (requestId !== mixtureRequest || state.mode !== 1) return;
       try {
+        receive("relaxed", window.G25Mixtures.estimateRelaxedByCategory(target, allReferences, 100));
         const strict = window.G25Mixtures.estimateStrict(target, modernReferences,
           (fits) => receive("strictParents", fits));
         receive("strictGrandparents", strict.grandparents);
-        receive("relaxed", window.G25Mixtures.estimateRelaxedByCategory(target, allReferences, 100));
       } catch (error) {
         renderRelaxedStatus(error.message);
         renderMixtureStatus("#parent-estimates", error.message);
@@ -368,7 +368,7 @@
           renderMixtureStatus("#parent-estimates", data.message);
           renderMixtureStatus("#grandparent-estimates", data.message);
         } else receive(data.kind, data.fits);
-        if (data.kind === "relaxed" || data.kind === "error") {
+        if (data.kind === "strictGrandparents" || data.kind === "error") {
           worker.terminate();
           if (mixtureWorker === worker) mixtureWorker = null;
         }

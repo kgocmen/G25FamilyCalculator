@@ -33,6 +33,60 @@ test("strict four-way fit uses exactly 25% per distinct reference", () => {
   assert.deepEqual(result.grandparents[0].parts.map((part) => part.weight), [0.25, 0.25, 0.25, 0.25]);
 });
 
+test("strict four-way search finds a balanced combination outside the shortlist", () => {
+  const decoys = Array.from({ length: 70 }, (_, index) => {
+    const values = Array(25).fill(0);
+    values[0] = 0.01 + index * 0.00001;
+    return row(`Nearby ${index}`, values);
+  });
+  const balanced = [[1, 0], [0, 1], [-0.7, -0.2], [-0.3, -0.8]].map((coordinates, index) =>
+    row(`Balanced ${index}`, [...coordinates, ...Array(23).fill(0)]));
+  const result = estimateStrict(row("Target", Array(25).fill(0)), [...decoys, ...balanced]);
+  assert.equal(result.grandparents.length, 10);
+  assert.ok(result.grandparents[0].distance < 1e-8);
+  assert.deepEqual(result.grandparents[0].parts.map((part) => part.label),
+    ["Balanced 0", "Balanced 1", "Balanced 2", "Balanced 3"]);
+  for (let index = 1; index < result.grandparents.length; index += 1) {
+    assert.ok(result.grandparents[index].distance >= result.grandparents[index - 1].distance - 1e-8);
+  }
+});
+
+test("strict four-way indexed search matches an exhaustive small-set ranking", () => {
+  let seed = 42;
+  const random = () => {
+    seed = (1664525 * seed + 1013904223) >>> 0;
+    return seed / 0x100000000;
+  };
+  const references = Array.from({ length: 65 }, (_, index) =>
+    row(`R${index}`, [...Array.from({ length: 5 }, () => random() - 0.5), ...Array(20).fill(0)]));
+  const target = row("Target", [0.04, -0.08, 0.02, -0.03, 0.05, ...Array(20).fill(0)]);
+  const expected = [];
+  for (let a = 0; a < 62; a += 1) {
+    for (let b = a + 1; b < 63; b += 1) {
+      for (let c = b + 1; c < 64; c += 1) {
+        for (let d = c + 1; d < 65; d += 1) {
+          let square = 0;
+          for (let k = 0; k < 5; k += 1) {
+            const average = (references[a].values[k] + references[b].values[k] +
+              references[c].values[k] + references[d].values[k]) / 4;
+            square += (average - target.values[k]) ** 2;
+          }
+          if (expected.length < 10 || square < expected[9]) {
+            expected.push(square);
+            expected.sort((first, second) => first - second);
+            expected.length = Math.min(10, expected.length);
+          }
+        }
+      }
+    }
+  }
+  const actual = estimateStrict(target, references).grandparents;
+  assert.equal(actual.length, 10);
+  actual.forEach((fit, index) => {
+    assert.ok(Math.abs((fit.distance / 100) ** 2 - expected[index]) < 1e-10);
+  });
+});
+
 test("relaxed two-way fit optimizes freely across modern and ancient references", () => {
   const references = [
     row("Modern", Array(25).fill(0)),

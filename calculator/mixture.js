@@ -125,6 +125,167 @@
     return sortFits(best);
   }
 
+  function fourWayScore(rows, ids) {
+    let square = 0;
+    for (let k = 0; k < DIMENSIONS; k += 1) {
+      const sum = rows[ids[0]].centered[k] + rows[ids[1]].centered[k] +
+        rows[ids[2]].centered[k] + rows[ids[3]].centered[k];
+      square += sum * sum;
+    }
+    return square / 16;
+  }
+
+  function exhaustiveGrandparents(rows, shortlist) {
+    const n = rows.length;
+    if (n < 4) return [];
+    const best = [];
+    if (n <= 64) {
+      for (let a = 0; a < n - 3; a += 1) {
+        for (let b = a + 1; b < n - 2; b += 1) {
+          for (let c = b + 1; c < n - 1; c += 1) {
+            for (let d = c + 1; d < n; d += 1) {
+              const ids = [a, b, c, d];
+              heapPush(best, { ids, weights: [0.25, 0.25, 0.25, 0.25], score: fourWayScore(rows, ids) }, 10);
+            }
+          }
+        }
+      }
+      return sortFits(best);
+    }
+
+    // A valid top 10 from the fast search gives an upper bound. Pair sums outside
+    // that radius cannot improve it, so the spatial search can safely prune them.
+    for (const fit of shortlist) {
+      heapPush(best, { ...fit, score: fourWayScore(rows, fit.ids) }, 10);
+    }
+    const pairCount = n * (n - 1) / 2;
+    const pairIds = new Uint32Array(pairCount);
+    let next = 0;
+    for (let i = 0; i < n; i += 1) {
+      for (let j = i + 1; j < n; j += 1) pairIds[next++] = i * n + j;
+    }
+    const vectors = rows.map((row) => row.centered);
+    const pairCoordinate = (id, k) => {
+      const first = Math.floor(id / n);
+      return vectors[first][k] + vectors[id - first * n][k];
+    };
+    const leafSize = 64;
+
+    function pairBounds(lo, hi) {
+      const min = new Float64Array(DIMENSIONS).fill(Infinity);
+      const max = new Float64Array(DIMENSIONS).fill(-Infinity);
+      for (let at = lo; at < hi; at += 1) {
+        const id = pairIds[at];
+        const first = Math.floor(id / n);
+        const a = vectors[first];
+        const b = vectors[id - first * n];
+        for (let k = 0; k < DIMENSIONS; k += 1) {
+          const value = a[k] + b[k];
+          if (value < min[k]) min[k] = value;
+          if (value > max[k]) max[k] = value;
+        }
+      }
+      return { min, max };
+    }
+
+    function buildIndex(lo, hi, depth) {
+      if (hi - lo <= leafSize) return { lo, hi, ...pairBounds(lo, hi) };
+      let axis = depth % DIMENSIONS;
+      let leftEnd = lo;
+      for (let attempt = 0; attempt < DIMENSIONS; attempt += 1) {
+        axis = (depth + attempt) % DIMENSIONS;
+        let minimum = Infinity;
+        let maximum = -Infinity;
+        for (let at = lo; at < hi; at += 1) {
+          const value = pairCoordinate(pairIds[at], axis);
+          if (value < minimum) minimum = value;
+          if (value > maximum) maximum = value;
+        }
+        if (minimum === maximum) continue;
+        const middle = (minimum + maximum) / 2;
+        let low = lo;
+        let high = hi - 1;
+        while (low <= high) {
+          while (low <= high && pairCoordinate(pairIds[low], axis) < middle) low += 1;
+          while (low <= high && pairCoordinate(pairIds[high], axis) >= middle) high -= 1;
+          if (low < high) {
+            [pairIds[low], pairIds[high]] = [pairIds[high], pairIds[low]];
+            low += 1;
+            high -= 1;
+          }
+        }
+        leftEnd = low;
+        if (leftEnd > lo && leftEnd < hi) break;
+      }
+      if (leftEnd <= lo || leftEnd >= hi) return { lo, hi, ...pairBounds(lo, hi) };
+      const left = buildIndex(lo, leftEnd, depth + 1);
+      const right = buildIndex(leftEnd, hi, depth + 1);
+      const min = new Float64Array(DIMENSIONS);
+      const max = new Float64Array(DIMENSIONS);
+      for (let k = 0; k < DIMENSIONS; k += 1) {
+        min[k] = Math.min(left.min[k], right.min[k]);
+        max[k] = Math.max(left.max[k], right.max[k]);
+      }
+      return { lo, hi, min, max, left, right };
+    }
+
+    const root = buildIndex(0, pairCount, 0);
+    const query = new Float64Array(DIMENSIONS);
+    const stack = [];
+    function lowerBound(node, threshold) {
+      let square = 0;
+      for (let k = 0; k < DIMENSIONS; k += 1) {
+        const value = query[k];
+        const difference = value < node.min[k] ? node.min[k] - value
+          : value > node.max[k] ? value - node.max[k] : 0;
+        square += difference * difference;
+        if (square >= threshold) break;
+      }
+      return square;
+    }
+
+    for (let i = 0; i < n; i += 1) {
+      for (let j = i + 1; j < n; j += 1) {
+        const a = vectors[i];
+        const b = vectors[j];
+        for (let k = 0; k < DIMENSIONS; k += 1) query[k] = -a[k] - b[k];
+        stack.length = 0;
+        stack.push(root);
+        const firstPairId = i * n + j;
+        while (stack.length) {
+          const node = stack.pop();
+          if (lowerBound(node, 16 * best[0].score) >= 16 * best[0].score) continue;
+          if (node.left) {
+            stack.push(node.left, node.right);
+            continue;
+          }
+          for (let at = node.lo; at < node.hi; at += 1) {
+            const secondPairId = pairIds[at];
+            if (secondPairId <= firstPairId) continue;
+            const c = Math.floor(secondPairId / n);
+            const d = secondPairId - c * n;
+            if (i === c || i === d || j === c || j === d) continue;
+            const cc = vectors[c];
+            const dd = vectors[d];
+            let square = 0;
+            const threshold = 16 * best[0].score;
+            for (let k = 0; k < DIMENSIONS; k += 1) {
+              const sum = a[k] + b[k] + cc[k] + dd[k];
+              square += sum * sum;
+              if (square >= threshold) break;
+            }
+            if (square >= threshold) continue;
+            const ids = [i, j, c, d].sort((x, y) => x - y);
+            if (best.some((fit) => fit.ids.every((id, k) => id === ids[k]))) continue;
+            const score = square / 16;
+            heapPush(best, { ids, weights: [0.25, 0.25, 0.25, 0.25], score }, 10);
+          }
+        }
+      }
+    }
+    return sortFits(best);
+  }
+
   function decorate(fit, rows) {
     return {
       distance: Math.sqrt(fit.score) * 100,
@@ -139,7 +300,8 @@
     const pairFits = bestPairs(rows, { fixed: 0.5, collectPool: true });
     const parents = pairFits.best.map((fit) => decorate(fit, rows));
     if (onParents) onParents(parents);
-    const grandparents = bestGrandparents(rows, pairFits.pool).map((fit) => decorate(fit, rows));
+    const shortlist = bestGrandparents(rows, pairFits.pool);
+    const grandparents = exhaustiveGrandparents(rows, shortlist).map((fit) => decorate(fit, rows));
     return { parents, grandparents };
   }
 
