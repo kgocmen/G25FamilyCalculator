@@ -294,12 +294,17 @@ function G25MixtureModule(root) {
     return sortFits(best);
   }
 
-  function decorate(fit, rows) {
+  function decorate(fit, rows, closestFirst = false) {
+    const components = fit.ids.map((id, index) => ({ id, weight: fit.weights[index] }));
+    if (closestFirst) {
+      components.sort((a, b) => rows[a.id].norm - rows[b.id].norm ||
+        (rows[a.id].sourceId ?? a.id) - (rows[b.id].sourceId ?? b.id));
+    }
     return {
       distance: Math.sqrt(fit.score) * 100,
-      parts: fit.ids.map((id, index) => ({
+      parts: components.map(({ id, weight }) => ({
         id: rows[id].sourceId ?? id, label: rows[id].label,
-        category: rows[id].category, weight: fit.weights[index],
+        category: rows[id].category, weight,
       })),
     };
   }
@@ -308,11 +313,12 @@ function G25MixtureModule(root) {
     if (!Number.isInteger(limit) || limit < 1 || limit > 100) throw new Error("Choose 1 to 100 strict fits.");
     const rows = prepare(target, references, true);
     const pairFits = bestPairs(rows, { fixed: 0.5, limit, collectPool: true });
-    const parents = pairFits.best.map((fit) => decorate(fit, rows));
+    const parents = pairFits.best.map((fit) => decorate(fit, rows, true));
     if (onParents) onParents(parents);
     if (onProgress) onProgress(0);
     const shortlist = bestGrandparents(rows, pairFits.pool, limit);
-    const grandparents = exhaustiveGrandparents(rows, shortlist, onProgress, limit).map((fit) => decorate(fit, rows));
+    const grandparents = exhaustiveGrandparents(rows, shortlist, onProgress, limit)
+      .map((fit) => decorate(fit, rows, true));
     if (onProgress) onProgress(100);
     return { parents, grandparents };
   }

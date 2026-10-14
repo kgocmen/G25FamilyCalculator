@@ -55,6 +55,26 @@ test("strict fits exclude every reference identical to the target, preserving ot
   assert.deepEqual(estimateStrict(target, [references[0]]), { parents: [], grandparents: [] });
 });
 
+test("strict fit columns put individually closest populations first", () => {
+  const targetTwo = row("Target", Array(25).fill(0));
+  const two = estimateStrict(targetTwo, [
+    row("A", [2, ...Array(24).fill(0)]),
+    row("B", [-1, ...Array(24).fill(0)]),
+  ]);
+  assert.deepEqual(two.parents[0].parts.map((part) => part.label), ["B", "A"]);
+
+  const references = [
+    row("A", [4, 0, 0, 0, ...Array(21).fill(0)]),
+    row("B", [0, 1, 0, 0, ...Array(21).fill(0)]),
+    row("C", [0, 0, 3, 0, ...Array(21).fill(0)]),
+    row("D", [0, 0, 0, 2, ...Array(21).fill(0)]),
+  ];
+  const four = estimateStrict(row("Target", [1, 0.25, 0.75, 0.5, ...Array(21).fill(0)]), references);
+  assert.equal(four.grandparents[0].distance, 0);
+  assert.deepEqual(four.grandparents[0].parts.map((part) => part.label), ["B", "D", "C", "A"]);
+  assert.deepEqual(four.grandparents[0].parts.map((part) => part.weight), [0.25, 0.25, 0.25, 0.25]);
+});
+
 test("strict four-way fit uses exactly 25% per slot", () => {
   const references = Array.from({ length: 4 }, (_, index) => {
     const values = Array(25).fill(0);
@@ -83,7 +103,7 @@ test("strict four-way search finds a balanced combination outside the shortlist"
   assert.equal(result.grandparents.length, 10);
   assert.ok(result.grandparents[0].distance < 1e-8);
   assert.deepEqual(result.grandparents[0].parts.map((part) => part.label),
-    ["Balanced 0", "Balanced 1", "Balanced 2", "Balanced 3"]);
+    ["Balanced 2", "Balanced 3", "Balanced 0", "Balanced 1"]);
   for (let index = 1; index < result.grandparents.length; index += 1) {
     assert.ok(result.grandparents[index].distance >= result.grandparents[index - 1].distance - 1e-8);
   }
@@ -188,6 +208,12 @@ test("fit rankings use unique combinations and increasing distance", () => {
     for (let index = 0; index < fits.length; index += 1) {
       const fit = fits[index];
       if (fits === relaxed) assert.equal(new Set(fit.parts.map((part) => part.id)).size, fit.parts.length);
+      else {
+        const squaredDistances = fit.parts.map((part) =>
+          references[part.id].values.reduce((sum, value, coordinate) =>
+            sum + (value - target.values[coordinate]) ** 2, 0));
+        assert.deepEqual(squaredDistances, [...squaredDistances].sort((a, b) => a - b));
+      }
       if (index) assert.ok(fit.distance >= fits[index - 1].distance - 1e-8);
     }
     assert.equal(new Set(fits.map((fit) => fit.parts.map((part) => part.id).join(","))).size, fits.length);
