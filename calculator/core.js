@@ -164,6 +164,17 @@
       ? `-${weights[index]}*${ancestor.label}` : "").join("");
   }
 
+  function missingAncestorLabel(offspring, ancestors, male = false) {
+    const missing = ancestors.map((ancestor, index) => ancestor ? -1 : index).filter((index) => index >= 0);
+    if (!offspring || missing.length !== 1) throw new Error("Fill the offspring and leave exactly one ancestor blank.");
+    const weights = ancestorWeights(ancestors.length, male);
+    if (weights.every((weight) => weight === weights[0])) {
+      return `${ancestors.length}*${offspring.label}${ancestors.filter(Boolean)
+        .map((ancestor) => `-${ancestor.label}`).join("")}`;
+    }
+    return `(${resultLabel(offspring, ancestors, male)})/${weights[missing[0]]}`;
+  }
+
   function calculateComparison(offspring, ancestors, selectedIndex = null, male = false) {
     if (!offspring || ancestors.some((ancestor) => !ancestor)) {
       throw new Error("Fill the offspring and every ancestor before comparing a selected person.");
@@ -179,11 +190,7 @@
     const others = [...ancestors];
     others[selectedIndex] = null;
     const inferred = calculate(offspring, others, male).inferred;
-    const weights = ancestorWeights(ancestors.length, male);
-    const label = (ancestors.length === 2 || ancestors.length === 4) && male
-      ? `(${resultLabel(offspring, others, male)})/${weights[selectedIndex]}`
-      : `${ancestors.length}*${offspring.label}${others.filter(Boolean)
-        .map((ancestor) => `-${ancestor.label}`).join("")}`;
+    const label = missingAncestorLabel(offspring, others, male);
     const calculated = { label, values: inferred };
     return { actual: ancestors[selectedIndex], calculated, distance: distance(ancestors[selectedIndex].values, inferred) };
   }
@@ -200,7 +207,7 @@
     return [csvLabel, ...values.map(formatNumber)].join(",");
   }
 
-  const api = { ancestorWeights, calculate, calculateComparison, closestMatches, distance, formatLine, nearestMatches, parseLine, prepareMatches, rankMatches, resultLabel };
+  const api = { ancestorWeights, calculate, calculateComparison, closestMatches, distance, formatLine, missingAncestorLabel, nearestMatches, parseLine, prepareMatches, rankMatches, resultLabel };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.G25Core = api;
 })(typeof window !== "undefined" ? window : globalThis);

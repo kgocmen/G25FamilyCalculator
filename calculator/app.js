@@ -244,16 +244,23 @@
       output = core.formatLine(core.resultLabel(state.offspring, ancestors, male), result.values);
     } else if (result.kind === "residual") {
       const count = result.missing.length;
-      message = count === 1
-        ? `Residual contribution calculated. The missing ${singular[mode].replaceAll("_", " ")} also has a full inferred row in its slot.`
-        : `Combined contribution of ${count} missing ancestors calculated. Individual missing coordinates cannot be determined.`;
-      output = core.formatLine(core.resultLabel(state.offspring, ancestors, male), result.values);
+      if (count === 1) {
+        const missingIndex = result.missing[0];
+        message = `Full coordinates for the missing ${names[mode][missingIndex].toLowerCase()} calculated. They are also available in its slot.`;
+        output = core.formatLine(core.missingAncestorLabel(state.offspring, ancestors, male), result.inferred);
+      } else {
+        message = `Combined contribution of ${count} missing ancestors calculated. Individual missing coordinates cannot be determined.`;
+        output = core.formatLine(core.resultLabel(state.offspring, ancestors, male), result.values);
+      }
     } else if (state.offspring) {
       message = "Add ancestors to subtract their contribution from the offspring.";
     } else {
       message = `Fill all ${mode} ancestors to calculate offspring, or add offspring to calculate the missing contribution.`;
     }
     if (!references.length) message = "Reference data is unavailable. Reload the page.";
+    $("#result-title").textContent = result.kind === "residual" && result.missing.length === 1
+      ? `Calculated missing ${singular[mode].replaceAll("_", " ")}`
+      : result.kind === "residual" ? "Combined missing contribution" : "Calculated G25 row";
     $("#result-status").textContent = message;
     $("#result-line").value = output;
     $("#copy-result").disabled = !output;
@@ -266,7 +273,12 @@
     }
 
     let methodNote;
-    if (male && targetComparison && selectedIndex !== null) {
+    if (result.kind === "residual" && result.missing.length === 1) {
+      const missingIndex = result.missing[0];
+      methodNote = male
+        ? `Calculated ${names[mode][missingIndex].toLowerCase()} = (offspring − each known ancestor's weighted contribution) / ${weights[missingIndex]}.`
+        : `Calculated ${names[mode][missingIndex].toLowerCase()} = ${mode} × offspring − the other ${mode - 1} ancestors.`;
+    } else if (male && targetComparison && selectedIndex !== null) {
       const otherContributions = names[mode]
         .map((name, index) => index === selectedIndex ? null : `${weights[index]} × ${name.toLowerCase()}`)
         .filter(Boolean).join(" − ");

@@ -1,6 +1,6 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
-const { ancestorWeights, calculate, calculateComparison, closestMatches, formatLine, nearestMatches, parseLine, prepareMatches, rankMatches, resultLabel } = require("./core.js");
+const { ancestorWeights, calculate, calculateComparison, closestMatches, formatLine, missingAncestorLabel, nearestMatches, parseLine, prepareMatches, rankMatches, resultLabel } = require("./core.js");
 
 function person(label, value) {
   return { label, values: Array(25).fill(value) };
@@ -21,6 +21,8 @@ for (const count of [2, 4, 8, 16]) {
     assert.deepEqual(recovered.missing, [count - 1]);
     assert.deepEqual(recovered.inferred, ancestors[count - 1].values);
     assert.deepEqual(recovered.values, Array(25).fill(count / count));
+    assert.equal(missingAncestorLabel(person("Child", expected), withGap),
+      `${count}*Child${ancestors.slice(0, -1).map((ancestor) => `-${ancestor.label}`).join("")}`);
 
     withGap[0] = null;
     const combined = calculate(person("Child", expected), withGap);
@@ -57,6 +59,7 @@ test("male weighting applies to the two-parent calculation and its inverse", () 
   assert.ok(Math.abs(missingFather.inferred[0] - 20) < 1e-12);
   assert.equal(resultLabel(child, [mother, null], true), "Child-0.51*Mother");
   assert.equal(resultLabel(child, [null, father], true), "Child-0.49*Father");
+  assert.equal(missingAncestorLabel(child, [mother, null], true), "(Child-0.51*Mother)/0.49");
 
   const motherComparison = calculateComparison(child, [mother, father], 0, true);
   const fatherComparison = calculateComparison(child, [mother, father], 1, true);
@@ -85,6 +88,7 @@ test("male weighting gives maternal grandparents 25.5% and paternal grandparents
     assert.ok(Math.abs(comparison.calculated.values[0] - ancestors[index].values[0]) < 1e-12);
     assert.equal(comparison.calculated.label,
       `(${resultLabel(child, withGap, true)})/${ancestorWeights(4, true)[index]}`);
+    assert.equal(missingAncestorLabel(child, withGap, true), comparison.calculated.label);
   }
 
   const twoMissing = calculate(child, [ancestors[0], null, null, ancestors[3]], true);
