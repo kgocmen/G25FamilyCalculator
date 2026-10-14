@@ -23,17 +23,36 @@ test("strict two-way fit uses exactly 50/50", () => {
 
 test("strict fits can reuse one reference in multiple slots", () => {
   const a = row("A", Array(25).fill(0));
-  const onlyA = estimateStrict(a, [a]);
+  const onlyA = estimateStrict(row("Target", [0.1, ...Array(24).fill(0)]), [a]);
   assert.deepEqual(onlyA.parents[0].parts.map((part) => part.id), [0, 0]);
   assert.deepEqual(onlyA.grandparents[0].parts.map((part) => part.id), [0, 0, 0, 0]);
-  assert.equal(onlyA.parents[0].distance, 0);
-  assert.equal(onlyA.grandparents[0].distance, 0);
+  assert.ok(onlyA.parents[0].distance > 0);
+  assert.ok(onlyA.grandparents[0].distance > 0);
 
   const references = [a, row("B", [1, ...Array(24).fill(0)]),
     row("C", [0, 1, ...Array(23).fill(0)])];
   const repeated = estimateStrict(row("Target", [0.25, 0.25, ...Array(23).fill(0)]), references);
   assert.ok(repeated.grandparents[0].distance < 1e-8);
   assert.deepEqual(repeated.grandparents[0].parts.map((part) => part.label), ["A", "A", "B", "C"]);
+});
+
+test("strict fits exclude every reference identical to the target, preserving other reference IDs", () => {
+  const target = row("Target", Array(25).fill(0));
+  const references = [
+    row("Exact", Array(25).fill(0)),
+    row("Positive", [1, ...Array(24).fill(0)]),
+    row("Negative", [-1, ...Array(24).fill(0)]),
+    row("Close", [1e-9, ...Array(24).fill(0)]),
+    row("Exact copy", Array(25).fill(0)),
+  ];
+  const result = estimateStrict(target, references);
+  for (const fit of [...result.parents, ...result.grandparents]) {
+    assert.ok(fit.parts.every((part) => part.id !== 0 && part.id !== 4));
+  }
+  assert.deepEqual(result.parents[0].parts.map((part) => part.id), [1, 2]);
+  assert.deepEqual(result.grandparents[0].parts.map((part) => part.id), [1, 1, 2, 2]);
+  assert.ok(result.parents.some((fit) => fit.parts.some((part) => part.id === 3)));
+  assert.deepEqual(estimateStrict(target, [references[0]]), { parents: [], grandparents: [] });
 });
 
 test("strict four-way fit uses exactly 25% per slot", () => {

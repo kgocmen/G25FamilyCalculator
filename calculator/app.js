@@ -413,7 +413,7 @@
     if (strictReady[kind]) {
       renderMixtureTable(parent ? "#parent-estimates" : "#grandparent-estimates",
         strictFits[kind].slice(0, count), parent ? 2 : 4, parent ? "Parent" : "Grandparent",
-        "At least one modern reference is needed for a strict fit.");
+        "No eligible modern references remain after excluding exact matches to the input.");
     }
   }
 

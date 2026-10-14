@@ -121,7 +121,7 @@
       <div class="section-head">
         <div>
           <h2 id="parent-estimates-title">Strict 2-way fit · 50/50</h2>
-          <p class="panel-intro">Top fits from modern references. Both 50% slots may use the same population.</p>
+          <p class="panel-intro">Top fits from modern references. Both 50% slots may use the same population. References identical to the input are excluded.</p>
         </div>
         <label class="result-count"><span>Show top <output id="strict-parent-count-value" for="strict-parent-count">10</output></span>
           <input id="strict-parent-count" type="range" min="10" max="100" step="1" value="10" aria-label="Number of strict two-way fits to show">
@@ -134,7 +134,7 @@
       <div class="section-head">
         <div>
           <h2 id="grandparent-estimates-title">Strict 4-way fit · 25% each</h2>
-          <p class="panel-intro">Top fits from all four-slot combinations of modern references, at exactly 25% each. A population may appear more than once. An exact pair-sum search skips combinations that cannot beat the current top 100; this table may take longer to finish. These coordinate matches cannot identify actual ancestors.</p>
+          <p class="panel-intro">Top fits from all four-slot combinations of modern references, at exactly 25% each. A population may appear more than once, but references identical to the input are excluded. An exact pair-sum search skips combinations that cannot beat the current top 100; this table may take longer to finish. These coordinate matches cannot identify actual ancestors.</p>
         </div>
         <label class="result-count"><span>Show top <output id="strict-grandparent-count-value" for="strict-grandparent-count">10</output></span>
           <input id="strict-grandparent-count" type="range" min="10" max="100" step="1" value="10" aria-label="Number of strict four-way fits to show">

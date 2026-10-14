@@ -35,10 +35,10 @@ function G25MixtureModule(root) {
     return total;
   }
 
-  function prepare(target, references) {
+  function prepare(target, references, excludeIdentical = false) {
     if (!target || !Array.isArray(target.values) || target.values.length !== DIMENSIONS ||
       !target.values.every(Number.isFinite)) throw new Error("The input needs 25 finite G25 coordinates.");
-    return references.map((row, id) => {
+    const rows = references.map((row, id) => {
       const values = Array.isArray(row) ? row.slice(2) : row.values;
       if (!Array.isArray(values) || values.length !== DIMENSIONS || !values.every(Number.isFinite)) {
         throw new Error("A reference has invalid G25 coordinates.");
@@ -52,6 +52,9 @@ function G25MixtureModule(root) {
         norm: dot(centered, centered),
       };
     });
+    if (!excludeIdentical) return rows;
+    return rows.filter((row) => row.centered.some((value) => value !== 0))
+      .map((row, id) => ({ ...row, id, sourceId: row.id }));
   }
 
   function sortFits(fits) {
@@ -295,14 +298,15 @@ function G25MixtureModule(root) {
     return {
       distance: Math.sqrt(fit.score) * 100,
       parts: fit.ids.map((id, index) => ({
-        id, label: rows[id].label, category: rows[id].category, weight: fit.weights[index],
+        id: rows[id].sourceId ?? id, label: rows[id].label,
+        category: rows[id].category, weight: fit.weights[index],
       })),
     };
   }
 
   function estimateStrict(target, references, onParents, onProgress, limit = 10) {
     if (!Number.isInteger(limit) || limit < 1 || limit > 100) throw new Error("Choose 1 to 100 strict fits.");
-    const rows = prepare(target, references);
+    const rows = prepare(target, references, true);
     const pairFits = bestPairs(rows, { fixed: 0.5, limit, collectPool: true });
     const parents = pairFits.best.map((fit) => decorate(fit, rows));
     if (onParents) onParents(parents);
