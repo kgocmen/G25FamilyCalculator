@@ -36,7 +36,7 @@
         <button class="mode-button" type="button" data-mode="16" aria-pressed="false">16 great-great-grandparents</button>
       </div>
       <div id="single-input" hidden>
-        <p class="selection-hint">Choose a population or paste one G25 row to compare it with modern reference populations.</p>
+        <p class="selection-hint">Choose a population or paste one G25 row to compare it with reference populations.</p>
         <div id="single-row"></div>
       </div>
       <div id="family-inputs">
@@ -93,15 +93,28 @@
       <p id="matches-note" class="method-note">The calculated or entered target appears in the opposite list only if it ranks among that list's 10 closest candidates.</p>
     </section>
 
+    <section id="relaxed-estimates-panel" class="panel matches-panel" aria-labelledby="relaxed-estimates-title" hidden>
+      <div class="section-head">
+        <div>
+          <h2 id="relaxed-estimates-title">Unsupervised 2-way fit · modern + ancient</h2>
+          <p class="panel-intro">Every pair is tested, including modern–ancient pairs. Shares are chosen freely to minimize distance; pairs with a zero-share component are excluded.</p>
+        </div>
+        <label class="result-count"><span>Show top <output id="relaxed-count-value" for="relaxed-count">10</output></span>
+          <input id="relaxed-count" type="range" min="10" max="100" step="1" value="10" aria-label="Number of unsupervised fits to show">
+        </label>
+      </div>
+      <div id="relaxed-estimates" class="table-scroll mixture-scroll" tabindex="0" role="region" aria-label="Unsupervised two-way fit table"></div>
+    </section>
+
     <section id="parent-estimates-panel" class="panel matches-panel" aria-labelledby="parent-estimates-title" hidden>
-      <h2 id="parent-estimates-title">Parent estimates · 2-way</h2>
-      <p class="panel-intro">Top 10 fits from distinct modern populations. Shares are optimized within 45–55% around an equal 50/50 split; every pair is checked.</p>
+      <h2 id="parent-estimates-title">Strict 2-way fit · 50/50</h2>
+      <p class="panel-intro">Top 10 fits from distinct modern populations. Every pair is averaged equally.</p>
       <div id="parent-estimates" class="table-scroll mixture-scroll" tabindex="0" role="region" aria-label="Two-way mixture estimates table"></div>
     </section>
 
     <section id="grandparent-estimates-panel" class="panel matches-panel" aria-labelledby="grandparent-estimates-title" hidden>
-      <h2 id="grandparent-estimates-title">Grandparent estimates · 4-way</h2>
-      <p class="panel-intro">Top 10 fits found with four distinct modern populations, each contributing 22.5–27.5% around an equal 25% share. This faster search uses a shortlist built from nearby references and strong two-way fits, so it is not an exhaustive ranking. These mixtures are coordinate matches, not proof of actual ancestors.</p>
+      <h2 id="grandparent-estimates-title">Strict 4-way fit · 25% each</h2>
+      <p class="panel-intro">Top 10 fits found with four distinct modern populations. The faster four-way search uses a shortlist of nearby references and strong strict two-way fits, so it is not exhaustive. These coordinate matches cannot identify actual ancestors.</p>
       <div id="grandparent-estimates" class="table-scroll mixture-scroll" tabindex="0" role="region" aria-label="Four-way mixture estimates table"></div>
     </section>
 

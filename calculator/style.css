@@ -77,6 +77,9 @@ p { margin: 0; }
 .matches-table .target-row { background: #edf9f5; }
 .matches-table .target-row td:nth-child(2) { font-weight: 750; color: #15745e; }
 .mixture-scroll { margin-top: 15px; }
+.result-count { display: grid; gap: 8px; flex: 0 0 180px; color: #365a72; font-size: 13px; font-weight: 700; }
+.result-count input { width: 100%; margin: 0; accent-color: #176e8d; }
+.result-count output { font-variant-numeric: tabular-nums; }
 .matches-table.mixture-table th:nth-child(n+2), .matches-table.mixture-table td:nth-child(n+2) { min-width: 210px; text-align: left; white-space: normal; overflow-wrap: anywhere; }
 .matches-table.mixture-table th:last-child, .matches-table.mixture-table td:last-child { min-width: 175px; text-align: right; white-space: nowrap; }
 .matches-table.mixture-table th:first-child, .matches-table.mixture-table td:first-child { min-width: 36px; }
@@ -103,6 +106,7 @@ dialog::backdrop { background: rgba(13, 35, 54, .55); }
   .person-row { grid-template-columns: 1fr; gap: 7px; }
   .row-actions { justify-content: flex-start; margin-left: -5px; }
   .section-head { align-items: flex-start; }
+  #relaxed-estimates-panel .section-head { flex-wrap: wrap; }
   .group-label span:last-child { text-align: right; }
   .matches-table { min-width: 680px; }
   .matches-table.closest-table { min-width: 420px; }

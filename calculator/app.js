@@ -25,6 +25,7 @@
     pickerTarget: null,
     output: "",
     metricLimit: 10,
+    relaxedCount: 10,
     male: false,
   };
 
@@ -34,6 +35,8 @@
   let preparedSelectedName = "";
   let mixtureWorker = null;
   let mixtureRequest = 0;
+  let relaxedFits = [];
+  let relaxedReady = false;
 
   function cancelMixtures() {
     mixtureRequest += 1;
@@ -162,6 +165,7 @@
       return;
     }
     cancelMixtures();
+    $("#relaxed-estimates-panel").hidden = true;
     $("#parent-estimates-panel").hidden = true;
     $("#grandparent-estimates-panel").hidden = true;
     $("#matches-intro").textContent = "Each list ranks all reference populations by genetic distance from its selected target. Distances use Euclidean G25 × 100.";
@@ -247,22 +251,28 @@
 
   function renderSingle() {
     cancelMixtures();
+    relaxedFits = [];
+    relaxedReady = false;
+    $("#relaxed-count").value = String(state.relaxedCount);
+    $("#relaxed-count-value").textContent = String(state.relaxedCount);
     preparedMatches = null;
     $("#single-row").replaceChildren(createRow("Sample", { type: "single" }, state.single, null));
     for (const selector of ["#metric-controls", "#difference-panel", "#ratio-panel", "#d3-panel"]) {
       $(selector).hidden = true;
     }
     $("#matches-panel").hidden = !state.single || !references.length;
+    $("#relaxed-estimates-panel").hidden = !state.single || !references.length;
     $("#parent-estimates-panel").hidden = !state.single || !references.length;
     $("#grandparent-estimates-panel").hidden = !state.single || !references.length;
     if (!state.single || !references.length) return;
     $("#matches-intro").textContent = "Modern reference populations ranked by genetic distance from the input. Distances use Euclidean G25 × 100.";
-    const candidates = references.filter((row) => row[0] === "modern");
+    const modernReferences = references.filter((row) => row[0] === "modern");
     $("#actual-matches-title").textContent = `Up to 10 closest to ${state.single.label}`;
-    renderMatchTable($("#actual-matches"), core.nearestMatches(state.single, candidates), { distanceKey: "distance" });
-    renderMixtureStatus("#parent-estimates", "Calculating two-way fits…");
-    renderMixtureStatus("#grandparent-estimates", "Calculating four-way fits…");
-    startMixtures(state.single, candidates, mixtureRequest);
+    renderMatchTable($("#actual-matches"), core.nearestMatches(state.single, modernReferences), { distanceKey: "distance" });
+    renderMixtureStatus("#relaxed-estimates", "Calculating unsupervised fits…");
+    renderMixtureStatus("#parent-estimates", "Calculating strict two-way fits…");
+    renderMixtureStatus("#grandparent-estimates", "Calculating strict four-way fits…");
+    startMixtures(state.single, modernReferences, references, mixtureRequest);
   }
 
   function renderMixtureStatus(selector, message) {
@@ -272,12 +282,11 @@
     $(selector).replaceChildren(status);
   }
 
-  function renderMixtureTable(selector, fits, count) {
+  function renderMixtureTable(selector, fits, count, title, emptyMessage) {
     const table = document.createElement("table");
     table.className = "matches-table mixture-table";
     const head = document.createElement("thead");
     const heading = document.createElement("tr");
-    const title = count === 2 ? "Parent" : "Grandparent";
     for (const label of ["#", ...Array.from({ length: count }, (_, index) => `${title} ${index + 1}`), "Genetic distance (Euclidean)"]) {
       const cell = document.createElement("th");
       cell.textContent = label;
@@ -289,7 +298,7 @@
     fits.forEach((fit, index) => {
       const row = document.createElement("tr");
       const cells = [String(index + 1), ...fit.parts.map((part) =>
-        `${part.label} · ${part.category} (${(part.weight * 100).toFixed(1)}%)`), fit.distance.toFixed(3)];
+        `${part.label} · ${part.category}`), fit.distance.toFixed(3)];
       for (const value of cells) {
         const cell = document.createElement("td");
         cell.textContent = value;
@@ -302,7 +311,7 @@
       const cell = document.createElement("td");
       cell.colSpan = count + 2;
       cell.className = "empty-matches";
-      cell.textContent = `At least ${count} distinct references are needed in this set.`;
+      cell.textContent = emptyMessage || `At least ${count} distinct references are needed in this set.`;
       row.append(cell);
       body.append(row);
     }
@@ -310,18 +319,33 @@
     $(selector).replaceChildren(table);
   }
 
-  function startMixtures(target, candidates, requestId) {
+  function renderRelaxedTable() {
+    $("#relaxed-count-value").textContent = String(state.relaxedCount);
+    if (!relaxedReady) return;
+    renderMixtureTable("#relaxed-estimates", relaxedFits.slice(0, state.relaxedCount), 2, "Population",
+      "No two-reference fit with two contributing populations was found.");
+  }
+
+  function startMixtures(target, modernReferences, allReferences, requestId) {
     const receive = (kind, fits) => {
       if (requestId !== mixtureRequest || state.mode !== 1) return;
-      if (kind === "parents") renderMixtureTable("#parent-estimates", fits, 2);
-      if (kind === "grandparents") renderMixtureTable("#grandparent-estimates", fits, 4);
+      if (kind === "strictParents") renderMixtureTable("#parent-estimates", fits, 2, "Parent");
+      if (kind === "strictGrandparents") renderMixtureTable("#grandparent-estimates", fits, 4, "Grandparent");
+      if (kind === "relaxed") {
+        relaxedFits = fits;
+        relaxedReady = true;
+        renderRelaxedTable();
+      }
     };
     const fallback = () => window.setTimeout(() => {
       if (requestId !== mixtureRequest || state.mode !== 1) return;
       try {
-        const result = window.G25Mixtures.estimate(target, candidates, (fits) => receive("parents", fits));
-        receive("grandparents", result.grandparents);
+        const strict = window.G25Mixtures.estimateStrict(target, modernReferences,
+          (fits) => receive("strictParents", fits));
+        receive("strictGrandparents", strict.grandparents);
+        receive("relaxed", window.G25Mixtures.estimateRelaxed(target, allReferences, 100));
       } catch (error) {
+        renderMixtureStatus("#relaxed-estimates", error.message);
         renderMixtureStatus("#parent-estimates", error.message);
         renderMixtureStatus("#grandparent-estimates", error.message);
       }
@@ -332,10 +356,11 @@
       worker.onmessage = ({ data }) => {
         if (data.requestId !== mixtureRequest) return;
         if (data.kind === "error") {
+          renderMixtureStatus("#relaxed-estimates", data.message);
           renderMixtureStatus("#parent-estimates", data.message);
           renderMixtureStatus("#grandparent-estimates", data.message);
         } else receive(data.kind, data.fits);
-        if (data.kind === "grandparents" || data.kind === "error") {
+        if (data.kind === "relaxed" || data.kind === "error") {
           worker.terminate();
           if (mixtureWorker === worker) mixtureWorker = null;
         }
@@ -346,7 +371,7 @@
         mixtureWorker = null;
         fallback();
       };
-      worker.postMessage({ requestId, target, references: candidates });
+      worker.postMessage({ requestId, target, modernReferences, references: allReferences });
     } catch (_error) {
       if (mixtureWorker) mixtureWorker.terminate();
       mixtureWorker = null;
@@ -530,6 +555,7 @@
       state.selectedIndexByMode[mode] = null;
     }
     state.metricLimit = 10;
+    state.relaxedCount = 10;
     state.male = false;
     render();
   });
@@ -540,6 +566,10 @@
   $("#reference-search").addEventListener("input", renderReferences);
   $("#reference-category").addEventListener("change", renderReferences);
   $("#match-category").addEventListener("change", render);
+  $("#relaxed-count").addEventListener("input", (event) => {
+    state.relaxedCount = Number(event.currentTarget.value);
+    renderRelaxedTable();
+  });
   $("#metric-limit").addEventListener("input", () => {
     state.metricLimit = Number($("#metric-limit").value);
     renderRankedMatches();

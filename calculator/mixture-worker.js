@@ -1,12 +1,14 @@
 importScripts("mixture.js");
 
 self.onmessage = ({ data }) => {
-  const { requestId, target, references } = data;
+  const { requestId, target, modernReferences, references } = data;
   try {
-    const result = self.G25Mixtures.estimate(target, references, (fits) => {
-      self.postMessage({ requestId, kind: "parents", fits });
+    const strict = self.G25Mixtures.estimateStrict(target, modernReferences, (fits) => {
+      self.postMessage({ requestId, kind: "strictParents", fits });
     });
-    self.postMessage({ requestId, kind: "grandparents", fits: result.grandparents });
+    self.postMessage({ requestId, kind: "strictGrandparents", fits: strict.grandparents });
+    const relaxed = self.G25Mixtures.estimateRelaxed(target, references, 100);
+    self.postMessage({ requestId, kind: "relaxed", fits: relaxed });
   } catch (error) {
     self.postMessage({ requestId, kind: "error", message: error.message });
   }

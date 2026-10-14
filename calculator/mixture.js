@@ -2,17 +2,8 @@
   "use strict";
 
   const DIMENSIONS = 25;
-  const PARENT_PAIR_POOL = 500;
   const GRANDPARENT_POOL = 64;
-  const GRANDPARENT_SCREEN = 3000;
-  const PARENT_MIN = 0.45;
-  const PARENT_MAX = 0.55;
-  const GRANDPARENT_MIN = 0.225;
-  const GRANDPARENT_MAX = 0.275;
-  const FOUR_CORNERS = [
-    [0.225, 0.225, 0.275, 0.275], [0.225, 0.275, 0.225, 0.275], [0.225, 0.275, 0.275, 0.225],
-    [0.275, 0.225, 0.225, 0.275], [0.275, 0.225, 0.275, 0.225], [0.275, 0.275, 0.225, 0.225],
-  ];
+  const PAIR_POOL = 500;
 
   function heapPush(heap, item, limit) {
     if (heap.length < limit) {
@@ -63,7 +54,11 @@
     });
   }
 
-  function bestPairs(rows) {
+  function sortFits(fits) {
+    return fits.sort((a, b) => a.score - b.score || a.ids[0] - b.ids[0] || a.ids[1] - b.ids[1]);
+  }
+
+  function bestPairs(rows, { fixed = null, limit = 10, collectPool = false } = {}) {
     const best = [];
     const pool = [];
     for (let i = 0; i < rows.length; i += 1) {
@@ -72,19 +67,23 @@
         const b = rows[j];
         const cross = dot(a.centered, b.centered);
         const denominator = Math.max(0, a.norm + b.norm - 2 * cross);
-        const weight = denominator < 1e-20 ? 0.5
-          : Math.max(PARENT_MIN, Math.min(PARENT_MAX, (b.norm - cross) / denominator));
+        let weight = fixed;
+        if (weight === null) {
+          if (denominator < 1e-20) continue;
+          weight = (b.norm - cross) / denominator;
+          // An endpoint is a one-reference fit, not a two-way mixture.
+          if (weight <= 1e-8 || weight >= 1 - 1e-8) continue;
+        }
         const score = Math.max(0, b.norm + 2 * weight * (cross - b.norm) + weight * weight * denominator);
-        if (best.length < 10 || score < best[0].score) heapPush(best, { ids: [i, j], weights: [weight, 1 - weight], score }, 10);
-        if (pool.length < PARENT_PAIR_POOL || score < pool[0].score) {
-          heapPush(pool, { ids: [i, j], score }, PARENT_PAIR_POOL);
+        if (best.length < limit || score < best[0].score) {
+          heapPush(best, { ids: [i, j], weights: [weight, 1 - weight], score }, limit);
+        }
+        if (collectPool && (pool.length < PAIR_POOL || score < pool[0].score)) {
+          heapPush(pool, { ids: [i, j], score }, PAIR_POOL);
         }
       }
     }
-    return {
-      best: best.sort((a, b) => a.score - b.score || a.ids[0] - b.ids[0] || a.ids[1] - b.ids[1]),
-      pool: pool.sort((a, b) => a.score - b.score || a.ids[0] - b.ids[0] || a.ids[1] - b.ids[1]),
-    };
+    return { best: sortFits(best), pool: sortFits(pool) };
   }
 
   function buildGrandparentPool(rows, pairs) {
@@ -99,74 +98,31 @@
     return [...selected].sort((a, b) => a - b);
   }
 
-  function scoreWeights(gram, weights) {
-    let score = 0;
-    for (let i = 0; i < 4; i += 1) {
-      for (let j = 0; j < 4; j += 1) score += weights[i] * weights[j] * gram[i][j];
-    }
-    return Math.max(0, score);
-  }
-
-  function projectWeights(values) {
-    let low = Math.min(...values) - GRANDPARENT_MAX;
-    let high = Math.max(...values) - GRANDPARENT_MIN;
-    for (let iteration = 0; iteration < 32; iteration += 1) {
-      const middle = (low + high) / 2;
-      let sum = 0;
-      for (const value of values) sum += Math.max(GRANDPARENT_MIN, Math.min(GRANDPARENT_MAX, value - middle));
-      if (sum > 1) low = middle;
-      else high = middle;
-    }
-    const offset = (low + high) / 2;
-    return values.map((value) => Math.max(GRANDPARENT_MIN, Math.min(GRANDPARENT_MAX, value - offset)));
-  }
-
-  function fitFour(gram) {
-    let weights = [0.25, 0.25, 0.25, 0.25];
-    const maxRow = Math.max(...gram.map((row) => row.reduce((sum, value) => sum + Math.abs(value), 0)));
-    if (maxRow < 1e-20) return { weights, score: 0 };
-    let previous = scoreWeights(gram, weights);
-    for (let iteration = 0; iteration < 120; iteration += 1) {
-      const gradient = gram.map((row) => row.reduce((sum, value, index) => sum + value * weights[index], 0));
-      const next = projectWeights(weights.map((weight, index) => weight - gradient[index] / maxRow));
-      const score = scoreWeights(gram, next);
-      weights = next;
-      if (Math.abs(previous - score) < 1e-17) break;
-      previous = score;
-    }
-    return { weights, score: scoreWeights(gram, weights) };
-  }
-
-  function bestGrandparents(rows, pairPool) {
-    const pool = buildGrandparentPool(rows, pairPool);
+  function bestGrandparents(rows, pairs) {
+    const pool = buildGrandparentPool(rows, pairs);
     if (pool.length < 4) return [];
     const dots = pool.map((id) => pool.map((other) => dot(rows[id].centered, rows[other].centered)));
-    const screened = [];
-    const n = pool.length;
-    for (let a = 0; a < n - 3; a += 1) {
-      for (let b = a + 1; b < n - 2; b += 1) {
-        for (let c = b + 1; c < n - 1; c += 1) {
-          for (let d = c + 1; d < n; d += 1) {
-            const indices = [a, b, c, d];
-            const gram = indices.map((i) => indices.map((j) => dots[i][j]));
-            let score = scoreWeights(gram, [0.25, 0.25, 0.25, 0.25]);
-            for (const corner of FOUR_CORNERS) score = Math.min(score, scoreWeights(gram, corner));
-            if (screened.length < GRANDPARENT_SCREEN || score < screened[0].score) {
-              heapPush(screened, { indices, score }, GRANDPARENT_SCREEN);
+    const best = [];
+    for (let a = 0; a < pool.length - 3; a += 1) {
+      for (let b = a + 1; b < pool.length - 2; b += 1) {
+        for (let c = b + 1; c < pool.length - 1; c += 1) {
+          for (let d = c + 1; d < pool.length; d += 1) {
+            const score = Math.max(0, (
+              dots[a][a] + dots[b][b] + dots[c][c] + dots[d][d] +
+              2 * (dots[a][b] + dots[a][c] + dots[a][d] + dots[b][c] + dots[b][d] + dots[c][d])
+            ) / 16);
+            if (best.length < 10 || score < best[0].score) {
+              heapPush(best, {
+                ids: [pool[a], pool[b], pool[c], pool[d]],
+                weights: [0.25, 0.25, 0.25, 0.25],
+                score,
+              }, 10);
             }
           }
         }
       }
     }
-    const best = [];
-    for (const candidate of screened) {
-      const gram = candidate.indices.map((i) => candidate.indices.map((j) => dots[i][j]));
-      const fit = fitFour(gram);
-      if (best.length < 10 || fit.score < best[0].score) {
-        heapPush(best, { ids: candidate.indices.map((i) => pool[i]), ...fit }, 10);
-      }
-    }
-    return best.sort((a, b) => a.score - b.score || a.ids.join(",").localeCompare(b.ids.join(",")));
+    return sortFits(best);
   }
 
   function decorate(fit, rows) {
@@ -178,16 +134,22 @@
     };
   }
 
-  function estimate(target, references, onParents) {
+  function estimateStrict(target, references, onParents) {
     const rows = prepare(target, references);
-    const pairFits = bestPairs(rows);
+    const pairFits = bestPairs(rows, { fixed: 0.5, collectPool: true });
     const parents = pairFits.best.map((fit) => decorate(fit, rows));
     if (onParents) onParents(parents);
     const grandparents = bestGrandparents(rows, pairFits.pool).map((fit) => decorate(fit, rows));
     return { parents, grandparents };
   }
 
-  const api = { estimate };
+  function estimateRelaxed(target, references, limit = 100) {
+    if (!Number.isInteger(limit) || limit < 1 || limit > 100) throw new Error("Choose 1 to 100 fits.");
+    const rows = prepare(target, references);
+    return bestPairs(rows, { limit }).best.map((fit) => decorate(fit, rows));
+  }
+
+  const api = { estimateStrict, estimateRelaxed };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.G25Mixtures = api;
 })(typeof window !== "undefined" ? window : globalThis);
