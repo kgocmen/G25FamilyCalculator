@@ -63,7 +63,7 @@ function G25MixtureModule(root) {
     const pool = [];
     for (let i = 0; i < rows.length; i += 1) {
       const a = rows[i];
-      for (let j = i + 1; j < rows.length; j += 1) {
+      for (let j = i + (fixed === null ? 1 : 0); j < rows.length; j += 1) {
         const b = rows[j];
         const cross = dot(a.centered, b.centered);
         const denominator = Math.max(0, a.norm + b.norm - 2 * cross);
@@ -100,13 +100,13 @@ function G25MixtureModule(root) {
 
   function bestGrandparents(rows, pairs, limit) {
     const pool = buildGrandparentPool(rows, pairs);
-    if (pool.length < 4) return [];
+    if (!pool.length) return [];
     const dots = pool.map((id) => pool.map((other) => dot(rows[id].centered, rows[other].centered)));
     const best = [];
-    for (let a = 0; a < pool.length - 3; a += 1) {
-      for (let b = a + 1; b < pool.length - 2; b += 1) {
-        for (let c = b + 1; c < pool.length - 1; c += 1) {
-          for (let d = c + 1; d < pool.length; d += 1) {
+    for (let a = 0; a < pool.length; a += 1) {
+      for (let b = a; b < pool.length; b += 1) {
+        for (let c = b; c < pool.length; c += 1) {
+          for (let d = c; d < pool.length; d += 1) {
             const score = Math.max(0, (
               dots[a][a] + dots[b][b] + dots[c][c] + dots[d][d] +
               2 * (dots[a][b] + dots[a][c] + dots[a][d] + dots[b][c] + dots[b][d] + dots[c][d])
@@ -137,19 +137,19 @@ function G25MixtureModule(root) {
 
   function exhaustiveGrandparents(rows, shortlist, onProgress, limit) {
     const n = rows.length;
-    if (n < 4) return [];
+    if (n === 0) return [];
     const best = [];
     if (n <= 64) {
-      for (let a = 0; a < n - 3; a += 1) {
-        for (let b = a + 1; b < n - 2; b += 1) {
-          for (let c = b + 1; c < n - 1; c += 1) {
-            for (let d = c + 1; d < n; d += 1) {
+      for (let a = 0; a < n; a += 1) {
+        for (let b = a; b < n; b += 1) {
+          for (let c = b; c < n; c += 1) {
+            for (let d = c; d < n; d += 1) {
               const ids = [a, b, c, d];
               heapPush(best, { ids, weights: [0.25, 0.25, 0.25, 0.25], score: fourWayScore(rows, ids) }, limit);
             }
           }
         }
-        if (onProgress) onProgress(Math.round(100 * (a + 1) / (n - 3)));
+        if (onProgress) onProgress(Math.round(100 * (a + 1) / n));
       }
       return sortFits(best);
     }
@@ -159,11 +159,11 @@ function G25MixtureModule(root) {
     for (const fit of shortlist) {
       heapPush(best, { ...fit, score: fourWayScore(rows, fit.ids) }, limit);
     }
-    const pairCount = n * (n - 1) / 2;
+    const pairCount = n * (n + 1) / 2;
     const pairIds = new Uint32Array(pairCount);
     let next = 0;
     for (let i = 0; i < n; i += 1) {
-      for (let j = i + 1; j < n; j += 1) pairIds[next++] = i * n + j;
+      for (let j = i; j < n; j += 1) pairIds[next++] = i * n + j;
     }
     const vectors = rows.map((row) => row.centered);
     const pairCoordinate = (id, k) => {
@@ -247,7 +247,7 @@ function G25MixtureModule(root) {
     }
 
     for (let i = 0; i < n; i += 1) {
-      for (let j = i + 1; j < n; j += 1) {
+      for (let j = i; j < n; j += 1) {
         const a = vectors[i];
         const b = vectors[j];
         for (let k = 0; k < DIMENSIONS; k += 1) query[k] = -a[k] - b[k];
@@ -264,10 +264,9 @@ function G25MixtureModule(root) {
           }
           for (let at = node.lo; at < node.hi; at += 1) {
             const secondPairId = pairIds[at];
-            if (secondPairId <= firstPairId) continue;
+            if (secondPairId < firstPairId) continue;
             const c = Math.floor(secondPairId / n);
             const d = secondPairId - c * n;
-            if (i === c || i === d || j === c || j === d) continue;
             const cc = vectors[c];
             const dd = vectors[d];
             let square = 0;

@@ -9,17 +9,34 @@ function row(label, values, category = "modern") {
 test("strict two-way fit uses exactly 50/50", () => {
   const references = [row("A", Array(25).fill(0)), row("B", Array(25).fill(1))];
   const exact = estimateStrict(row("Target", Array(25).fill(0.5)), references);
-  assert.equal(exact.parents.length, 1);
+  assert.equal(exact.parents.length, 3);
   assert.ok(exact.parents[0].distance < 1e-8);
+  assert.deepEqual(exact.parents[0].parts.map((part) => part.id), [0, 1]);
   assert.deepEqual(exact.parents[0].parts.map((part) => part.weight), [0.5, 0.5]);
 
   const offCenter = estimateStrict(row("Target", Array(25).fill(0.4)), references).parents[0];
   assert.deepEqual(offCenter.parts.map((part) => part.weight), [0.5, 0.5]);
   assert.ok(offCenter.distance > 0);
-  assert.deepEqual(exact.grandparents, []);
+  assert.equal(exact.grandparents.length, 5);
+  assert.deepEqual(exact.grandparents[0].parts.map((part) => part.id), [0, 0, 1, 1]);
 });
 
-test("strict four-way fit uses exactly 25% per distinct reference", () => {
+test("strict fits can reuse one reference in multiple slots", () => {
+  const a = row("A", Array(25).fill(0));
+  const onlyA = estimateStrict(a, [a]);
+  assert.deepEqual(onlyA.parents[0].parts.map((part) => part.id), [0, 0]);
+  assert.deepEqual(onlyA.grandparents[0].parts.map((part) => part.id), [0, 0, 0, 0]);
+  assert.equal(onlyA.parents[0].distance, 0);
+  assert.equal(onlyA.grandparents[0].distance, 0);
+
+  const references = [a, row("B", [1, ...Array(24).fill(0)]),
+    row("C", [0, 1, ...Array(23).fill(0)])];
+  const repeated = estimateStrict(row("Target", [0.25, 0.25, ...Array(23).fill(0)]), references);
+  assert.ok(repeated.grandparents[0].distance < 1e-8);
+  assert.deepEqual(repeated.grandparents[0].parts.map((part) => part.label), ["A", "A", "B", "C"]);
+});
+
+test("strict four-way fit uses exactly 25% per slot", () => {
   const references = Array.from({ length: 4 }, (_, index) => {
     const values = Array(25).fill(0);
     values[index] = 1;
@@ -27,7 +44,7 @@ test("strict four-way fit uses exactly 25% per distinct reference", () => {
   });
   const target = row("Target", [0.25, 0.25, 0.25, 0.25, ...Array(21).fill(0)]);
   const result = estimateStrict(target, references);
-  assert.equal(result.grandparents.length, 1);
+  assert.equal(result.grandparents.length, 10);
   assert.ok(result.grandparents[0].distance < 1e-8);
   assert.deepEqual(result.grandparents[0].parts.map((part) => part.id), [0, 1, 2, 3]);
   assert.deepEqual(result.grandparents[0].parts.map((part) => part.weight), [0.25, 0.25, 0.25, 0.25]);
@@ -67,10 +84,10 @@ test("strict four-way indexed search matches exhaustive top 10 and top 100 ranki
     row(`R${index}`, [...Array.from({ length: 5 }, () => random() - 0.5), ...Array(20).fill(0)]));
   const target = row("Target", [0.04, -0.08, 0.02, -0.03, 0.05, ...Array(20).fill(0)]);
   const expected = [];
-  for (let a = 0; a < 62; a += 1) {
-    for (let b = a + 1; b < 63; b += 1) {
-      for (let c = b + 1; c < 64; c += 1) {
-        for (let d = c + 1; d < 65; d += 1) {
+  for (let a = 0; a < 65; a += 1) {
+    for (let b = a; b < 65; b += 1) {
+      for (let c = b; c < 65; c += 1) {
+        for (let d = c; d < 65; d += 1) {
           let square = 0;
           for (let k = 0; k < 5; k += 1) {
             const average = (references[a].values[k] + references[b].values[k] +
@@ -90,9 +107,14 @@ test("strict four-way indexed search matches exhaustive top 10 and top 100 ranki
     const result = estimateStrict(target, references, null, null, limit);
     assert.equal(result.parents.length, limit);
     assert.equal(result.grandparents.length, limit);
+    const combinations = result.grandparents.map((fit) => fit.parts.map((part) => part.id).join(","));
+    assert.equal(new Set(combinations).size, limit);
     result.grandparents.forEach((fit, index) => {
       assert.ok(Math.abs((fit.distance / 100) ** 2 - expected[index]) < 1e-10);
     });
+    if (limit === 100) {
+      assert.ok(result.grandparents.some((fit) => new Set(fit.parts.map((part) => part.id)).size < 4));
+    }
   }
   assert.throws(() => estimateStrict(target, references, null, null, 101), /1 to 100/);
 });
@@ -137,7 +159,7 @@ test("relaxed search excludes pairs whose best fit has a zero-share partner", ()
   assert.deepEqual(estimateRelaxed(row("Target", Array(25).fill(0)), references), []);
 });
 
-test("fit rankings use distinct references and increasing distance", () => {
+test("fit rankings use unique combinations and increasing distance", () => {
   const references = Array.from({ length: 8 }, (_, index) => row(`R${index}`, Array(25).fill(index / 10)));
   const target = row("Target", Array(25).fill(0.35));
   const strict = estimateStrict(target, references);
@@ -146,8 +168,9 @@ test("fit rankings use distinct references and increasing distance", () => {
     assert.equal(fits.length, fits === relaxed ? 16 : 10);
     for (let index = 0; index < fits.length; index += 1) {
       const fit = fits[index];
-      assert.equal(new Set(fit.parts.map((part) => part.id)).size, fit.parts.length);
+      if (fits === relaxed) assert.equal(new Set(fit.parts.map((part) => part.id)).size, fit.parts.length);
       if (index) assert.ok(fit.distance >= fits[index - 1].distance - 1e-8);
     }
+    assert.equal(new Set(fits.map((fit) => fit.parts.map((part) => part.id).join(","))).size, fits.length);
   }
 });

@@ -412,7 +412,8 @@
     $(parent ? "#strict-parent-count-value" : "#strict-grandparent-count-value").textContent = String(count);
     if (strictReady[kind]) {
       renderMixtureTable(parent ? "#parent-estimates" : "#grandparent-estimates",
-        strictFits[kind].slice(0, count), parent ? 2 : 4, parent ? "Parent" : "Grandparent");
+        strictFits[kind].slice(0, count), parent ? 2 : 4, parent ? "Parent" : "Grandparent",
+        "At least one modern reference is needed for a strict fit.");
     }
   }
 
