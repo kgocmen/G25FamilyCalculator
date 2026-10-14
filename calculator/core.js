@@ -121,6 +121,7 @@
   function ancestorWeights(count, male = false) {
     if (![2, 4, 8, 16].includes(count)) throw new Error("Choose 2, 4, 8, or 16 ancestors.");
     if (count === 2 && male) return [0.51, 0.49];
+    if (count === 4 && male) return [0.255, 0.255, 0.245, 0.245];
     return Array(count).fill(1 / count);
   }
 
@@ -179,7 +180,7 @@
     others[selectedIndex] = null;
     const inferred = calculate(offspring, others, male).inferred;
     const weights = ancestorWeights(ancestors.length, male);
-    const label = ancestors.length === 2 && male
+    const label = (ancestors.length === 2 || ancestors.length === 4) && male
       ? `(${resultLabel(offspring, others, male)})/${weights[selectedIndex]}`
       : `${ancestors.length}*${offspring.label}${others.filter(Boolean)
         .map((ancestor) => `-${ancestor.label}`).join("")}`;

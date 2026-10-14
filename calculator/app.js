@@ -198,7 +198,7 @@
     $("#grandparent-estimates-panel").hidden = true;
     $("#matches-intro").textContent = "Each list ranks all reference populations by genetic distance from its selected target. Distances use Euclidean G25 × 100.";
     const ancestors = state.slots[mode];
-    const male = mode === 2 && state.male;
+    const male = (mode === 2 || mode === 4) && state.male;
     const weights = core.ancestorWeights(mode, male);
     const result = core.calculate(state.offspring, ancestors, male);
     const complete = Boolean(state.offspring) && ancestors.every(Boolean);
@@ -228,9 +228,11 @@
         { onCompare: complete ? () => select(index) : null, selected: complete && selectedIndex === index });
     }));
 
-    $("#male-option").hidden = mode !== 2;
+    $("#male-option").hidden = mode !== 2 && mode !== 4;
     $("#male-toggle").checked = state.male;
-    $("#male-weight-note").textContent = male ? "Mother 51% · Father 49%" : "Mother 50% · Father 50%";
+    $("#male-weight-note").textContent = mode === 4
+      ? male ? "Maternal 25.5% each · Paternal 24.5% each" : "Each grandparent 25%"
+      : male ? "Mother 51% · Father 49%" : "Mother 50% · Father 50%";
 
     let message;
     let output = "";
@@ -263,17 +265,27 @@
       comparisonText.textContent = `Distance between entered and calculated ${selectedName}: ${targetComparison.distance.toFixed(3)} (Euclidean G25 distance × 100).`;
     }
 
-    $("#method-note").textContent = male
-      ? targetComparison && selectedIndex !== null
-        ? `Calculated ${selectedName} = (offspring − ${weights[1 - selectedIndex]} × ${names[mode][1 - selectedIndex].toLowerCase()}) / ${weights[selectedIndex]}.`
-        : result.kind === "residual"
-          ? `Residual = offspring − each known parent's weighted contribution. With one blank, divide the residual by that parent's weight to infer their coordinates.`
-          : "The calculated offspring is 51% mother + 49% father."
-      : targetComparison && selectedIndex !== null
-        ? `Calculated ${selectedName} = ${mode} × offspring − the other ${mode - 1} ancestors.`
-        : result.kind === "residual"
-          ? `Residual = offspring − ${1 / mode} × each known ancestor. With one blank, that ancestor's full inferred coordinates are ${mode} × residual.`
-          : "The calculated offspring is the arithmetic average of all entered G25 ancestor rows.";
+    let methodNote;
+    if (male && targetComparison && selectedIndex !== null) {
+      const otherContributions = names[mode]
+        .map((name, index) => index === selectedIndex ? null : `${weights[index]} × ${name.toLowerCase()}`)
+        .filter(Boolean).join(" − ");
+      methodNote = `Calculated ${selectedName} = (offspring − ${otherContributions}) / ${weights[selectedIndex]}.`;
+    } else if (male && result.kind === "residual") {
+      const ancestorType = mode === 2 ? "parent" : "grandparent";
+      methodNote = `Residual = offspring − each known ${ancestorType}'s weighted contribution. With one blank, divide the residual by that ${ancestorType}'s weight to infer their coordinates.`;
+    } else if (male) {
+      methodNote = mode === 2
+        ? "The calculated offspring is 51% mother + 49% father."
+        : "The calculated offspring is 25.5% from each maternal grandparent + 24.5% from each paternal grandparent.";
+    } else if (targetComparison && selectedIndex !== null) {
+      methodNote = `Calculated ${selectedName} = ${mode} × offspring − the other ${mode - 1} ancestors.`;
+    } else if (result.kind === "residual") {
+      methodNote = `Residual = offspring − ${1 / mode} × each known ancestor. With one blank, that ancestor's full inferred coordinates are ${mode} × residual.`;
+    } else {
+      methodNote = "The calculated offspring is the arithmetic average of all entered G25 ancestor rows.";
+    }
+    $("#method-note").textContent = methodNote;
     renderMatches(targetComparison, selectedName);
   }
 

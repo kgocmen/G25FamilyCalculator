@@ -42,13 +42,12 @@ test("output labels use ancestor names and residual coefficients", () => {
   assert.equal(resultLabel(person("Child", 0), [a, ...Array(15).fill(null)]), "Child-0.0625*Pop1");
 });
 
-test("male weighting applies only to the two-parent calculation and its inverse", () => {
+test("male weighting applies to the two-parent calculation and its inverse", () => {
   const mother = person("Mother", 10);
   const father = person("Father", 20);
   const child = person("Child", 14.9);
   assert.deepEqual(ancestorWeights(2, false), [0.5, 0.5]);
   assert.deepEqual(ancestorWeights(2, true), [0.51, 0.49]);
-  assert.deepEqual(ancestorWeights(4, true), Array(4).fill(0.25));
   assert.equal(calculate(null, [mother, father]).values[0], 15);
   assert.ok(Math.abs(calculate(null, [mother, father], true).values[0] - 14.9) < 1e-12);
 
@@ -65,6 +64,34 @@ test("male weighting applies only to the two-parent calculation and its inverse"
   assert.ok(Math.abs(fatherComparison.calculated.values[0] - 20) < 1e-12);
   assert.equal(motherComparison.calculated.label, "(Child-0.49*Father)/0.51");
   assert.equal(fatherComparison.calculated.label, "(Child-0.51*Mother)/0.49");
+});
+
+test("male weighting gives maternal grandparents 25.5% and paternal grandparents 24.5%", () => {
+  const ancestors = [person("MG1", 10), person("MG2", 20), person("PG1", 30), person("PG2", 40)];
+  const child = person("Child", 24.8);
+  assert.deepEqual(ancestorWeights(4, false), [0.25, 0.25, 0.25, 0.25]);
+  assert.deepEqual(ancestorWeights(4, true), [0.255, 0.255, 0.245, 0.245]);
+  assert.deepEqual(ancestorWeights(8, true), Array(8).fill(0.125));
+  assert.ok(Math.abs(calculate(null, ancestors, true).values[0] - 24.8) < 1e-12);
+  assert.equal(calculate(null, ancestors).values[0], 25);
+
+  for (const index of [0, 1, 2, 3]) {
+    const withGap = [...ancestors];
+    withGap[index] = null;
+    const inferred = calculate(child, withGap, true);
+    assert.ok(Math.abs(inferred.inferred[0] - ancestors[index].values[0]) < 1e-12);
+    assert.ok(Math.abs(inferred.values[0] - ancestorWeights(4, true)[index] * ancestors[index].values[0]) < 1e-12);
+    const comparison = calculateComparison(child, ancestors, index, true);
+    assert.ok(Math.abs(comparison.calculated.values[0] - ancestors[index].values[0]) < 1e-12);
+    assert.equal(comparison.calculated.label,
+      `(${resultLabel(child, withGap, true)})/${ancestorWeights(4, true)[index]}`);
+  }
+
+  const twoMissing = calculate(child, [ancestors[0], null, null, ancestors[3]], true);
+  assert.equal(twoMissing.inferred, null);
+  assert.ok(Math.abs(twoMissing.values[0] - (0.255 * 20 + 0.245 * 30)) < 1e-12);
+  assert.equal(resultLabel(child, [ancestors[0], null, null, ancestors[3]], true),
+    "Child-0.255*MG1-0.245*PG2");
 });
 
 test("a selected ancestor is inferred from offspring and all other ancestors", () => {
