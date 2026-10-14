@@ -5,12 +5,12 @@
   const core = window.G25Core;
   const names = {
     2: ["Mother", "Father"],
-    4: ["Paternal grandparent 1", "Paternal grandparent 2", "Maternal grandparent 1", "Maternal grandparent 2"],
+    4: ["Maternal grandparent 1", "Maternal grandparent 2", "Paternal grandparent 1", "Paternal grandparent 2"],
     8: [
-      "Paternal grandparent 1 · parent 1", "Paternal grandparent 1 · parent 2",
-      "Paternal grandparent 2 · parent 1", "Paternal grandparent 2 · parent 2",
       "Maternal grandparent 1 · parent 1", "Maternal grandparent 1 · parent 2",
       "Maternal grandparent 2 · parent 1", "Maternal grandparent 2 · parent 2",
+      "Paternal grandparent 1 · parent 1", "Paternal grandparent 1 · parent 2",
+      "Paternal grandparent 2 · parent 1", "Paternal grandparent 2 · parent 2",
     ],
     16: Array.from({ length: 16 }, (_, index) => `Great-great-grandparent ${index + 1}`),
   };
