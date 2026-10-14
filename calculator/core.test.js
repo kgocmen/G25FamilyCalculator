@@ -34,6 +34,28 @@ for (const count of [2, 4, 8, 16]) {
   });
 }
 
+test("identical offspring and known ancestors infer the same missing G25 row", () => {
+  const sample = {
+    label: "X",
+    values: Array.from({ length: 25 }, (_, index) => Number(((index - 12) * 0.004321).toFixed(6))),
+  };
+  for (const count of [2, 4, 8, 16]) {
+    for (const male of count <= 4 ? [false, true] : [false]) {
+      for (let missingIndex = 0; missingIndex < count; missingIndex += 1) {
+        const ancestors = Array(count).fill(sample);
+        ancestors[missingIndex] = null;
+        const inferred = calculate(sample, ancestors, male).inferred;
+        inferred.forEach((value, index) => {
+          assert.ok(Math.abs(value - sample.values[index]) < 1e-12,
+            `${count} ancestors, male=${male}, missing=${missingIndex}, coordinate=${index}`);
+        });
+        const copied = formatLine(missingAncestorLabel(sample, ancestors, male), inferred);
+        assert.deepEqual(parseLine(copied).values, sample.values);
+      }
+    }
+  }
+});
+
 test("output labels use ancestor names and residual coefficients", () => {
   const a = person("Pop1", 1);
   const b = person("Pop2", 2);
