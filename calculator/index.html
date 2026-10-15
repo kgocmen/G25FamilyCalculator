@@ -15,7 +15,13 @@
 <body>
   <main class="shell">
     <header class="page-header">
-      <div class="eyebrow">REFERENCE DATA FROM WORLD GENETICS</div>
+      <div class="header-top">
+        <div class="eyebrow">REFERENCE DATA FROM WORLD GENETICS</div>
+        <label class="turkish-option" title="Use Turkish modern references with the shared ancient set">
+          <span>Turkish</span>
+          <input id="turkish-toggle" type="checkbox">
+        </label>
+      </div>
       <h1>G25 Family Calculator</h1>
       <p>Find the closest populations for one G25 row, or combine 2, 4, 8, or 16 ancestors to calculate family coordinates.</p>
     </header>
@@ -36,11 +42,6 @@
         <button class="mode-button" type="button" data-mode="8" aria-pressed="false">8 great-grandparents</button>
         <button class="mode-button" type="button" data-mode="16" aria-pressed="false">16 great-great-grandparents</button>
       </div>
-      <label class="turkish-option">
-        <input id="turkish-toggle" type="checkbox">
-        <span>Turkish</span>
-        <small>Use Turkish modern references and the shared ancient set throughout the calculator</small>
-      </label>
       <div id="single-input" hidden>
         <p class="selection-hint">Choose a population or paste one G25 row to compare it with reference populations.</p>
         <div id="single-row"></div>
