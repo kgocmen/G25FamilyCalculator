@@ -5,12 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#14243b">
   <title>G25 Family Calculator</title>
-  <link rel="stylesheet" href="style.css">
-  <script defer src="references.js"></script>
-  <script defer src="turkish_references.js"></script>
-  <script defer src="core.js"></script>
-  <script defer src="mixture.js"></script>
-  <script defer src="app.js"></script>
+  <link rel="stylesheet" href="style.css?v=20261015-2">
+  <script defer src="references.js?v=20261015-2"></script>
+  <script defer src="turkish_references.js?v=20261015-2"></script>
+  <script defer src="core.js?v=20261015-2"></script>
+  <script defer src="mixture.js?v=20261015-2"></script>
+  <script defer src="app.js?v=20261015-2"></script>
 </head>
 <body>
   <main class="shell">
@@ -23,6 +23,7 @@
       <div class="section-head">
         <div>
           <h2 id="inputs-title">Family inputs</h2>
+          <p id="inputs-intro" class="legacy-copy" hidden></p>
         </div>
         <div class="input-head-actions">
           <label class="turkish-option" title="Use Turkish modern references with the shared ancient set">
@@ -48,6 +49,7 @@
           <span>Male</span>
           <small id="male-weight-note">Mother 50% · Father 50%</small>
         </label>
+        <p id="selection-hint" class="legacy-copy" hidden></p>
         <div class="group-label"><span>CHILD</span></div>
         <div id="offspring-row"></div>
 
@@ -96,6 +98,7 @@
       <div class="section-head">
         <div>
           <h2 id="matches-title">Closest populations</h2>
+          <p id="matches-intro" class="legacy-copy" hidden></p>
         </div>
         <label class="result-count"><span>Show top <output id="closest-count-value" for="closest-count">10</output></span>
           <input id="closest-count" type="range" min="10" max="100" step="1" value="10" aria-label="Number of closest populations to show">
@@ -120,6 +123,7 @@
         <h3 id="calculated-matches-title">Up to 10 closest to calculated child</h3>
         <div id="calculated-matches" class="table-scroll" tabindex="0" role="region" aria-label="Calculated closest populations table"></div>
       </div>
+      <p id="matches-note" class="legacy-copy" hidden></p>
     </section>
 
     <section id="relaxed-estimates-panel" class="panel matches-panel" aria-labelledby="relaxed-estimates-title" hidden>

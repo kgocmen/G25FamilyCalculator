@@ -17,6 +17,7 @@ h1 { margin: 9px 0 8px; font-size: clamp(30px, 5vw, 46px); letter-spacing: -.04e
 h2 { margin: 0 0 5px; font-size: 20px; letter-spacing: -.025em; }
 p { margin: 0; }
 .section-head p { color: #5b6d80; line-height: 1.5; }
+.legacy-copy { display: none !important; }
 .panel { background: #fff; border: 1px solid #dce4eb; border-radius: 18px; box-shadow: 0 12px 35px rgba(19, 44, 70, .055); padding: 25px; margin-bottom: 18px; }
 .section-head { display: flex; gap: 20px; justify-content: space-between; align-items: flex-start; }
 .section-head > div:first-child { min-width: 0; overflow-wrap: anywhere; }

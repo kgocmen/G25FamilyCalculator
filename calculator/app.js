@@ -719,6 +719,10 @@
   }
 
   document.querySelectorAll(".mode-button").forEach((button) => {
+    if (![1, 2, 4, 8].includes(Number(button.dataset.mode))) {
+      button.hidden = true;
+      return;
+    }
     button.addEventListener("click", () => { state.mode = Number(button.dataset.mode); render(); });
   });
   $("#clear-all").addEventListener("click", () => {
