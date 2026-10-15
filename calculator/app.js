@@ -103,6 +103,18 @@
     render();
   }
 
+  function updateSelectedReferences(nextReferences) {
+    const byName = new Map(nextReferences.map((row) => [`${row[0]}\u0000${row[1]}`, row]));
+    const update = (item) => {
+      if (!item || item.source !== "reference") return item;
+      const row = byName.get(`${item.category}\u0000${item.label}`);
+      return row ? { category: row[0], label: row[1], values: row.slice(2), source: "reference" } : null;
+    };
+    state.single = update(state.single);
+    state.offspring = update(state.offspring);
+    for (const mode of [2, 4, 8, 16]) state.slots[mode] = state.slots[mode].map(update);
+  }
+
   function openPicker(target, pasteFirst) {
     state.pickerTarget = target;
     $("#picker-title").textContent = target.type === "single" ? "Add sample coordinates"
@@ -200,9 +212,10 @@
     $("#matches-note").hidden = mode === 1;
     $("#match-filter").hidden = mode === 1;
     $("#inputs-title").textContent = mode === 1 ? "G25 input" : "Family inputs";
-    $("#inputs-intro").textContent = mode === 1
+    $("#inputs-intro").textContent = (mode === 1
       ? "Choose a reference population or paste one G25 row."
-      : "Choose a reference population or paste any G25 row for each person.";
+      : "Choose a reference population or paste any G25 row for each person.")
+      + (state.turkish ? " Using Turkish modern references and the shared ancient set." : "");
     if (mode === 1) {
       renderSingle();
       return;
@@ -621,7 +634,7 @@
       if (!words.every((word) => searchName.includes(word))) continue;
       total += 1;
       if (shown >= 60) continue;
-      const button = makeButton(row[1], () => setTarget({ category: row[0], label: row[1], values: row.slice(2) }));
+      const button = makeButton(row[1], () => setTarget({ category: row[0], label: row[1], values: row.slice(2), source: "reference" }));
       button.className = "reference-result";
       const badge = document.createElement("span");
       badge.className = "badge";
@@ -698,6 +711,7 @@
   });
   $("#turkish-toggle").addEventListener("change", (event) => {
     state.turkish = event.currentTarget.checked;
+    updateSelectedReferences(state.turkish ? turkishReferences : globalReferences);
     render();
   });
   $("#reference-search").addEventListener("input", renderReferences);
