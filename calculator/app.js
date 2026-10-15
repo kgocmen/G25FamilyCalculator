@@ -1,7 +1,12 @@
 (function () {
   "use strict";
 
-  const references = window.G25_REFERENCES || [];
+  const globalReferences = window.G25_REFERENCES || [];
+  const turkishModernReferences = window.G25_TURKISH_MODERN_REFERENCES || [];
+  const turkishReferences = turkishModernReferences.length
+    ? [...turkishModernReferences, ...globalReferences.filter((row) => row[0] === "ancient")]
+    : [];
+  let references = globalReferences;
   const core = window.G25Core;
   const names = {
     2: ["Mother", "Father"],
@@ -18,6 +23,7 @@
   const singular = { 2: "parent", 4: "grandparent", 8: "great_grandparent", 16: "great_great_grandparent" };
   const state = {
     mode: 2,
+    turkish: false,
     single: null,
     offspring: null,
     slots: { 2: Array(2).fill(null), 4: Array(4).fill(null), 8: Array(8).fill(null), 16: Array(16).fill(null) },
@@ -100,7 +106,7 @@
   function openPicker(target, pasteFirst) {
     state.pickerTarget = target;
     $("#picker-title").textContent = target.type === "single" ? "Add sample coordinates"
-      : target.type === "offspring" ? "Add offspring coordinates"
+      : target.type === "offspring" ? "Add child coordinates"
         : `Add ${names[state.mode][target.index].toLowerCase()}`;
     $("#reference-search").value = "";
     $("#reference-category").value = "all";
@@ -177,6 +183,8 @@
 
   function render() {
     const mode = state.mode;
+    references = state.turkish ? turkishReferences : globalReferences;
+    $("#turkish-toggle").checked = state.turkish;
     $("#closest-count").value = String(state.closestCount);
     $("#closest-count-value").textContent = String(state.closestCount);
     document.querySelectorAll(".mode-button").forEach((button) => {
@@ -210,12 +218,12 @@
     const result = core.calculate(state.offspring, ancestors, male);
     const complete = Boolean(state.offspring) && ancestors.every(Boolean);
     const selectedIndex = state.selectedIndexByMode[mode];
-    const selectedName = selectedIndex === null ? "offspring" : names[mode][selectedIndex].toLowerCase();
+    const selectedName = selectedIndex === null ? "child" : names[mode][selectedIndex].toLowerCase();
     const targetComparison = complete
       ? core.calculateComparison(state.offspring, ancestors, selectedIndex, male) : null;
     $("#selection-hint").textContent = complete
       ? "Click a person or use Compare to calculate and compare that person's G25 coordinates."
-      : "Fill the offspring and every ancestor to compare any person.";
+      : "Fill the child and every ancestor to compare any person.";
     const select = (index) => {
       state.selectedIndexByMode[mode] = index;
       render();
@@ -224,7 +232,7 @@
       ? { label: core.resultLabel(state.offspring, ancestors, male), values: result.values } : null;
 
     $("#offspring-row").replaceChildren(
-      createRow("Offspring", { type: "offspring" }, state.offspring, offspringDerived,
+      createRow("Child", { type: "offspring" }, state.offspring, offspringDerived,
         { onCompare: complete ? () => select(null) : null, selected: complete && selectedIndex === null }),
     );
     $("#generation-label").textContent = generation[mode];
@@ -247,7 +255,7 @@
       message = `Comparing ${selectedName}: entered coordinates versus the family-based calculation. Click another person to compare them.`;
       output = core.formatLine(targetComparison.calculated.label, targetComparison.calculated.values);
     } else if (result.kind === "offspring") {
-      message = "Offspring calculated from all entered ancestors.";
+      message = "Child calculated from all entered ancestors.";
       output = core.formatLine(core.resultLabel(state.offspring, ancestors, male), result.values);
     } else if (result.kind === "residual") {
       const count = result.missing.length;
@@ -256,18 +264,18 @@
         message = `Full coordinates for the missing ${names[mode][missingIndex].toLowerCase()} calculated. They are also available in its slot.`;
         output = core.formatLine(core.missingAncestorLabel(state.offspring, ancestors, male), result.inferred);
       } else {
-        message = `Combined contribution of ${count} missing ancestors calculated. Individual missing coordinates cannot be determined.`;
-        output = core.formatLine(core.resultLabel(state.offspring, ancestors, male), result.values);
+        message = `Weighted average coordinates for ${count} missing ancestors calculated. Individual missing coordinates cannot be determined.`;
+        output = core.formatLine(core.resultLabel(state.offspring, ancestors, male), result.combined);
       }
     } else if (state.offspring) {
-      message = "Add ancestors to subtract their contribution from the offspring.";
+      message = "Add ancestors to subtract their contribution from the child.";
     } else {
-      message = `Fill all ${mode} ancestors to calculate offspring, or add offspring to calculate the missing contribution.`;
+      message = `Fill all ${mode} ancestors to calculate the child, or add the child to calculate the missing contribution.`;
     }
     if (!references.length) message = "Reference data is unavailable. Reload the page.";
     $("#result-title").textContent = result.kind === "residual" && result.missing.length === 1
       ? `Calculated missing ${singular[mode].replaceAll("_", " ")}`
-      : result.kind === "residual" ? "Combined missing contribution" : "Calculated G25 row";
+      : result.kind === "residual" ? "Combined missing ancestors" : "Calculated G25 row";
     $("#result-status").textContent = message;
     $("#result-line").value = output;
     $("#copy-result").disabled = !output;
@@ -283,26 +291,24 @@
     if (result.kind === "residual" && result.missing.length === 1) {
       const missingIndex = result.missing[0];
       methodNote = male
-        ? `Calculated ${names[mode][missingIndex].toLowerCase()} = (offspring − each known ancestor's weighted contribution) / ${weights[missingIndex]}.`
-        : `Calculated ${names[mode][missingIndex].toLowerCase()} = ${mode} × offspring − the other ${mode - 1} ancestors.`;
+        ? `Calculated ${names[mode][missingIndex].toLowerCase()} = (child − each known ancestor's weighted contribution) / ${weights[missingIndex]}.`
+        : `Calculated ${names[mode][missingIndex].toLowerCase()} = ${mode} × child − the other ${mode - 1} ancestors.`;
     } else if (male && targetComparison && selectedIndex !== null) {
       const otherContributions = names[mode]
         .map((name, index) => index === selectedIndex ? null : `${weights[index]} × ${name.toLowerCase()}`)
         .filter(Boolean).join(" − ");
-      methodNote = `Calculated ${selectedName} = (offspring − ${otherContributions}) / ${weights[selectedIndex]}.`;
-    } else if (male && result.kind === "residual") {
-      const ancestorType = mode === 2 ? "parent" : "grandparent";
-      methodNote = `Residual = offspring − each known ${ancestorType}'s weighted contribution. With one blank, divide the residual by that ${ancestorType}'s weight to infer their coordinates.`;
+      methodNote = `Calculated ${selectedName} = (child − ${otherContributions}) / ${weights[selectedIndex]}.`;
+    } else if (result.kind === "residual") {
+      const missingWeight = result.missing.reduce((sum, index) => sum + weights[index], 0);
+      methodNote = `Combined missing coordinates = (child − each known ancestor's weighted contribution) / ${missingWeight}.`;
     } else if (male) {
       methodNote = mode === 2
-        ? "The calculated offspring is 51% mother + 49% father."
-        : "The calculated offspring is 25.5% from each maternal grandparent + 24.5% from each paternal grandparent.";
+        ? "The calculated child is 51% mother + 49% father."
+        : "The calculated child is 25.5% from each maternal grandparent + 24.5% from each paternal grandparent.";
     } else if (targetComparison && selectedIndex !== null) {
-      methodNote = `Calculated ${selectedName} = ${mode} × offspring − the other ${mode - 1} ancestors.`;
-    } else if (result.kind === "residual") {
-      methodNote = `Residual = offspring − ${1 / mode} × each known ancestor. With one blank, that ancestor's full inferred coordinates are ${mode} × residual.`;
+      methodNote = `Calculated ${selectedName} = ${mode} × child − the other ${mode - 1} ancestors.`;
     } else {
-      methodNote = "The calculated offspring is the arithmetic average of all entered G25 ancestor rows.";
+      methodNote = "The calculated child is the arithmetic average of all entered G25 ancestor rows.";
     }
     $("#method-note").textContent = methodNote;
     renderMatches(targetComparison, selectedName);
@@ -686,6 +692,10 @@
   });
   $("#male-toggle").addEventListener("change", (event) => {
     state.male = event.currentTarget.checked;
+    render();
+  });
+  $("#turkish-toggle").addEventListener("change", (event) => {
+    state.turkish = event.currentTarget.checked;
     render();
   });
   $("#reference-search").addEventListener("input", renderReferences);

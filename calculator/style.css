@@ -23,6 +23,9 @@ p { margin: 0; }
 .mode-button { background: #f3f6f9; border: 1px solid #dce4eb; border-radius: 10px; color: #34495f; font-weight: 700; padding: 10px 15px; }
 .mode-button.active { background: #e5f2f7; border-color: #61a7be; color: #075b75; }
 .male-option { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 7px; margin: 0 0 14px; padding: 7px 10px; border: 1px solid #dce4eb; border-radius: 9px; color: #34495f; font-size: 13px; font-weight: 700; cursor: pointer; }
+.turkish-option { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 7px; margin: 0 0 18px; padding: 9px 12px; border: 1px solid #dce4eb; border-radius: 9px; color: #34495f; font-size: 13px; font-weight: 700; cursor: pointer; }
+.turkish-option input { width: 16px; height: 16px; margin: 0; accent-color: #176e8d; cursor: pointer; }
+.turkish-option small { margin-left: 6px; color: #607286; font-size: 11px; font-weight: 500; }
 .male-option[hidden] { display: none; }
 .male-option input { width: 16px; height: 16px; margin: 0; accent-color: #176e8d; cursor: pointer; }
 .male-option small { margin-left: 6px; color: #607286; font-size: 11px; font-weight: 500; }

@@ -7,6 +7,7 @@
   <title>G25 Family Calculator</title>
   <link rel="stylesheet" href="style.css">
   <script defer src="references.js"></script>
+  <script defer src="turkish_references.js"></script>
   <script defer src="core.js"></script>
   <script defer src="mixture.js"></script>
   <script defer src="app.js"></script>
@@ -35,6 +36,11 @@
         <button class="mode-button" type="button" data-mode="8" aria-pressed="false">8 great-grandparents</button>
         <button class="mode-button" type="button" data-mode="16" aria-pressed="false">16 great-great-grandparents</button>
       </div>
+      <label class="turkish-option">
+        <input id="turkish-toggle" type="checkbox">
+        <span>Turkish</span>
+        <small>Use Turkish modern references and the shared ancient set throughout the calculator</small>
+      </label>
       <div id="single-input" hidden>
         <p class="selection-hint">Choose a population or paste one G25 row to compare it with reference populations.</p>
         <div id="single-row"></div>
@@ -45,12 +51,12 @@
           <span>Male</span>
           <small id="male-weight-note">Mother 50% · Father 50%</small>
         </label>
-        <p id="selection-hint" class="selection-hint">Fill the offspring and every ancestor to compare any person.</p>
+        <p id="selection-hint" class="selection-hint">Fill the child and every ancestor to compare any person.</p>
 
-        <div class="group-label"><span>OFFSPRING</span><span>Optional when all ancestors are entered</span></div>
+        <div class="group-label"><span>CHILD</span><span>Optional when all ancestors are entered</span></div>
         <div id="offspring-row"></div>
 
-        <div class="group-label ancestor-label"><span id="generation-label">PARENTS</span><span>Fill all, or leave blanks with offspring supplied</span></div>
+        <div class="group-label ancestor-label"><span id="generation-label">PARENTS</span><span>Fill all, or leave blanks with child supplied</span></div>
         <div id="ancestor-rows" class="ancestor-rows"></div>
       </div>
     </section>
@@ -86,7 +92,7 @@
         </label>
       </div>
       <div class="match-group">
-        <h3 id="actual-matches-title">Up to 10 closest to entered offspring</h3>
+        <h3 id="actual-matches-title">Up to 10 closest to entered child</h3>
         <div id="actual-matches" class="table-scroll" tabindex="0" role="region" aria-label="Closest populations table"></div>
       </div>
       <div id="single-ancient-matches-group" class="match-group" hidden>
@@ -94,7 +100,7 @@
         <div id="single-ancient-matches" class="table-scroll" tabindex="0" role="region" aria-label="Closest ancient populations table"></div>
       </div>
       <div id="calculated-matches-group" class="match-group">
-        <h3 id="calculated-matches-title">Up to 10 closest to calculated offspring</h3>
+        <h3 id="calculated-matches-title">Up to 10 closest to calculated child</h3>
         <div id="calculated-matches" class="table-scroll" tabindex="0" role="region" aria-label="Calculated closest populations table"></div>
       </div>
       <p id="matches-note" class="method-note">The calculated or entered target appears in the opposite list only if it ranks among that list's 10 closest candidates.</p>

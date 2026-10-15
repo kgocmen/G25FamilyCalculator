@@ -127,7 +127,7 @@
 
   function calculate(offspring, ancestors, male = false) {
     if (![2, 4, 8, 16].includes(ancestors.length)) throw new Error("Choose 2, 4, 8, or 16 ancestors.");
-    if (offspring && !validateVector(offspring.values)) throw new Error("Invalid offspring coordinates.");
+    if (offspring && !validateVector(offspring.values)) throw new Error("Invalid child coordinates.");
     for (const ancestor of ancestors) {
       if (ancestor && !validateVector(ancestor.values)) throw new Error("Invalid ancestor coordinates.");
     }
@@ -145,11 +145,13 @@
       const values = Array.from({ length: DIMENSIONS }, (_, pc) =>
         offspring.values[pc] - ancestors.reduce((sum, ancestor, index) =>
           sum + (ancestor ? weights[index] * ancestor.values[pc] : 0), 0));
+      const missingWeight = missing.reduce((sum, index) => sum + weights[index], 0);
       return {
         kind: "residual",
         missing,
         values,
         inferred: missing.length === 1 ? values.map((value) => value / weights[missing[0]]) : null,
+        combined: values.map((value) => value / missingWeight),
         distance: null,
       };
     }
@@ -158,15 +160,19 @@
 
   function resultLabel(offspring, ancestors, male = false) {
     if (ancestors.every(Boolean)) return ancestors.map((ancestor) => ancestor.label).join("+");
-    if (!offspring) throw new Error("An offspring is needed when ancestors are missing.");
+    if (!offspring) throw new Error("A child is needed when ancestors are missing.");
     const weights = ancestorWeights(ancestors.length, male);
-    return offspring.label + ancestors.map((ancestor, index) => ancestor
+    const residual = offspring.label + ancestors.map((ancestor, index) => ancestor
       ? `-${weights[index]}*${ancestor.label}` : "").join("");
+    const missing = ancestors.map((ancestor, index) => ancestor ? -1 : index).filter((index) => index >= 0);
+    if (missing.length <= 1 || missing.length === ancestors.length) return residual;
+    const missingWeight = missing.reduce((sum, index) => sum + weights[index], 0);
+    return `(${residual})/${missingWeight}`;
   }
 
   function missingAncestorLabel(offspring, ancestors, male = false) {
     const missing = ancestors.map((ancestor, index) => ancestor ? -1 : index).filter((index) => index >= 0);
-    if (!offspring || missing.length !== 1) throw new Error("Fill the offspring and leave exactly one ancestor blank.");
+    if (!offspring || missing.length !== 1) throw new Error("Fill the child and leave exactly one ancestor blank.");
     const weights = ancestorWeights(ancestors.length, male);
     if (weights.every((weight) => weight === weights[0])) {
       return `${ancestors.length}*${offspring.label}${ancestors.filter(Boolean)
@@ -177,7 +183,7 @@
 
   function calculateComparison(offspring, ancestors, selectedIndex = null, male = false) {
     if (!offspring || ancestors.some((ancestor) => !ancestor)) {
-      throw new Error("Fill the offspring and every ancestor before comparing a selected person.");
+      throw new Error("Fill the child and every ancestor before comparing a selected person.");
     }
     const offspringResult = calculate(offspring, ancestors, male);
     if (selectedIndex === null) {

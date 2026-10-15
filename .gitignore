@@ -1,3 +1,5 @@
-# Raw G25 exports stay local; the calculator uses its bundled references.js.
-data/
+# Keep the curated Turkish modern source alongside its browser bundle.
+data/*
+!data/turkish_modern_g25.txt
 *.py
+!build_calculator_data.py

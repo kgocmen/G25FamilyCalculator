@@ -29,8 +29,10 @@ for (const count of [2, 4, 8, 16]) {
     assert.equal(combined.kind, "residual");
     assert.equal(combined.inferred, null);
     assert.deepEqual(combined.values, Array(25).fill((count + 1) / count));
+    assert.deepEqual(combined.combined, Array(25).fill((count + 1) / 2));
     assert.equal(resultLabel(person("Child", expected), withGap),
-      `Child${withGap.filter(Boolean).map((ancestor) => `-${1 / count}*${ancestor.label}`).join("")}`);
+      count === 2 ? "Child"
+        : `(Child${withGap.filter(Boolean).map((ancestor) => `-${1 / count}*${ancestor.label}`).join("")})/${2 / count}`);
   });
 }
 
@@ -56,14 +58,25 @@ test("identical offspring and known ancestors infer the same missing G25 row", (
   }
 });
 
-test("output labels use ancestor names and residual coefficients", () => {
+test("output labels show the normalized multi-ancestor calculation", () => {
   const a = person("Pop1", 1);
   const b = person("Pop2", 2);
   assert.equal(resultLabel(null, [a, b]), "Pop1+Pop2");
   assert.equal(resultLabel(person("Child", 0), [a, null]), "Child-0.5*Pop1");
-  assert.equal(resultLabel(person("Child", 0), [a, b, null, null]), "Child-0.25*Pop1-0.25*Pop2");
-  assert.equal(resultLabel(person("Child", 0), [a, null, null, null, null, null, null, null]), "Child-0.125*Pop1");
-  assert.equal(resultLabel(person("Child", 0), [a, ...Array(15).fill(null)]), "Child-0.0625*Pop1");
+  assert.equal(resultLabel(person("Child", 0), [a, b, null, null]), "(Child-0.25*Pop1-0.25*Pop2)/0.5");
+  assert.equal(resultLabel(person("Child", 0), [a, null, null, null]), "(Child-0.25*Pop1)/0.75");
+  assert.equal(resultLabel(person("Child", 0), [a, null, null, null, null, null, null, null]), "(Child-0.125*Pop1)/0.875");
+  assert.equal(resultLabel(person("Child", 0), [a, ...Array(15).fill(null)]), "(Child-0.0625*Pop1)/0.9375");
+  assert.equal(resultLabel(person("Child", 0), [null, null, null, null]), "Child");
+});
+
+test("three missing grandparents produce full normalized coordinates", () => {
+  const child = person("Child", 25);
+  const result = calculate(child, [person("Known", 10), null, null, null]);
+  assert.deepEqual(result.values, Array(25).fill(22.5));
+  assert.deepEqual(result.combined, Array(25).fill(30));
+  assert.equal(resultLabel(child, [person("Known", 10), null, null, null]), "(Child-0.25*Known)/0.75");
+  assert.deepEqual(calculate(child, Array(4).fill(null)).combined, child.values);
 });
 
 test("male weighting applies to the two-parent calculation and its inverse", () => {
@@ -116,8 +129,13 @@ test("male weighting gives maternal grandparents 25.5% and paternal grandparents
   const twoMissing = calculate(child, [ancestors[0], null, null, ancestors[3]], true);
   assert.equal(twoMissing.inferred, null);
   assert.ok(Math.abs(twoMissing.values[0] - (0.255 * 20 + 0.245 * 30)) < 1e-12);
+  assert.ok(Math.abs(twoMissing.combined[0] - (0.255 * 20 + 0.245 * 30) / 0.5) < 1e-12);
   assert.equal(resultLabel(child, [ancestors[0], null, null, ancestors[3]], true),
-    "Child-0.255*MG1-0.245*PG2");
+    "(Child-0.255*MG1-0.245*PG2)/0.5");
+  const threeMissing = calculate(child, [ancestors[0], null, null, null], true);
+  assert.ok(Math.abs(threeMissing.combined[0] - (24.8 - 0.255 * 10) / 0.745) < 1e-12);
+  assert.equal(resultLabel(child, [ancestors[0], null, null, null], true),
+    "(Child-0.255*MG1)/0.745");
 });
 
 test("a selected ancestor is inferred from offspring and all other ancestors", () => {
