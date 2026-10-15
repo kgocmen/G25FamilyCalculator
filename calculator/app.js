@@ -17,17 +17,16 @@
       "Paternal grandparent 1 · parent 1", "Paternal grandparent 1 · parent 2",
       "Paternal grandparent 2 · parent 1", "Paternal grandparent 2 · parent 2",
     ],
-    16: Array.from({ length: 16 }, (_, index) => `Great-great-grandparent ${index + 1}`),
   };
-  const generation = { 2: "PARENTS", 4: "GRANDPARENTS", 8: "GREAT-GRANDPARENTS", 16: "GREAT-GREAT-GRANDPARENTS" };
-  const singular = { 2: "parent", 4: "grandparent", 8: "great_grandparent", 16: "great_great_grandparent" };
+  const generation = { 2: "PARENTS", 4: "GRANDPARENTS", 8: "GREAT-GRANDPARENTS" };
+  const singular = { 2: "parent", 4: "grandparent", 8: "great_grandparent" };
   const state = {
     mode: 2,
     turkish: false,
     single: null,
     offspring: null,
-    slots: { 2: Array(2).fill(null), 4: Array(4).fill(null), 8: Array(8).fill(null), 16: Array(16).fill(null) },
-    selectedIndexByMode: { 2: null, 4: null, 8: null, 16: null },
+    slots: { 2: Array(2).fill(null), 4: Array(4).fill(null), 8: Array(8).fill(null) },
+    selectedIndexByMode: { 2: null, 4: null, 8: null },
     pickerTarget: null,
     output: "",
     metricLimit: 10,
@@ -113,7 +112,7 @@
     };
     state.single = update(state.single);
     state.offspring = update(state.offspring);
-    for (const mode of [2, 4, 8, 16]) state.slots[mode] = state.slots[mode].map(update);
+    for (const mode of [2, 4, 8]) state.slots[mode] = state.slots[mode].map(update);
   }
 
   function openPicker(target, pasteFirst) {
@@ -212,13 +211,8 @@
     $("#result-panel").hidden = mode === 1;
     $("#single-ancient-matches-group").hidden = mode !== 1;
     $("#calculated-matches-group").hidden = mode === 1;
-    $("#matches-note").hidden = mode === 1;
     $("#match-filter").hidden = mode === 1;
     $("#inputs-title").textContent = mode === 1 ? "G25 input" : "Family inputs";
-    $("#inputs-intro").textContent = (mode === 1
-      ? "Choose a reference population or paste one G25 row."
-      : "Choose a reference population or paste any G25 row for each person.")
-      + (state.turkish ? " Using Turkish modern references and the shared ancient set." : "");
     if (mode === 1) {
       $("#suggestions-panel").hidden = true;
       suggestionTarget = null;
@@ -229,7 +223,6 @@
     $("#relaxed-estimates-panel").hidden = true;
     $("#parent-estimates-panel").hidden = true;
     $("#grandparent-estimates-panel").hidden = true;
-    $("#matches-intro").textContent = "Each list ranks all reference populations by genetic distance from its selected target. Distances use Euclidean G25 × 100.";
     const ancestors = state.slots[mode];
     const male = (mode === 2 || mode === 4) && state.male;
     const weights = core.ancestorWeights(mode, male);
@@ -239,9 +232,6 @@
     const selectedName = selectedIndex === null ? "child" : names[mode][selectedIndex].toLowerCase();
     const targetComparison = complete
       ? core.calculateComparison(state.offspring, ancestors, selectedIndex, male) : null;
-    $("#selection-hint").textContent = complete
-      ? "Click a person or use Compare to calculate and compare that person's G25 coordinates."
-      : "Partial inputs show closest-population suggestions below. Fill the child and every ancestor to compare any person.";
     const select = (index) => {
       state.selectedIndexByMode[mode] = index;
       render();
@@ -270,25 +260,25 @@
     let message;
     let output = "";
     if (targetComparison) {
-      message = `Comparing ${selectedName}: entered coordinates versus the family-based calculation. Click another person to compare them.`;
+      message = `Comparing entered and calculated ${selectedName}.`;
       output = core.formatLine(targetComparison.calculated.label, targetComparison.calculated.values);
     } else if (result.kind === "offspring") {
-      message = "Child calculated from all entered ancestors.";
+      message = "Child calculated.";
       output = core.formatLine(core.resultLabel(state.offspring, ancestors, male), result.values);
     } else if (result.kind === "residual") {
       const count = result.missing.length;
       if (count === 1) {
         const missingIndex = result.missing[0];
-        message = `Full coordinates for the missing ${names[mode][missingIndex].toLowerCase()} calculated. They are also available in its slot.`;
+        message = `Missing ${names[mode][missingIndex].toLowerCase()} calculated.`;
         output = core.formatLine(core.missingAncestorLabel(state.offspring, ancestors, male), result.inferred);
       } else {
-        message = `Weighted average coordinates for ${count} missing ancestors calculated. Individual missing coordinates cannot be determined.`;
+        message = `Combined average of ${count} missing ancestors.`;
         output = core.formatLine(core.resultLabel(state.offspring, ancestors, male), result.combined);
       }
     } else if (state.offspring) {
-      message = "Add ancestors to subtract their contribution from the child.";
+      message = "Add an ancestor.";
     } else {
-      message = `Fill all ${mode} ancestors to calculate the child, or add the child to calculate the missing contribution.`;
+      message = "Add the child or ancestors.";
     }
     if (!references.length) message = "Reference data is unavailable. Reload the page.";
     $("#result-title").textContent = result.kind === "residual" && result.missing.length === 1
@@ -302,7 +292,7 @@
     const comparisonText = $("#comparison");
     comparisonText.hidden = !targetComparison;
     if (targetComparison) {
-      comparisonText.textContent = `Distance between entered and calculated ${selectedName}: ${targetComparison.distance.toFixed(3)} (Euclidean G25 distance × 100).`;
+      comparisonText.textContent = `Entered vs calculated ${selectedName}: ${targetComparison.distance.toFixed(3)} (G25 × 100).`;
     }
 
     let methodNote;
@@ -343,21 +333,20 @@
         label: missing.length === 1 ? `missing ${person}` : `combined average of ${person}`,
         values: missing.length === 1 ? result.inferred : result.combined,
       };
-      description = missing.length === 1
-        ? `Calculated coordinates for the missing ${person}, ranked against reference populations.`
-        : `This ranks the weighted average of ${person}. The coordinates of individual missing ancestors cannot be determined.`;
+      description = missing.length === 1 ? ""
+        : "Combined average; individual missing ancestors cannot be inferred.";
     } else if (!state.offspring) {
       const estimate = core.estimateChildFromKnown(ancestors, male);
       if (estimate) {
         suggestionTarget = { label: "child", values: estimate.values };
-        description = estimate.knownCount === ancestors.length
-          ? `Calculated child from all ${ancestors.length} ancestors, ranked against reference populations.`
-          : `Provisional child estimate from ${estimate.knownCount} of ${ancestors.length} ancestors (known contributions normalized to 100%). Missing ancestors can change this ranking.`;
+        description = estimate.knownCount === ancestors.length ? ""
+          : `Provisional child estimate from ${estimate.knownCount} of ${ancestors.length} ancestors.`;
       }
     }
     $("#suggestions-panel").hidden = !suggestionTarget || !references.length;
     if (!suggestionTarget || !references.length) return;
-    $("#suggestions-intro").textContent = `${description} Distances use Euclidean G25 × 100.`;
+    $("#suggestions-intro").textContent = description;
+    $("#suggestions-intro").hidden = !description;
     renderSuggestionTable();
   }
 
@@ -393,7 +382,6 @@
     $("#parent-estimates-panel").hidden = !state.single || !references.length;
     $("#grandparent-estimates-panel").hidden = !state.single || !references.length;
     if (!state.single || !references.length) return;
-    $("#matches-intro").textContent = "Modern and ancient reference populations ranked separately by genetic distance from the input. Distances use Euclidean G25 × 100.";
     const modernReferences = references.filter((row) => row[0] === "modern");
     const ancientReferences = references.filter((row) => row[0] === "ancient");
     renderSingleClosestTables(modernReferences, ancientReferences);
@@ -590,7 +578,6 @@
     const selectedName = preparedSelectedName;
     $("#actual-matches-title").textContent = `Up to ${state.closestCount} closest to entered ${selectedName}: ${preparedMatches.actual.label}`;
     $("#calculated-matches-title").textContent = `Up to ${state.closestCount} closest to calculated ${selectedName}: ${preparedMatches.calculated.label}`;
-    $("#matches-note").textContent = `The calculated or entered target appears in the opposite list only if it ranks among that list's ${state.closestCount} closest candidates.`;
     const comparisonKey = `A = entered ${selectedName}: ${preparedMatches.actual.label}. B = calculated ${selectedName}: ${preparedMatches.calculated.label}. C = each population listed below. AC and BC are the respective G25 distances to C (× 100).`;
     document.querySelectorAll(".comparison-key").forEach((element) => { element.textContent = comparisonKey; });
     renderMatchTable($("#actual-matches"), lists.actual, { otherTargetName: `calculated ${selectedName}`, distanceKey: "ac" });
@@ -610,7 +597,7 @@
     const head = document.createElement("thead");
     const heading = document.createElement("tr");
     const headings = ["#", otherTargetName ? "Population / target" : "Population"];
-    if (distanceKey) headings.push("Genetic distance (Euclidean)");
+    if (distanceKey) headings.push("Genetic distance (G25 × 100)");
     else headings.push("AC", "BC");
     if (metric === "difference") headings.push("AC − BC");
     if (metric === "ratio") headings.push("AC / BC");
@@ -737,7 +724,7 @@
   $("#clear-all").addEventListener("click", () => {
     state.single = null;
     state.offspring = null;
-    for (const mode of [2, 4, 8, 16]) {
+    for (const mode of [2, 4, 8]) {
       state.slots[mode].fill(null);
       state.selectedIndexByMode[mode] = null;
     }

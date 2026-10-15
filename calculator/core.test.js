@@ -25,7 +25,7 @@ test("partial child estimates normalize known contributors and rank their closes
     calculate(null, [person("A", 10), person("B", 20)]).values);
 });
 
-for (const count of [2, 4, 8, 16]) {
+for (const count of [2, 4, 8]) {
   test(`${count} ancestors produce the expected offspring and recover one missing ancestor`, () => {
     const ancestors = Array.from({ length: count }, (_, index) => person(`A${index + 1}`, index + 1));
     const expected = (count + 1) / 2;
@@ -60,7 +60,7 @@ test("identical offspring and known ancestors infer the same missing G25 row", (
     label: "X",
     values: Array.from({ length: 25 }, (_, index) => Number(((index - 12) * 0.004321).toFixed(6))),
   };
-  for (const count of [2, 4, 8, 16]) {
+  for (const count of [2, 4, 8]) {
     for (const male of count <= 4 ? [false, true] : [false]) {
       for (let missingIndex = 0; missingIndex < count; missingIndex += 1) {
         const ancestors = Array(count).fill(sample);
@@ -85,7 +85,6 @@ test("output labels show the normalized multi-ancestor calculation", () => {
   assert.equal(resultLabel(person("Child", 0), [a, b, null, null]), "(Child-0.25*Pop1-0.25*Pop2)/0.5");
   assert.equal(resultLabel(person("Child", 0), [a, null, null, null]), "(Child-0.25*Pop1)/0.75");
   assert.equal(resultLabel(person("Child", 0), [a, null, null, null, null, null, null, null]), "(Child-0.125*Pop1)/0.875");
-  assert.equal(resultLabel(person("Child", 0), [a, ...Array(15).fill(null)]), "(Child-0.0625*Pop1)/0.9375");
   assert.equal(resultLabel(person("Child", 0), [null, null, null, null]), "Child");
 });
 
@@ -172,12 +171,17 @@ test("a selected ancestor is inferred from offspring and all other ancestors", (
   assert.ok(ancestorComparison.distance > childComparison.distance);
 });
 
-test("selected ancestor comparison works with 16 slots", () => {
-  const ancestors = Array.from({ length: 16 }, (_, index) => person(`A${index + 1}`, index + 1));
-  const comparison = calculateComparison(person("Child", 8.5), ancestors, 15);
-  assert.equal(comparison.calculated.label.startsWith("16*Child-A1-A2"), true);
-  assert.deepEqual(comparison.calculated.values, Array(25).fill(16));
+test("selected ancestor comparison works with 8 slots", () => {
+  const ancestors = Array.from({ length: 8 }, (_, index) => person(`A${index + 1}`, index + 1));
+  const comparison = calculateComparison(person("Child", 4.5), ancestors, 7);
+  assert.equal(comparison.calculated.label.startsWith("8*Child-A1-A2"), true);
+  assert.deepEqual(comparison.calculated.values, Array(25).fill(8));
   assert.equal(comparison.distance, 0);
+});
+
+test("16 ancestor inputs are no longer accepted", () => {
+  assert.throws(() => ancestorWeights(16), /2, 4, or 8/);
+  assert.throws(() => calculate(null, Array(16).fill(person("A", 1))), /2, 4, or 8/);
 });
 
 test("pasted rows parse and copy as 25-coordinate G25 rows", () => {

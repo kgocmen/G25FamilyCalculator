@@ -16,7 +16,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 h1 { margin: 9px 0 8px; font-size: clamp(30px, 5vw, 46px); letter-spacing: -.04em; line-height: 1.1; }
 h2 { margin: 0 0 5px; font-size: 20px; letter-spacing: -.025em; }
 p { margin: 0; }
-.page-header p, .section-head p { color: #5b6d80; line-height: 1.5; }
+.section-head p { color: #5b6d80; line-height: 1.5; }
 .panel { background: #fff; border: 1px solid #dce4eb; border-radius: 18px; box-shadow: 0 12px 35px rgba(19, 44, 70, .055); padding: 25px; margin-bottom: 18px; }
 .section-head { display: flex; gap: 20px; justify-content: space-between; align-items: flex-start; }
 .section-head > div:first-child { min-width: 0; overflow-wrap: anywhere; }
@@ -32,9 +32,7 @@ p { margin: 0; }
 .male-option[hidden] { display: none; }
 .male-option input { width: 16px; height: 16px; margin: 0; accent-color: #176e8d; cursor: pointer; }
 .male-option small { margin-left: 6px; color: #607286; font-size: 11px; font-weight: 500; }
-.selection-hint { margin: 0 0 26px; color: #607286; font-size: 13px; }
 .group-label { display: flex; justify-content: space-between; gap: 12px; color: #57718a; font-size: 11px; font-weight: 800; letter-spacing: .1em; margin: 0 0 9px; }
-.group-label span:last-child { font-weight: 500; letter-spacing: 0; font-size: 12px; }
 .ancestor-label { margin-top: 24px; }
 .ancestor-rows { display: grid; gap: 8px; }
 .person-row { min-height: 66px; display: grid; grid-template-columns: 175px minmax(0, 1fr) auto; align-items: center; gap: 14px; padding: 10px 14px; border: 1px solid #e0e6ec; border-radius: 10px; background: #fff; }
@@ -118,7 +116,6 @@ dialog::backdrop { background: rgba(13, 35, 54, .55); }
   .row-actions { justify-content: flex-start; margin-left: -5px; }
   .section-head { align-items: flex-start; }
   #matches-panel .section-head, #relaxed-estimates-panel .section-head, #parent-estimates-panel .section-head, #grandparent-estimates-panel .section-head { flex-wrap: wrap; }
-  .group-label span:last-child { text-align: right; }
   .matches-table { min-width: 680px; }
   .matches-table.closest-table { min-width: 420px; }
   .extreme-grid { grid-template-columns: 1fr; }

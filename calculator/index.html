@@ -17,14 +17,12 @@
     <header class="page-header">
       <div class="eyebrow">REFERENCE DATA FROM WORLD GENETICS</div>
       <h1>G25 Family Calculator</h1>
-      <p>Find the closest populations for one G25 row, or combine 2, 4, 8, or 16 ancestors to calculate family coordinates.</p>
     </header>
 
     <section class="panel input-panel" aria-labelledby="inputs-title">
       <div class="section-head">
         <div>
           <h2 id="inputs-title">Family inputs</h2>
-          <p id="inputs-intro">Choose a reference population or paste any G25 row for each person.</p>
         </div>
         <div class="input-head-actions">
           <label class="turkish-option" title="Use Turkish modern references with the shared ancient set">
@@ -40,10 +38,8 @@
         <button class="mode-button active" type="button" data-mode="2" aria-pressed="true">2 parents</button>
         <button class="mode-button" type="button" data-mode="4" aria-pressed="false">4 grandparents</button>
         <button class="mode-button" type="button" data-mode="8" aria-pressed="false">8 great-grandparents</button>
-        <button class="mode-button" type="button" data-mode="16" aria-pressed="false">16 great-great-grandparents</button>
       </div>
       <div id="single-input" hidden>
-        <p class="selection-hint">Choose a population or paste one G25 row to compare it with reference populations.</p>
         <div id="single-row"></div>
       </div>
       <div id="family-inputs">
@@ -52,12 +48,10 @@
           <span>Male</span>
           <small id="male-weight-note">Mother 50% · Father 50%</small>
         </label>
-        <p id="selection-hint" class="selection-hint">Fill the child and every ancestor to compare any person.</p>
-
-        <div class="group-label"><span>CHILD</span><span>Optional when all ancestors are entered</span></div>
+        <div class="group-label"><span>CHILD</span></div>
         <div id="offspring-row"></div>
 
-        <div class="group-label ancestor-label"><span id="generation-label">PARENTS</span><span>Fill all, or leave blanks with child supplied</span></div>
+        <div class="group-label ancestor-label"><span id="generation-label">PARENTS</span></div>
         <div id="ancestor-rows" class="ancestor-rows"></div>
       </div>
     </section>
@@ -79,7 +73,7 @@
       <div class="section-head">
         <div>
           <h2 id="suggestions-title">Closest populations for calculated coordinates</h2>
-          <p id="suggestions-intro" class="panel-intro"></p>
+          <p id="suggestions-intro" class="panel-intro" hidden></p>
         </div>
         <label class="result-count"><span>Show top <output id="suggestion-count-value" for="suggestion-count">10</output></span>
           <input id="suggestion-count" type="range" min="10" max="100" step="1" value="10" aria-label="Number of suggested populations to show">
@@ -102,7 +96,6 @@
       <div class="section-head">
         <div>
           <h2 id="matches-title">Closest populations</h2>
-          <p id="matches-intro">Each list ranks all reference populations by genetic distance from its selected target. Distances use Euclidean G25 × 100.</p>
         </div>
         <label class="result-count"><span>Show top <output id="closest-count-value" for="closest-count">10</output></span>
           <input id="closest-count" type="range" min="10" max="100" step="1" value="10" aria-label="Number of closest populations to show">
@@ -127,14 +120,13 @@
         <h3 id="calculated-matches-title">Up to 10 closest to calculated child</h3>
         <div id="calculated-matches" class="table-scroll" tabindex="0" role="region" aria-label="Calculated closest populations table"></div>
       </div>
-      <p id="matches-note" class="method-note">The calculated or entered target appears in the opposite list only if it ranks among that list's 10 closest candidates.</p>
     </section>
 
     <section id="relaxed-estimates-panel" class="panel matches-panel" aria-labelledby="relaxed-estimates-title" hidden>
       <div class="section-head">
         <div>
           <h2 id="relaxed-estimates-title">Unsupervised 2-way fit</h2>
-          <p class="panel-intro">Modern and ancient references are fitted separately. Each pair's percentages are chosen freely to minimize distance; pairs with a zero-share component are excluded.</p>
+          <p class="panel-intro">Modern and ancient fitted separately; proportions vary.</p>
         </div>
         <label class="result-count"><span>Show top <output id="relaxed-count-value" for="relaxed-count">10</output></span>
           <input id="relaxed-count" type="range" min="10" max="100" step="1" value="10" aria-label="Number of unsupervised fits to show">
@@ -154,7 +146,6 @@
       <div class="section-head">
         <div>
           <h2 id="parent-estimates-title">Strict 2-way fit · 50/50</h2>
-          <p class="panel-intro">Top fits from modern references. Within each fit, populations appear in order of genetic distance to the input, closest first. Both 50% slots may use the same population. References identical to the input are excluded.</p>
         </div>
         <label class="result-count"><span>Show top <output id="strict-parent-count-value" for="strict-parent-count">10</output></span>
           <input id="strict-parent-count" type="range" min="10" max="100" step="1" value="10" aria-label="Number of strict two-way fits to show">
@@ -167,7 +158,6 @@
       <div class="section-head">
         <div>
           <h2 id="grandparent-estimates-title">Strict 4-way fit · 25% each</h2>
-          <p class="panel-intro">Top fits from all four-slot combinations of modern references, at exactly 25% each. Within each fit, populations appear in order of genetic distance to the input, closest first. A population may appear more than once, but references identical to the input are excluded. An exact pair-sum search skips combinations that cannot beat the current top 100; this table may take longer to finish. These coordinate matches cannot identify actual ancestors.</p>
         </div>
         <label class="result-count"><span>Show top <output id="strict-grandparent-count-value" for="strict-grandparent-count">10</output></span>
           <input id="strict-grandparent-count" type="range" min="10" max="100" step="1" value="10" aria-label="Number of strict four-way fits to show">
@@ -184,7 +174,7 @@
       <div class="metric-limit-heading">
         <div>
           <h2 id="metric-limit-title">Difference, ratio and D3 distance limit</h2>
-          <p class="panel-intro">Only populations with both AC and BC at or below this value appear in the three tables below. The closest-population tables have no distance limit.</p>
+          <p class="panel-intro">Applies when both AC and BC are within the limit.</p>
           <p class="comparison-key"></p>
         </div>
         <output id="metric-limit-value" for="metric-limit">10.000</output>
@@ -196,7 +186,6 @@
     <section id="difference-panel" class="panel matches-panel" aria-labelledby="difference-title" hidden>
       <h2 id="difference-title">Difference · AC − BC</h2>
       <p class="comparison-key"></p>
-      <p class="panel-intro">Negative values mean C is closer to A; positive values mean C is closer to B.</p>
       <div class="extreme-grid">
         <div class="match-group">
           <h3>Up to 10 smallest differences</h3>
@@ -212,7 +201,6 @@
     <section id="ratio-panel" class="panel matches-panel" aria-labelledby="ratio-title" hidden>
       <h2 id="ratio-title">Ratio · AC / BC</h2>
       <p class="comparison-key"></p>
-      <p class="panel-intro">Ratios below 1 mean C is closer to A; ratios above 1 mean C is closer to B. References with BC = 0 are excluded because the ratio is undefined.</p>
       <div class="extreme-grid">
         <div class="match-group">
           <h3>Up to 10 smallest ratios</h3>
@@ -228,7 +216,6 @@
     <section id="d3-panel" class="panel matches-panel" aria-labelledby="d3-title" hidden>
       <h2 id="d3-title">D3 · (AC − BC) / (AC + BC)</h2>
       <p class="comparison-key"></p>
-      <p class="panel-intro">D3 ranges from −1 to +1. Negative values mean C is closer to A; positive values mean C is closer to B. Rows with AC + BC = 0 are excluded.</p>
       <div class="extreme-grid">
         <div class="match-group">
           <h3>Up to 10 smallest D3 values</h3>

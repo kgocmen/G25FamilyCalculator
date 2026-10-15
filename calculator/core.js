@@ -119,7 +119,7 @@
   }
 
   function ancestorWeights(count, male = false) {
-    if (![2, 4, 8, 16].includes(count)) throw new Error("Choose 2, 4, 8, or 16 ancestors.");
+    if (![2, 4, 8].includes(count)) throw new Error("Choose 2, 4, or 8 ancestors.");
     if (count === 2 && male) return [0.51, 0.49];
     if (count === 4 && male) return [0.255, 0.255, 0.245, 0.245];
     return Array(count).fill(1 / count);
@@ -143,7 +143,7 @@
   }
 
   function calculate(offspring, ancestors, male = false) {
-    if (![2, 4, 8, 16].includes(ancestors.length)) throw new Error("Choose 2, 4, 8, or 16 ancestors.");
+    if (![2, 4, 8].includes(ancestors.length)) throw new Error("Choose 2, 4, or 8 ancestors.");
     if (offspring && !validateVector(offspring.values)) throw new Error("Invalid child coordinates.");
     for (const ancestor of ancestors) {
       if (ancestor && !validateVector(ancestor.values)) throw new Error("Invalid ancestor coordinates.");
