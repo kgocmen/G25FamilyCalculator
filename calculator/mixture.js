@@ -138,20 +138,37 @@ function G25MixtureModule(root) {
     return square / 16;
   }
 
-  function exhaustiveGrandparents(rows, shortlist, onProgress, limit) {
+  function exhaustiveGrandparents(rows, shortlist, onProgress, limit, onSnapshot) {
     const n = rows.length;
     if (n === 0) return [];
     const best = [];
+    let lastSnapshotAt = 0;
+    let bestVersion = 0;
+    let snapshotVersion = -1;
+    function snapshot(force = false) {
+      if (!onSnapshot || bestVersion === snapshotVersion || !best.length) return;
+      const now = Date.now();
+      if (!force && now - lastSnapshotAt < 300) return;
+      onSnapshot(sortFits([...best]));
+      snapshotVersion = bestVersion;
+      lastSnapshotAt = now;
+    }
     if (n <= 64) {
       for (let a = 0; a < n; a += 1) {
         for (let b = a; b < n; b += 1) {
           for (let c = b; c < n; c += 1) {
             for (let d = c; d < n; d += 1) {
               const ids = [a, b, c, d];
-              heapPush(best, { ids, weights: [0.25, 0.25, 0.25, 0.25], score: fourWayScore(rows, ids) }, limit);
+              const score = fourWayScore(rows, ids);
+              if (best.length < limit || score < best[0].score) {
+                heapPush(best, { ids, weights: [0.25, 0.25, 0.25, 0.25], score }, limit);
+                bestVersion += 1;
+              }
             }
+            if ((c & 31) === 0) snapshot();
           }
         }
+        snapshot(true);
         if (onProgress) onProgress(Math.round(100 * (a + 1) / n));
       }
       return sortFits(best);
@@ -162,6 +179,8 @@ function G25MixtureModule(root) {
     for (const fit of shortlist) {
       heapPush(best, { ...fit, score: fourWayScore(rows, fit.ids) }, limit);
     }
+    bestVersion += 1;
+    snapshot(true);
     const pairCount = n * (n + 1) / 2;
     const pairIds = new Uint32Array(pairCount);
     let next = 0;
@@ -284,9 +303,12 @@ function G25MixtureModule(root) {
             if (best.some((fit) => fit.ids.every((id, k) => id === ids[k]))) continue;
             const score = square / 16;
             heapPush(best, { ids, weights: [0.25, 0.25, 0.25, 0.25], score }, limit);
+            bestVersion += 1;
           }
         }
+        if ((j & 31) === 0) snapshot();
       }
+      snapshot(true);
       if (onProgress && (i + 1 === n || (i + 1) % Math.max(1, Math.floor(n / 100)) === 0)) {
         onProgress(Math.round(10 + 90 * (i + 1) / n));
       }
@@ -309,7 +331,7 @@ function G25MixtureModule(root) {
     };
   }
 
-  function estimateStrict(target, references, onParents, onProgress, limit = 10) {
+  function estimateStrict(target, references, onParents, onProgress, limit = 10, onGrandparentsUpdate) {
     if (!Number.isInteger(limit) || limit < 1 || limit > 100) throw new Error("Choose 1 to 100 strict fits.");
     const rows = prepare(target, references, true);
     const pairFits = bestPairs(rows, { fixed: 0.5, limit, collectPool: true });
@@ -317,7 +339,11 @@ function G25MixtureModule(root) {
     if (onParents) onParents(parents);
     if (onProgress) onProgress(0);
     const shortlist = bestGrandparents(rows, pairFits.pool, limit);
-    const grandparents = exhaustiveGrandparents(rows, shortlist, onProgress, limit)
+    if (onGrandparentsUpdate && rows.length > 64 && shortlist.length) {
+      onGrandparentsUpdate(shortlist.map((fit) => decorate(fit, rows, true)));
+    }
+    const grandparents = exhaustiveGrandparents(rows, shortlist, onProgress, limit,
+      onGrandparentsUpdate && ((fits) => onGrandparentsUpdate(fits.map((fit) => decorate(fit, rows, true)))))
       .map((fit) => decorate(fit, rows, true));
     if (onProgress) onProgress(100);
     return { parents, grandparents };

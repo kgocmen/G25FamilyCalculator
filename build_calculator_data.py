@@ -30,7 +30,7 @@ def read_rows(path: Path, category: str) -> list[list]:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--turkish", action="store_true", help="Rebuild only the Turkish modern bundle")
+    parser.add_argument("--turkish", action="store_true", help="Rebuild only the Turkish modern and ancient bundle")
     args = parser.parse_args()
     if not args.turkish:
         rows = read_rows(ROOT / "data" / "modern_g25.txt", "modern")
@@ -41,11 +41,12 @@ def main() -> None:
         )
         print(f"Bundled {len(rows)} references into {OUTPUT}")
     turkish_rows = read_rows(ROOT / "data" / "turkish_modern_g25.txt", "modern")
+    turkish_rows += read_rows(ROOT / "data" / "turkish_ancient_g25.txt", "ancient")
     TURKISH_OUTPUT.write_text(
-        "window.G25_TURKISH_MODERN_REFERENCES = " + json.dumps(turkish_rows, ensure_ascii=False, separators=(",", ":")) + ";\n",
+        "window.G25_TURKISH_REFERENCES = " + json.dumps(turkish_rows, ensure_ascii=False, separators=(",", ":")) + ";\n",
         encoding="utf-8",
     )
-    print(f"Bundled {len(turkish_rows)} Turkish modern references into {TURKISH_OUTPUT}")
+    print(f"Bundled {len(turkish_rows)} Turkish modern and ancient references into {TURKISH_OUTPUT}")
 
 
 if __name__ == "__main__":

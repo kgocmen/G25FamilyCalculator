@@ -2,10 +2,7 @@
   "use strict";
 
   const globalReferences = window.G25_REFERENCES || [];
-  const turkishModernReferences = window.G25_TURKISH_MODERN_REFERENCES || [];
-  const turkishReferences = turkishModernReferences.length
-    ? [...turkishModernReferences, ...globalReferences.filter((row) => row[0] === "ancient")]
-    : [];
+  const turkishReferences = window.G25_TURKISH_REFERENCES || [];
   let references = globalReferences;
   const core = window.G25Core;
   const names = {
@@ -75,7 +72,7 @@
               send("strictProgress", { value });
               lastProgress = value;
             }
-          }, 100);
+          }, 100, (fits) => send("strictGrandparentsUpdate", { fits }));
         send("strictGrandparents", { fits: strict.grandparents });
       } catch (error) {
         send("error", { message: error.message });
@@ -528,8 +525,15 @@
         updateStrictProgress(0, "Building exact four-way search index…");
       }
       if (kind === "strictProgress") {
-        updateStrictProgress(value, value === 100 ? "Complete" : value < 10
-          ? "Building exact four-way search index…" : "Checking four-population combinations…");
+        updateStrictProgress(value, value === 100 ? "Complete" : strictReady.grandparents
+          ? "Current best fits · searching…" : value < 10
+            ? "Building exact four-way search index…" : "Checking four-population combinations…");
+      }
+      if (kind === "strictGrandparentsUpdate") {
+        strictFits.grandparents = fits;
+        strictReady.grandparents = true;
+        renderStrictTable("grandparents");
+        $("#strict-four-progress-label").textContent = "Current best fits · searching…";
       }
       if (kind === "strictGrandparents") {
         strictFits.grandparents = fits;

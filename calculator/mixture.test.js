@@ -113,6 +113,24 @@ test("strict four-way search finds a balanced combination outside the shortlist"
   assert.ok(progress.every((value, index) => index === 0 || value >= progress[index - 1]));
 });
 
+test("strict four-way search publishes provisional rankings before the exact result", () => {
+  const references = Array.from({ length: 66 }, (_, index) => {
+    const values = Array(25).fill(0);
+    values[index % 4] = (index + 1) / 100;
+    return row(`R${index}`, values);
+  });
+  const updates = [];
+  const result = estimateStrict(row("Target", [0.1, 0.1, 0.1, 0.1, ...Array(21).fill(0)]),
+    references, null, null, 10, (fits) => updates.push(fits));
+  assert.ok(updates.length > 1);
+  for (const fits of updates) {
+    assert.ok(fits.length > 0 && fits.length <= 10);
+    assert.ok(fits.every((fit) => fit.parts.length === 4 && fit.parts.every((part) => part.weight === 0.25)));
+    assert.ok(fits.every((fit, index) => index === 0 || fit.distance >= fits[index - 1].distance - 1e-8));
+  }
+  assert.deepEqual(updates.at(-1), result.grandparents);
+});
+
 test("strict four-way indexed search matches exhaustive top 10 and top 100 rankings", () => {
   let seed = 42;
   const random = () => {

@@ -1,5 +1,6 @@
-# Keep the curated Turkish modern source alongside its browser bundle.
+# Keep the curated Turkish sources alongside their browser bundle.
 data/*
 !data/turkish_modern_g25.txt
+!data/turkish_ancient_g25.txt
 *.py
 !build_calculator_data.py
