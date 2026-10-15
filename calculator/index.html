@@ -5,12 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#14243b">
   <title>G25 Family Calculator</title>
-  <link rel="stylesheet" href="style.css?v=20261015-2">
-  <script defer src="references.js?v=20261015-2"></script>
-  <script defer src="turkish_references.js?v=20261015-2"></script>
-  <script defer src="core.js?v=20261015-2"></script>
-  <script defer src="mixture.js?v=20261015-2"></script>
-  <script defer src="app.js?v=20261015-2"></script>
+  <link rel="stylesheet" href="style.css?v=20261015-3">
+  <script defer src="references.js?v=20261015-3"></script>
+  <script defer src="turkish_references.js?v=20261015-3"></script>
+  <script defer src="core.js?v=20261015-3"></script>
+  <script defer src="mixture.js?v=20261015-3"></script>
+  <script defer src="app.js?v=20261015-3"></script>
 </head>
 <body>
   <main class="shell">
@@ -35,13 +35,19 @@
       </div>
 
       <div class="mode-switch" role="group" aria-label="Calculator mode">
-        <button class="mode-button" type="button" data-mode="1" aria-pressed="false">1 input</button>
+        <button class="mode-button" type="button" data-mode="1" aria-pressed="false">Analyse</button>
+        <button class="mode-button" type="button" data-mode="0" aria-pressed="false">Compare</button>
         <button class="mode-button active" type="button" data-mode="2" aria-pressed="true">2 parents</button>
         <button class="mode-button" type="button" data-mode="4" aria-pressed="false">4 grandparents</button>
         <button class="mode-button" type="button" data-mode="8" aria-pressed="false">8 great-grandparents</button>
       </div>
       <div id="single-input" hidden>
         <div id="single-row"></div>
+      </div>
+      <div id="compare-inputs" hidden>
+        <div id="compare-rows" class="ancestor-rows"></div>
+        <p id="compare-status" class="method-note" role="status">Enter both A and B.</p>
+        <p id="compare-distance" class="comparison" hidden></p>
       </div>
       <div id="family-inputs">
         <label id="male-option" class="male-option">

@@ -24,6 +24,7 @@
     mode: 2,
     turkish: false,
     single: null,
+    compare: [null, null],
     offspring: null,
     slots: { 2: Array(2).fill(null), 4: Array(4).fill(null), 8: Array(8).fill(null) },
     selectedIndexByMode: { 2: null, 4: null, 8: null },
@@ -40,7 +41,7 @@
   const $ = (selector) => document.querySelector(selector);
   const picker = $("#picker");
   let preparedMatches = null;
-  let preparedSelectedName = "";
+  let preparedContext = null;
   let mixtureWorker = null;
   let mixtureWorkerUrl = null;
   let mixtureRequest = 0;
@@ -97,6 +98,7 @@
 
   function setTarget(item) {
     if (state.pickerTarget.type === "single") state.single = item;
+    else if (state.pickerTarget.type === "compare") state.compare[state.pickerTarget.index] = item;
     else if (state.pickerTarget.type === "offspring") state.offspring = item;
     else state.slots[state.mode][state.pickerTarget.index] = item;
     picker.close();
@@ -111,6 +113,7 @@
       return row ? { category: row[0], label: row[1], values: row.slice(2), source: "reference" } : null;
     };
     state.single = update(state.single);
+    state.compare = state.compare.map(update);
     state.offspring = update(state.offspring);
     for (const mode of [2, 4, 8]) state.slots[mode] = state.slots[mode].map(update);
   }
@@ -118,6 +121,7 @@
   function openPicker(target, pasteFirst) {
     state.pickerTarget = target;
     $("#picker-title").textContent = target.type === "single" ? "Add sample coordinates"
+      : target.type === "compare" ? `Add ${target.index === 0 ? "A" : "B"} coordinates`
       : target.type === "offspring" ? "Add child coordinates"
         : `Add ${names[state.mode][target.index].toLowerCase()}`;
     $("#reference-search").value = "";
@@ -184,6 +188,7 @@
     if (item) {
       actions.append(makeButton("Clear", () => {
         if (target.type === "single") state.single = null;
+        else if (target.type === "compare") state.compare[target.index] = null;
         else if (target.type === "offspring") state.offspring = null;
         else state.slots[state.mode][target.index] = null;
         render();
@@ -207,16 +212,22 @@
       button.setAttribute("aria-pressed", String(active));
     });
     $("#single-input").hidden = mode !== 1;
-    $("#family-inputs").hidden = mode === 1;
-    $("#result-panel").hidden = mode === 1;
+    const compareInputs = $("#compare-inputs");
+    if (compareInputs) compareInputs.hidden = mode !== 0;
+    $("#family-inputs").hidden = mode === 0 || mode === 1;
+    $("#result-panel").hidden = mode === 0 || mode === 1;
     $("#single-ancient-matches-group").hidden = mode !== 1;
     $("#calculated-matches-group").hidden = mode === 1;
     $("#match-filter").hidden = mode === 1;
-    $("#inputs-title").textContent = mode === 1 ? "G25 input" : "Family inputs";
+    $("#inputs-title").textContent = mode === 1 ? "Analyse" : mode === 0 ? "Compare" : "Family inputs";
     if (mode === 1) {
       $("#suggestions-panel").hidden = true;
       suggestionTarget = null;
       renderSingle();
+      return;
+    }
+    if (mode === 0) {
+      renderCompare();
       return;
     }
     cancelMixtures();
@@ -323,6 +334,24 @@
     renderMatches(targetComparison, selectedName);
   }
 
+  function renderCompare() {
+    cancelMixtures();
+    $("#suggestions-panel").hidden = true;
+    suggestionTarget = null;
+    for (const selector of ["#relaxed-estimates-panel", "#parent-estimates-panel", "#grandparent-estimates-panel"]) {
+      $(selector).hidden = true;
+    }
+    $("#compare-rows").replaceChildren(...state.compare.map((item, index) =>
+      createRow(index === 0 ? "A" : "B", { type: "compare", index }, item, null)));
+    const ready = state.compare.every(Boolean);
+    $("#compare-status").hidden = ready;
+    $("#compare-distance").hidden = !ready;
+    if (ready) {
+      $("#compare-distance").textContent = `A–B distance: ${core.distance(state.compare[0].values, state.compare[1].values).toFixed(3)} (G25 × 100).`;
+    }
+    renderMatches(ready ? { actual: state.compare[0], calculated: state.compare[1] } : null, "", true);
+  }
+
   function renderSuggestions(result, ancestors, male) {
     suggestionTarget = null;
     let description = "";
@@ -373,6 +402,7 @@
     $("#strict-grandparent-count").value = String(state.strictGrandparentCount);
     $("#strict-grandparent-count-value").textContent = String(state.strictGrandparentCount);
     preparedMatches = null;
+    preparedContext = null;
     $("#single-row").replaceChildren(createRow("Sample", { type: "single" }, state.single, null));
     for (const selector of ["#metric-controls", "#difference-panel", "#ratio-panel", "#d3-panel"]) {
       $(selector).hidden = true;
@@ -551,18 +581,19 @@
     }
   }
 
-  function renderMatches(targetComparison, selectedName) {
+  function renderMatches(targetComparison, selectedName, compareMode = false) {
     const panels = [$("#matches-panel"), $("#metric-controls"), $("#difference-panel"), $("#ratio-panel"), $("#d3-panel")];
     if (!targetComparison || !references.length) {
       panels.forEach((panel) => { panel.hidden = true; });
       preparedMatches = null;
+      preparedContext = null;
       return;
     }
     panels.forEach((panel) => { panel.hidden = false; });
     const category = $("#match-category").value;
     const candidates = category === "all" ? references : references.filter((row) => row[0] === category);
     preparedMatches = core.prepareMatches(targetComparison.actual, targetComparison.calculated, candidates);
-    preparedSelectedName = selectedName;
+    preparedContext = { selectedName, compareMode };
     const slider = $("#metric-limit");
     slider.max = String(preparedMatches.furthestDistance);
     slider.value = String(Math.min(state.metricLimit, preparedMatches.furthestDistance));
@@ -575,13 +606,21 @@
     const metricLimit = Number($("#metric-limit").value);
     $("#metric-limit-value").textContent = metricLimit.toFixed(3);
     const lists = core.rankMatches(preparedMatches, 10, metricLimit, state.closestCount);
-    const selectedName = preparedSelectedName;
-    $("#actual-matches-title").textContent = `Up to ${state.closestCount} closest to entered ${selectedName}: ${preparedMatches.actual.label}`;
-    $("#calculated-matches-title").textContent = `Up to ${state.closestCount} closest to calculated ${selectedName}: ${preparedMatches.calculated.label}`;
-    const comparisonKey = `A = entered ${selectedName}: ${preparedMatches.actual.label}. B = calculated ${selectedName}: ${preparedMatches.calculated.label}. C = each population listed below. AC and BC are the respective G25 distances to C (× 100).`;
+    const { selectedName, compareMode } = preparedContext;
+    $("#actual-matches-title").textContent = compareMode
+      ? `Up to ${state.closestCount} closest to A: ${preparedMatches.actual.label}`
+      : `Up to ${state.closestCount} closest to entered ${selectedName}: ${preparedMatches.actual.label}`;
+    $("#calculated-matches-title").textContent = compareMode
+      ? `Up to ${state.closestCount} closest to B: ${preparedMatches.calculated.label}`
+      : `Up to ${state.closestCount} closest to calculated ${selectedName}: ${preparedMatches.calculated.label}`;
+    const comparisonKey = compareMode
+      ? `A = ${preparedMatches.actual.label}. B = ${preparedMatches.calculated.label}. C = each population listed below. AC and BC are the respective G25 distances to C (× 100).`
+      : `A = entered ${selectedName}: ${preparedMatches.actual.label}. B = calculated ${selectedName}: ${preparedMatches.calculated.label}. C = each population listed below. AC and BC are the respective G25 distances to C (× 100).`;
     document.querySelectorAll(".comparison-key").forEach((element) => { element.textContent = comparisonKey; });
-    renderMatchTable($("#actual-matches"), lists.actual, { otherTargetName: `calculated ${selectedName}`, distanceKey: "ac" });
-    renderMatchTable($("#calculated-matches"), lists.calculated, { otherTargetName: `entered ${selectedName}`, distanceKey: "bc" });
+    renderMatchTable($("#actual-matches"), lists.actual,
+      { otherTargetName: compareMode ? "B" : `calculated ${selectedName}`, distanceKey: "ac" });
+    renderMatchTable($("#calculated-matches"), lists.calculated,
+      { otherTargetName: compareMode ? "A" : `entered ${selectedName}`, distanceKey: "bc" });
     const emptyMessage = `No entries have both AC and BC at or below ${metricLimit.toFixed(3)} in this reference set.`;
     renderMatchTable($("#smallest-difference"), lists.smallestDifference, { metric: "difference", emptyMessage });
     renderMatchTable($("#largest-difference"), lists.largestDifference, { metric: "difference", emptyMessage });
@@ -719,7 +758,7 @@
   }
 
   document.querySelectorAll(".mode-button").forEach((button) => {
-    if (![1, 2, 4, 8].includes(Number(button.dataset.mode))) {
+    if (![0, 1, 2, 4, 8].includes(Number(button.dataset.mode))) {
       button.hidden = true;
       return;
     }
@@ -727,6 +766,7 @@
   });
   $("#clear-all").addEventListener("click", () => {
     state.single = null;
+    state.compare = [null, null];
     state.offspring = null;
     for (const mode of [2, 4, 8]) {
       state.slots[mode].fill(null);
