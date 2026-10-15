@@ -1,10 +1,29 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
-const { ancestorWeights, calculate, calculateComparison, closestMatches, formatLine, missingAncestorLabel, nearestMatches, parseLine, prepareMatches, rankMatches, resultLabel } = require("./core.js");
+const { ancestorWeights, calculate, calculateComparison, closestMatches, estimateChildFromKnown, formatLine, missingAncestorLabel, nearestMatches, parseLine, prepareMatches, rankMatches, resultLabel } = require("./core.js");
 
 function person(label, value) {
   return { label, values: Array(25).fill(value) };
 }
+
+test("partial child estimates normalize known contributors and rank their closest references", () => {
+  assert.equal(estimateChildFromKnown([null, null]), null);
+  const parents = [person("Mother", 10), null];
+  const partial = estimateChildFromKnown(parents, true);
+  assert.equal(partial.knownCount, 1);
+  assert.equal(partial.knownWeight, 0.51);
+  assert.ok(partial.values.every((value) => Math.abs(value - 10) < 1e-12));
+  const references = [["modern", "Near", ...Array(25).fill(10)], ["modern", "Far", ...Array(25).fill(20)]];
+  assert.equal(nearestMatches({ label: "child", values: partial.values }, references, 10)[0].label, "Near");
+
+  const grandparents = [person("M1", 10), null, person("P1", 30), null];
+  const weighted = estimateChildFromKnown(grandparents, true);
+  assert.equal(weighted.knownCount, 2);
+  assert.equal(weighted.knownWeight, 0.5);
+  assert.ok(weighted.values.every((value) => Math.abs(value - 19.8) < 1e-12));
+  assert.deepEqual(estimateChildFromKnown([person("A", 10), person("B", 20)]).values,
+    calculate(null, [person("A", 10), person("B", 20)]).values);
+});
 
 for (const count of [2, 4, 8, 16]) {
   test(`${count} ancestors produce the expected offspring and recover one missing ancestor`, () => {

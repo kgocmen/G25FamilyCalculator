@@ -125,6 +125,23 @@
     return Array(count).fill(1 / count);
   }
 
+  function estimateChildFromKnown(ancestors, male = false) {
+    const weights = ancestorWeights(ancestors.length, male);
+    let knownWeight = 0;
+    let knownCount = 0;
+    for (let index = 0; index < ancestors.length; index += 1) {
+      if (!ancestors[index]) continue;
+      if (!validateVector(ancestors[index].values)) throw new Error("Invalid ancestor coordinates.");
+      knownWeight += weights[index];
+      knownCount += 1;
+    }
+    if (!knownCount) return null;
+    const values = Array.from({ length: DIMENSIONS }, (_, pc) =>
+      ancestors.reduce((sum, ancestor, index) =>
+        sum + (ancestor ? weights[index] * ancestor.values[pc] : 0), 0) / knownWeight);
+    return { values, knownCount, knownWeight };
+  }
+
   function calculate(offspring, ancestors, male = false) {
     if (![2, 4, 8, 16].includes(ancestors.length)) throw new Error("Choose 2, 4, 8, or 16 ancestors.");
     if (offspring && !validateVector(offspring.values)) throw new Error("Invalid child coordinates.");
@@ -213,7 +230,7 @@
     return [csvLabel, ...values.map(formatNumber)].join(",");
   }
 
-  const api = { ancestorWeights, calculate, calculateComparison, closestMatches, distance, formatLine, missingAncestorLabel, nearestMatches, parseLine, prepareMatches, rankMatches, resultLabel };
+  const api = { ancestorWeights, calculate, calculateComparison, closestMatches, distance, estimateChildFromKnown, formatLine, missingAncestorLabel, nearestMatches, parseLine, prepareMatches, rankMatches, resultLabel };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.G25Core = api;
 })(typeof window !== "undefined" ? window : globalThis);

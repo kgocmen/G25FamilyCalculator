@@ -49,6 +49,7 @@
   let relaxedReady = { modern: false, ancient: false };
   let strictFits = { parents: [], grandparents: [] };
   let strictReady = { parents: false, grandparents: false };
+  let suggestionTarget = null;
 
   function cancelMixtures() {
     mixtureRequest += 1;
@@ -199,6 +200,8 @@
     $("#turkish-toggle").checked = state.turkish;
     $("#closest-count").value = String(state.closestCount);
     $("#closest-count-value").textContent = String(state.closestCount);
+    $("#suggestion-count").value = String(state.closestCount);
+    $("#suggestion-count-value").textContent = String(state.closestCount);
     document.querySelectorAll(".mode-button").forEach((button) => {
       const active = Number(button.dataset.mode) === mode;
       button.classList.toggle("active", active);
@@ -217,6 +220,8 @@
       : "Choose a reference population or paste any G25 row for each person.")
       + (state.turkish ? " Using Turkish modern references and the shared ancient set." : "");
     if (mode === 1) {
+      $("#suggestions-panel").hidden = true;
+      suggestionTarget = null;
       renderSingle();
       return;
     }
@@ -236,7 +241,7 @@
       ? core.calculateComparison(state.offspring, ancestors, selectedIndex, male) : null;
     $("#selection-hint").textContent = complete
       ? "Click a person or use Compare to calculate and compare that person's G25 coordinates."
-      : "Fill the child and every ancestor to compare any person.";
+      : "Partial inputs show closest-population suggestions below. Fill the child and every ancestor to compare any person.";
     const select = (index) => {
       state.selectedIndexByMode[mode] = index;
       render();
@@ -324,7 +329,46 @@
       methodNote = "The calculated child is the arithmetic average of all entered G25 ancestor rows.";
     }
     $("#method-note").textContent = methodNote;
+    renderSuggestions(result, ancestors, male);
     renderMatches(targetComparison, selectedName);
+  }
+
+  function renderSuggestions(result, ancestors, male) {
+    suggestionTarget = null;
+    let description = "";
+    if (state.offspring && result.kind === "residual") {
+      const missing = result.missing;
+      const person = missing.length === 1 ? names[state.mode][missing[0]].toLowerCase() : `${missing.length} missing ancestors`;
+      suggestionTarget = {
+        label: missing.length === 1 ? `missing ${person}` : `combined average of ${person}`,
+        values: missing.length === 1 ? result.inferred : result.combined,
+      };
+      description = missing.length === 1
+        ? `Calculated coordinates for the missing ${person}, ranked against reference populations.`
+        : `This ranks the weighted average of ${person}. The coordinates of individual missing ancestors cannot be determined.`;
+    } else if (!state.offspring) {
+      const estimate = core.estimateChildFromKnown(ancestors, male);
+      if (estimate) {
+        suggestionTarget = { label: "child", values: estimate.values };
+        description = estimate.knownCount === ancestors.length
+          ? `Calculated child from all ${ancestors.length} ancestors, ranked against reference populations.`
+          : `Provisional child estimate from ${estimate.knownCount} of ${ancestors.length} ancestors (known contributions normalized to 100%). Missing ancestors can change this ranking.`;
+      }
+    }
+    $("#suggestions-panel").hidden = !suggestionTarget || !references.length;
+    if (!suggestionTarget || !references.length) return;
+    $("#suggestions-intro").textContent = `${description} Distances use Euclidean G25 × 100.`;
+    renderSuggestionTable();
+  }
+
+  function renderSuggestionTable() {
+    if (!suggestionTarget) return;
+    const category = $("#suggestion-category").value;
+    const candidates = category === "all" ? references : references.filter((row) => row[0] === category);
+    $("#suggestion-count-value").textContent = String(state.closestCount);
+    $("#suggestions-list-title").textContent = `Up to ${state.closestCount} closest ${category === "all" ? "" : `${category} `}populations to ${suggestionTarget.label}`;
+    renderMatchTable($("#suggestions-list"), core.nearestMatches(suggestionTarget, candidates, state.closestCount),
+      { distanceKey: "distance", omitCategory: category !== "all" });
   }
 
   function renderSingle() {
@@ -717,6 +761,11 @@
   $("#reference-search").addEventListener("input", renderReferences);
   $("#reference-category").addEventListener("change", renderReferences);
   $("#match-category").addEventListener("change", render);
+  $("#suggestion-category").addEventListener("change", renderSuggestionTable);
+  $("#suggestion-count").addEventListener("input", (event) => {
+    state.closestCount = Number(event.currentTarget.value);
+    renderSuggestionTable();
+  });
   $("#closest-count").addEventListener("input", (event) => {
     state.closestCount = Number(event.currentTarget.value);
     $("#closest-count-value").textContent = String(state.closestCount);

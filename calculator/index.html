@@ -70,9 +70,32 @@
         </div>
         <button id="copy-result" class="primary-button" type="button" disabled>Copy coordinates</button>
       </div>
-      <textarea id="result-line" rows="4" readonly spellcheck="false" aria-label="Calculated G25 coordinates" placeholder="The calculated row will appear here."></textarea>
+      <textarea id="result-line" rows="4" wrap="soft" readonly spellcheck="false" aria-label="Calculated G25 coordinates" placeholder="The calculated row will appear here."></textarea>
       <p id="comparison" class="comparison" hidden></p>
       <p id="method-note" class="method-note">The estimate is an arithmetic average of the entered G25 coordinates.</p>
+    </section>
+
+    <section id="suggestions-panel" class="panel matches-panel" aria-labelledby="suggestions-title" hidden>
+      <div class="section-head">
+        <div>
+          <h2 id="suggestions-title">Closest populations for calculated coordinates</h2>
+          <p id="suggestions-intro" class="panel-intro"></p>
+        </div>
+        <label class="result-count"><span>Show top <output id="suggestion-count-value" for="suggestion-count">10</output></span>
+          <input id="suggestion-count" type="range" min="10" max="100" step="1" value="10" aria-label="Number of suggested populations to show">
+        </label>
+        <label class="match-filter">Reference set
+          <select id="suggestion-category" aria-label="Suggested population reference category">
+            <option value="modern">Modern</option>
+            <option value="ancient">Ancient</option>
+            <option value="all">All</option>
+          </select>
+        </label>
+      </div>
+      <div class="match-group">
+        <h3 id="suggestions-list-title"></h3>
+        <div id="suggestions-list" class="table-scroll" tabindex="0" role="region" aria-label="Closest populations for calculated family coordinates"></div>
+      </div>
     </section>
 
     <section id="matches-panel" class="panel matches-panel" aria-labelledby="matches-title" hidden>
