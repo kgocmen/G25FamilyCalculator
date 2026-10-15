@@ -531,9 +531,11 @@
     $("#metric-limit-value").textContent = metricLimit.toFixed(3);
     const lists = core.rankMatches(preparedMatches, 10, metricLimit, state.closestCount);
     const selectedName = preparedSelectedName;
-    $("#actual-matches-title").textContent = `Up to ${state.closestCount} closest to entered ${selectedName}`;
-    $("#calculated-matches-title").textContent = `Up to ${state.closestCount} closest to calculated ${selectedName}`;
+    $("#actual-matches-title").textContent = `Up to ${state.closestCount} closest to entered ${selectedName}: ${preparedMatches.actual.label}`;
+    $("#calculated-matches-title").textContent = `Up to ${state.closestCount} closest to calculated ${selectedName}: ${preparedMatches.calculated.label}`;
     $("#matches-note").textContent = `The calculated or entered target appears in the opposite list only if it ranks among that list's ${state.closestCount} closest candidates.`;
+    const comparisonKey = `A = entered ${selectedName}: ${preparedMatches.actual.label}. B = calculated ${selectedName}: ${preparedMatches.calculated.label}. C = each population listed below. AC and BC are the respective G25 distances to C (× 100).`;
+    document.querySelectorAll(".comparison-key").forEach((element) => { element.textContent = comparisonKey; });
     renderMatchTable($("#actual-matches"), lists.actual, { otherTargetName: `calculated ${selectedName}`, distanceKey: "ac" });
     renderMatchTable($("#calculated-matches"), lists.calculated, { otherTargetName: `entered ${selectedName}`, distanceKey: "bc" });
     const emptyMessage = `No entries have both AC and BC at or below ${metricLimit.toFixed(3)} in this reference set.`;

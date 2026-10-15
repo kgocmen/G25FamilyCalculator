@@ -60,6 +60,7 @@ p { margin: 0; }
 .match-group h3 { margin: 0 0 10px; font-size: 15px; }
 .matches-panel { width: min(1480px, calc(100vw - 32px)); min-width: 0; margin-left: 50%; transform: translateX(-50%); }
 .panel-intro { color: #5b6d80; font-size: 13px; line-height: 1.5; }
+.comparison-key { margin: 8px 0; color: #365a72; font-size: 13px; line-height: 1.5; overflow-wrap: anywhere; }
 .metric-limit-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; }
 .metric-limit-heading .panel-intro { max-width: 900px; }
 #metric-limit-value { flex: 0 0 auto; padding: 8px 12px; border-radius: 9px; background: #e5f2f7; color: #075b75; font-variant-numeric: tabular-nums; font-weight: 800; }

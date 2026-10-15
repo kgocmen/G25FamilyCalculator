@@ -161,6 +161,7 @@
         <div>
           <h2 id="metric-limit-title">Difference, ratio and D3 distance limit</h2>
           <p class="panel-intro">Only populations with both AC and BC at or below this value appear in the three tables below. The closest-population tables have no distance limit.</p>
+          <p class="comparison-key"></p>
         </div>
         <output id="metric-limit-value" for="metric-limit">10.000</output>
       </div>
@@ -170,7 +171,8 @@
 
     <section id="difference-panel" class="panel matches-panel" aria-labelledby="difference-title" hidden>
       <h2 id="difference-title">Difference · AC − BC</h2>
-      <p class="panel-intro">AC is distance from the entered selected person; BC is distance from their calculated counterpart. Smaller values favor the entered person; larger values favor the calculated counterpart.</p>
+      <p class="comparison-key"></p>
+      <p class="panel-intro">Negative values mean C is closer to A; positive values mean C is closer to B.</p>
       <div class="extreme-grid">
         <div class="match-group">
           <h3>Up to 10 smallest differences</h3>
@@ -185,7 +187,8 @@
 
     <section id="ratio-panel" class="panel matches-panel" aria-labelledby="ratio-title" hidden>
       <h2 id="ratio-title">Ratio · AC / BC</h2>
-      <p class="panel-intro">Ratios below 1 favor the entered person; ratios above 1 favor their calculated counterpart. References with BC = 0 are excluded because the ratio is undefined.</p>
+      <p class="comparison-key"></p>
+      <p class="panel-intro">Ratios below 1 mean C is closer to A; ratios above 1 mean C is closer to B. References with BC = 0 are excluded because the ratio is undefined.</p>
       <div class="extreme-grid">
         <div class="match-group">
           <h3>Up to 10 smallest ratios</h3>
@@ -200,7 +203,8 @@
 
     <section id="d3-panel" class="panel matches-panel" aria-labelledby="d3-title" hidden>
       <h2 id="d3-title">D3 · (AC − BC) / (AC + BC)</h2>
-      <p class="panel-intro">D3 ranges from −1 to +1. Smaller values favor the entered person; larger values favor their calculated counterpart. Rows with AC + BC = 0 are excluded.</p>
+      <p class="comparison-key"></p>
+      <p class="panel-intro">D3 ranges from −1 to +1. Negative values mean C is closer to A; positive values mean C is closer to B. Rows with AC + BC = 0 are excluded.</p>
       <div class="extreme-grid">
         <div class="match-group">
           <h3>Up to 10 smallest D3 values</h3>
