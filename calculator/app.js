@@ -47,6 +47,7 @@
   let medievalWorker = null;
   let medievalWorkerUrl = null;
   let medievalRequest = 0;
+  let pcaTooltip = null;
   let relaxedFits = { modern: [], ancient: [] };
   let relaxedReady = { modern: false, ancient: false };
   let strictFits = { parents: [], grandparents: [] };
@@ -65,8 +66,10 @@
     medievalRequest += 1;
     if (medievalWorker) medievalWorker.terminate();
     if (medievalWorkerUrl) URL.revokeObjectURL(medievalWorkerUrl);
+    if (pcaTooltip) pcaTooltip.remove();
     medievalWorker = null;
     medievalWorkerUrl = null;
+    pcaTooltip = null;
   }
 
   function medievalWorkerMain() {
@@ -533,8 +536,8 @@
       return;
     }
 
-    const width = 1300;
-    const height = periodReferences.length > 30 ? 900 : 650;
+    const width = 1000;
+    const height = 600;
     const bounds = { left: 62, right: width - 34, top: 28, bottom: height - 60 };
     const all = [...projection.points, projection.target];
     const extent = (key) => {
@@ -550,8 +553,52 @@
     const plotY = (value) => bounds.bottom - (value - yMin) / (yMax - yMin) * (bounds.bottom - bounds.top);
     const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
     svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
-    svg.setAttribute("role", "img");
+    svg.setAttribute("role", "group");
     svg.setAttribute("aria-label", `${period} PCA of ${projection.points.length} references and ${projection.target.label}`);
+    const tooltip = document.createElement("div");
+    tooltip.className = "pca-tooltip";
+    tooltip.setAttribute("role", "tooltip");
+    tooltip.hidden = true;
+    document.body.append(tooltip);
+    pcaTooltip = tooltip;
+    const hideTooltip = () => { tooltip.hidden = true; };
+    const showTooltip = (label, clientX, clientY) => {
+      tooltip.textContent = label.replaceAll("_", " ");
+      tooltip.hidden = false;
+      tooltip.dataset.label = label;
+      tooltip.style.left = `${Math.max(8, Math.min(clientX + 14, window.innerWidth - tooltip.offsetWidth - 8))}px`;
+      tooltip.style.top = `${clientY + tooltip.offsetHeight + 18 > window.innerHeight
+        ? Math.max(8, clientY - tooltip.offsetHeight - 12) : clientY + 14}px`;
+    };
+    const bindTooltip = (node, label) => {
+      node.setAttribute("tabindex", "0");
+      node.setAttribute("aria-label", label.replaceAll("_", " "));
+      let touching = false;
+      node.addEventListener("pointerdown", (event) => { touching = event.pointerType === "touch"; });
+      node.addEventListener("pointerenter", (event) => {
+        if (event.pointerType !== "touch") showTooltip(label, event.clientX, event.clientY);
+      });
+      node.addEventListener("pointermove", (event) => {
+        if (event.pointerType !== "touch") showTooltip(label, event.clientX, event.clientY);
+      });
+      node.addEventListener("pointerleave", (event) => {
+        if (event.pointerType !== "touch") hideTooltip();
+      });
+      node.addEventListener("pointerup", (event) => {
+        if (event.pointerType === "touch") {
+          if (!tooltip.hidden && tooltip.dataset.label === label) hideTooltip();
+          else showTooltip(label, event.clientX, event.clientY);
+        }
+        touching = false;
+      });
+      node.addEventListener("pointercancel", () => { touching = false; });
+      node.addEventListener("focus", () => {
+        if (touching) return;
+        const rect = node.getBoundingClientRect();
+        showTooltip(label, rect.left + rect.width / 2, rect.top);
+      });
+      node.addEventListener("blur", hideTooltip);
+    };
     const add = (parent, tag, attributes, content) => {
       const element = document.createElementNS("http://www.w3.org/2000/svg", tag);
       for (const [name, value] of Object.entries(attributes)) element.setAttribute(name, String(value));
@@ -597,33 +644,15 @@
         stroke: groupColor(group), class: hull.length === 2 ? "pca-cluster-line" : "pca-cluster" });
     }
     for (const point of projection.points) {
-      const circle = add(svg, "circle", { cx: plotX(point.x), cy: plotY(point.y), r: 5,
+      const circle = add(svg, "circle", { cx: plotX(point.x), cy: plotY(point.y), r: 6,
         fill: groupColor(point.ethnicity), class: "pca-reference" });
-      add(circle, "title", {}, point.label.replaceAll("_", " "));
+      bindTooltip(circle, point.label);
     }
     const targetX = plotX(projection.target.x);
     const targetY = plotY(projection.target.y);
-    const labels = window.G25PcaLayout.layoutLabels(projection.points.map((point) => ({
-      label: point.label, x: plotX(point.x), y: plotY(point.y),
-    })), bounds, [{ x: targetX - 13, y: targetY - 13, width: 26, height: 26 }]);
-    labels.forEach((label, index) => {
-      if (!label) return;
-      const point = projection.points[index];
-      const x = plotX(point.x);
-      const y = plotY(point.y);
-      if (Math.hypot(label.leaderX - x, label.leaderY - y) > 17) {
-        add(svg, "line", { x1: x, y1: y, x2: label.leaderX, y2: label.leaderY,
-          stroke: groupColor(point.ethnicity), class: "pca-leader" });
-      }
-      const text = add(svg, "text", { x: label.x, y: label.y,
-        fill: groupColor(point.ethnicity), class: "pca-point-label" }, label.label);
-      add(text, "title", {}, point.label.replaceAll("_", " "));
-    });
     const marker = add(svg, "path", { d: `M ${targetX} ${targetY - 10} L ${targetX + 10} ${targetY} L ${targetX} ${targetY + 10} L ${targetX - 10} ${targetY} Z`,
       class: "pca-target" });
-    add(marker, "title", {}, projection.target.label);
-    add(svg, "text", { x: targetX + (targetX > bounds.right - 75 ? -15 : 15), y: targetY - 13,
-      "text-anchor": targetX > bounds.right - 75 ? "end" : "start", class: "pca-target-label" }, "Input");
+    bindTooltip(marker, `Input: ${projection.target.label}`);
     container.append(svg);
     for (const group of groups) {
       const item = document.createElement("span");
