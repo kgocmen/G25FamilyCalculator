@@ -479,8 +479,10 @@
     list.replaceChildren();
     distance.hidden = true;
     const period = state.analysisView === "early" ? "Early Medieval" : "Late Medieval";
+    const periodReferences = medievalReferences[state.analysisView] || [];
     $("#medieval-breakdown-title").textContent = period;
     status.textContent = `Calculating ${period} fit…`;
+    renderMedievalPca(periodReferences, period);
     const requestId = medievalRequest;
     try {
       const source = `(${window.G25MedievalModule.toString()})(self);\n(${medievalWorkerMain.toString()})();`;
@@ -511,11 +513,104 @@
         finish();
         status.textContent = "Medieval analysis could not start in this browser.";
       };
-      worker.postMessage({ requestId, target: state.single, references: medievalReferences[state.analysisView] || [] });
+      worker.postMessage({ requestId, target: state.single, references: periodReferences });
     } catch (error) {
       cancelMedieval();
       status.textContent = `Medieval analysis could not start: ${error.message}`;
     }
+  }
+
+  function renderMedievalPca(periodReferences, period) {
+    const container = $("#medieval-pca-plot");
+    const legend = $("#medieval-pca-legend");
+    container.replaceChildren();
+    legend.replaceChildren();
+    let projection;
+    try {
+      projection = window.G25Pca.projectPca(state.single, periodReferences);
+    } catch (error) {
+      container.textContent = error.message;
+      return;
+    }
+
+    const width = 900;
+    const height = 500;
+    const bounds = { left: 62, right: width - 34, top: 28, bottom: height - 60 };
+    const all = [...projection.points, projection.target];
+    const extent = (key) => {
+      const values = all.map((point) => point[key]);
+      const low = Math.min(...values);
+      const high = Math.max(...values);
+      const padding = Math.max((high - low) * 0.07, 0.002);
+      return [low - padding, high + padding];
+    };
+    const [xMin, xMax] = extent("x");
+    const [yMin, yMax] = extent("y");
+    const plotX = (value) => bounds.left + (value - xMin) / (xMax - xMin) * (bounds.right - bounds.left);
+    const plotY = (value) => bounds.bottom - (value - yMin) / (yMax - yMin) * (bounds.bottom - bounds.top);
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+    svg.setAttribute("role", "img");
+    svg.setAttribute("aria-label", `${period} PCA of ${projection.points.length} references and ${projection.target.label}`);
+    const add = (parent, tag, attributes, content) => {
+      const element = document.createElementNS("http://www.w3.org/2000/svg", tag);
+      for (const [name, value] of Object.entries(attributes)) element.setAttribute(name, String(value));
+      if (content !== undefined) element.textContent = content;
+      parent.append(element);
+      return element;
+    };
+    const formatTick = (value) => value.toFixed(3);
+    for (let i = 0; i <= 4; i += 1) {
+      const xValue = xMin + (xMax - xMin) * i / 4;
+      const yValue = yMin + (yMax - yMin) * i / 4;
+      const x = plotX(xValue);
+      const y = plotY(yValue);
+      add(svg, "line", { x1: x, y1: bounds.top, x2: x, y2: bounds.bottom, class: "pca-grid" });
+      add(svg, "line", { x1: bounds.left, y1: y, x2: bounds.right, y2: y, class: "pca-grid" });
+      add(svg, "text", { x, y: bounds.bottom + 19, "text-anchor": "middle", class: "pca-tick" }, formatTick(xValue));
+      add(svg, "text", { x: bounds.left - 9, y: y + 4, "text-anchor": "end", class: "pca-tick" }, formatTick(yValue));
+    }
+    add(svg, "rect", { x: bounds.left, y: bounds.top, width: bounds.right - bounds.left,
+      height: bounds.bottom - bounds.top, class: "pca-frame" });
+    add(svg, "text", { x: (bounds.left + bounds.right) / 2, y: height - 12,
+      "text-anchor": "middle", class: "pca-axis-label" }, `PC1 · ${(projection.explained[0] * 100).toFixed(1)}%`);
+    add(svg, "text", { transform: `translate(17 ${(bounds.top + bounds.bottom) / 2}) rotate(-90)`,
+      "text-anchor": "middle", class: "pca-axis-label" }, `PC2 · ${(projection.explained[1] * 100).toFixed(1)}%`);
+
+    const colors = {
+      "Türk": "#087c8c", "Türki": "#087c8c", "Rum": "#c87525", "Slav": "#8256ad",
+      "Ermeni": "#bd5063", "İran": "#587e36", "Levant": "#4f70bc",
+      "Kartvel": "#956d3a", "Mezopotamya": "#737d88",
+    };
+    const groups = [...new Set(projection.points.map((point) => point.ethnicity))].sort((a, b) => a.localeCompare(b));
+    const fallback = ["#228e71", "#a75d83", "#aa7731", "#657bc0"];
+    const groupColor = (group) => colors[group] || fallback[groups.indexOf(group) % fallback.length];
+    for (const point of projection.points) {
+      const circle = add(svg, "circle", { cx: plotX(point.x), cy: plotY(point.y), r: 5,
+        fill: groupColor(point.ethnicity), class: "pca-reference" });
+      add(circle, "title", {}, point.label.replaceAll("_", " "));
+    }
+    const targetX = plotX(projection.target.x);
+    const targetY = plotY(projection.target.y);
+    const marker = add(svg, "path", { d: `M ${targetX} ${targetY - 10} L ${targetX + 10} ${targetY} L ${targetX} ${targetY + 10} L ${targetX - 10} ${targetY} Z`,
+      class: "pca-target" });
+    add(marker, "title", {}, projection.target.label);
+    add(svg, "text", { x: targetX + (targetX > bounds.right - 75 ? -15 : 15), y: targetY - 13,
+      "text-anchor": targetX > bounds.right - 75 ? "end" : "start", class: "pca-target-label" }, "Input");
+    container.append(svg);
+    for (const group of groups) {
+      const item = document.createElement("span");
+      item.className = "pca-legend-item";
+      const swatch = document.createElement("span");
+      swatch.className = "pca-legend-swatch";
+      swatch.style.backgroundColor = groupColor(group);
+      item.append(swatch, document.createTextNode(group.replaceAll("_", " ")));
+      legend.append(item);
+    }
+    const input = document.createElement("span");
+    input.className = "pca-legend-item";
+    input.textContent = "◆ Input";
+    legend.append(input);
   }
 
   function renderMedievalFit(fit) {

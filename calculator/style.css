@@ -95,6 +95,20 @@ p { margin: 0; }
 .matches-table.mixture-table th:first-child, .matches-table.mixture-table td:first-child { min-width: 36px; }
 .mixture-status { padding: 16px; color: #607286; font-size: 13px; }
 .breakdown-distance { flex: 0 0 auto; color: #365a72; font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.pca-section { margin-top: 22px; }
+.pca-section h3 { margin: 0 0 10px; font-size: 15px; }
+.pca-scroll { width: 100%; overflow-x: auto; border: 1px solid #dfe7ed; border-radius: 10px; background: #fbfdfe; color: #607286; font-size: 13px; }
+.pca-scroll svg { display: block; width: 100%; min-width: 620px; height: auto; }
+.pca-grid { stroke: #e5edf2; stroke-width: 1; }
+.pca-frame { fill: none; stroke: #b9cbd7; stroke-width: 1.2; }
+.pca-tick { fill: #6c7e90; font-size: 11px; font-variant-numeric: tabular-nums; }
+.pca-axis-label { fill: #365a72; font-size: 13px; font-weight: 700; }
+.pca-reference { stroke: #fff; stroke-width: 1.5; opacity: .88; }
+.pca-target { fill: #173c50; stroke: #fff; stroke-width: 2; }
+.pca-target-label { fill: #173c50; font-size: 13px; font-weight: 800; paint-order: stroke; stroke: #fff; stroke-width: 3px; }
+.pca-legend { display: flex; flex-wrap: wrap; gap: 9px 15px; margin-top: 12px; }
+.pca-legend-item { display: inline-flex; align-items: center; gap: 6px; color: #526a80; font-size: 12px; }
+.pca-legend-swatch { width: 10px; height: 10px; border-radius: 50%; }
 .breakdown-list { display: grid; gap: 9px; margin-top: 20px; }
 .breakdown-group { min-width: 0; border: 1px solid #dfe7ed; border-radius: 10px; padding: 11px 14px; }
 .breakdown-group summary { display: flex; justify-content: space-between; gap: 20px; align-items: center; cursor: pointer; color: #173c50; font-size: 14px; list-style: none; }
