@@ -330,7 +330,7 @@
     const comparisonText = $("#comparison");
     comparisonText.hidden = !targetComparison;
     if (targetComparison) {
-      comparisonText.textContent = `Entered vs calculated ${selectedName}: ${targetComparison.distance.toFixed(3)} (G25 × 100).`;
+      comparisonText.textContent = `Entered vs calculated ${selectedName}: ${targetComparison.distance.toFixed(3)}.`;
     }
 
     let methodNote;
@@ -374,7 +374,7 @@
     $("#compare-status").hidden = ready;
     $("#compare-distance").hidden = !ready;
     if (ready) {
-      $("#compare-distance").textContent = `A–B distance: ${core.distance(state.compare[0].values, state.compare[1].values).toFixed(3)} (G25 × 100).`;
+      $("#compare-distance").textContent = `A–B distance: ${core.distance(state.compare[0].values, state.compare[1].values).toFixed(3)}.`;
     }
     renderMatches(ready ? { actual: state.compare[0], calculated: state.compare[1] } : null, "", true);
   }
@@ -658,7 +658,7 @@
         d: `M ${x} ${y - 10} L ${x + 10} ${y + 8} L ${x - 10} ${y + 8} Z`,
         class: "pca-modern",
       });
-      bindTooltip(triangle, `#${index + 1} modern: ${point.label} · Distance ${closestModern[index].distance.toFixed(3)} (G25 × 100)`);
+      bindTooltip(triangle, `#${index + 1} modern: ${point.label} · Distance ${closestModern[index].distance.toFixed(3)}`);
     });
     const targetX = plotX(projection.target.x);
     const targetY = plotY(projection.target.y);
@@ -694,7 +694,7 @@
     const distance = $("#medieval-breakdown-distance");
     const list = $("#medieval-breakdown-list");
     status.textContent = `Estimated contributions · ${fit.groups.length} ethnicities · 100.00% total`;
-    distance.textContent = `Fit distance ${fit.distance.toFixed(3)} (G25 × 100)`;
+    distance.textContent = `Fit distance ${fit.distance.toFixed(3)}`;
     distance.hidden = false;
     const groupUnits = allocatePercentUnits(fit.groups.map((group) => group.weight), 10000);
     fit.groups.forEach((group, groupIndex) => {
@@ -942,8 +942,8 @@
       ? `Up to ${state.closestCount} closest to B: ${preparedMatches.calculated.label}`
       : `Up to ${state.closestCount} closest to calculated ${selectedName}: ${preparedMatches.calculated.label}`;
     const comparisonKey = compareMode
-      ? `A = ${preparedMatches.actual.label}. B = ${preparedMatches.calculated.label}. C = each population listed below. AC and BC are the respective G25 distances to C (× 100).`
-      : `A = entered ${selectedName}: ${preparedMatches.actual.label}. B = calculated ${selectedName}: ${preparedMatches.calculated.label}. C = each population listed below. AC and BC are the respective G25 distances to C (× 100).`;
+      ? `A = ${preparedMatches.actual.label}. B = ${preparedMatches.calculated.label}. C = each population listed below. AC and BC are the respective distances to C.`
+      : `A = entered ${selectedName}: ${preparedMatches.actual.label}. B = calculated ${selectedName}: ${preparedMatches.calculated.label}. C = each population listed below. AC and BC are the respective distances to C.`;
     document.querySelectorAll(".comparison-key").forEach((element) => { element.textContent = comparisonKey; });
     renderMatchTable($("#actual-matches"), lists.actual,
       { otherTargetName: compareMode ? "B" : `calculated ${selectedName}`, distanceKey: "ac" });
@@ -964,7 +964,7 @@
     const head = document.createElement("thead");
     const heading = document.createElement("tr");
     const headings = ["#", otherTargetName ? "Population / target" : "Population"];
-    if (distanceKey) headings.push("Genetic distance (G25 × 100)");
+    if (distanceKey) headings.push("Genetic distance");
     else headings.push("AC", "BC");
     if (metric === "difference") headings.push("AC − BC");
     if (metric === "ratio") headings.push("AC / BC");
