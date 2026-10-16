@@ -5,12 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#14243b">
   <title>G25 Family Calculator</title>
-  <link rel="stylesheet" href="style.css?v=20261015-5">
+  <link rel="stylesheet" href="style.css?v=20261016-1">
   <script defer src="references.js?v=20261015-5"></script>
   <script defer src="turkish_references.js?v=20261015-5"></script>
+  <script defer src="medieval_references.js?v=20261016-1"></script>
   <script defer src="core.js?v=20261015-5"></script>
   <script defer src="mixture.js?v=20261015-5"></script>
-  <script defer src="app.js?v=20261015-5"></script>
+  <script defer src="medieval.js?v=20261016-1"></script>
+  <script defer src="app.js?v=20261016-1"></script>
 </head>
 <body>
   <main class="shell">
@@ -26,7 +28,7 @@
           <p id="inputs-intro" class="legacy-copy" hidden></p>
         </div>
         <div class="input-head-actions">
-          <label class="turkish-option" title="Use the Turkish modern and ancient reference sets">
+          <label class="turkish-option" title="Use the Turkish reference sets">
             <input id="turkish-toggle" type="checkbox">
             <span>Turkish references</span>
           </label>
@@ -63,6 +65,11 @@
         <div id="ancestor-rows" class="ancestor-rows"></div>
       </div>
     </section>
+
+    <div id="analysis-tabs" class="analysis-tabs" role="tablist" aria-label="Analyse results" hidden>
+      <button id="analysis-results-tab" class="analysis-tab active" type="button" role="tab" aria-selected="true" aria-controls="matches-panel">Results</button>
+      <button id="medieval-breakdown-tab" class="analysis-tab" type="button" role="tab" aria-selected="false" aria-controls="medieval-breakdown-panel">Medieval breakdown</button>
+    </div>
 
     <section id="result-panel" class="panel result-panel" aria-labelledby="result-title">
       <div class="section-head">
@@ -130,6 +137,17 @@
         <div id="calculated-matches" class="table-scroll" tabindex="0" role="region" aria-label="Calculated closest populations table"></div>
       </div>
       <p id="matches-note" class="legacy-copy" hidden></p>
+    </section>
+
+    <section id="medieval-breakdown-panel" class="panel matches-panel" aria-labelledby="medieval-breakdown-title" hidden>
+      <div class="section-head">
+        <div>
+          <h2 id="medieval-breakdown-title">Medieval breakdown</h2>
+          <p id="medieval-breakdown-status" role="status">Add a sample to analyse.</p>
+        </div>
+        <output id="medieval-breakdown-distance" class="breakdown-distance" hidden></output>
+      </div>
+      <div id="medieval-breakdown-list" class="breakdown-list"></div>
     </section>
 
     <section id="relaxed-estimates-panel" class="panel matches-panel" aria-labelledby="relaxed-estimates-title" hidden>

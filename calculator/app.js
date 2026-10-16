@@ -3,6 +3,7 @@
 
   const globalReferences = window.G25_REFERENCES || [];
   const turkishReferences = window.G25_TURKISH_REFERENCES || [];
+  const medievalReferences = window.G25_MEDIEVAL_REFERENCES || [];
   let references = globalReferences;
   const core = window.G25Core;
   const names = {
@@ -20,6 +21,7 @@
   const state = {
     mode: 2,
     turkish: false,
+    analysisView: "results",
     single: null,
     compare: [null, null],
     offspring: null,
@@ -42,6 +44,9 @@
   let mixtureWorker = null;
   let mixtureWorkerUrl = null;
   let mixtureRequest = 0;
+  let medievalWorker = null;
+  let medievalWorkerUrl = null;
+  let medievalRequest = 0;
   let relaxedFits = { modern: [], ancient: [] };
   let relaxedReady = { modern: false, ancient: false };
   let strictFits = { parents: [], grandparents: [] };
@@ -54,6 +59,25 @@
     if (mixtureWorkerUrl) URL.revokeObjectURL(mixtureWorkerUrl);
     mixtureWorker = null;
     mixtureWorkerUrl = null;
+  }
+
+  function cancelMedieval() {
+    medievalRequest += 1;
+    if (medievalWorker) medievalWorker.terminate();
+    if (medievalWorkerUrl) URL.revokeObjectURL(medievalWorkerUrl);
+    medievalWorker = null;
+    medievalWorkerUrl = null;
+  }
+
+  function medievalWorkerMain() {
+    self.onmessage = ({ data }) => {
+      try {
+        const fit = self.G25Medieval.fitAdmixture(data.target, data.references);
+        self.postMessage({ requestId: data.requestId, fit });
+      } catch (error) {
+        self.postMessage({ requestId: data.requestId, error: error.message });
+      }
+    };
   }
 
   function mixtureWorkerMain() {
@@ -197,8 +221,11 @@
 
   function render() {
     const mode = state.mode;
+    if (mode !== 1) cancelMedieval();
     references = state.turkish ? turkishReferences : globalReferences;
     $("#turkish-toggle").checked = state.turkish;
+    $("#analysis-tabs").hidden = mode !== 1 || !state.turkish;
+    $("#medieval-breakdown-panel").hidden = true;
     $("#closest-count").value = String(state.closestCount);
     $("#closest-count-value").textContent = String(state.closestCount);
     $("#suggestion-count").value = String(state.closestCount);
@@ -388,6 +415,7 @@
 
   function renderSingle() {
     cancelMixtures();
+    cancelMedieval();
     relaxedFits = { modern: [], ancient: [] };
     relaxedReady = { modern: false, ancient: false };
     strictFits = { parents: [], grandparents: [] };
@@ -404,20 +432,139 @@
     for (const selector of ["#metric-controls", "#difference-panel", "#ratio-panel", "#d3-panel"]) {
       $(selector).hidden = true;
     }
-    $("#matches-panel").hidden = !state.single || !references.length;
-    $("#relaxed-estimates-panel").hidden = !state.single || !references.length;
-    $("#parent-estimates-panel").hidden = !state.single || !references.length;
-    $("#grandparent-estimates-panel").hidden = !state.single || !references.length;
+    updateAnalysisView();
+    if (state.turkish && state.analysisView === "medieval") renderMedievalBreakdown();
     if (!state.single || !references.length) return;
     const modernReferences = references.filter((row) => row[0] === "modern");
     const ancientReferences = references.filter((row) => row[0] === "ancient");
     renderSingleClosestTables(modernReferences, ancientReferences);
+    if (state.turkish && state.analysisView === "medieval") {
+      return;
+    }
     renderMixtureStatus("#relaxed-modern", "Calculating unsupervised modern fits…");
     renderMixtureStatus("#relaxed-ancient", "Waiting for modern fits…");
     renderMixtureStatus("#parent-estimates", "Waiting for unsupervised fits…");
     renderMixtureStatus("#grandparent-estimates", "Waiting for earlier analyses…");
     updateStrictProgress(0, "Waiting for earlier analyses…");
     startMixtures(state.single, modernReferences, references, mixtureRequest);
+  }
+
+  function updateAnalysisView() {
+    const medieval = state.mode === 1 && state.turkish && state.analysisView === "medieval";
+    const available = state.mode === 1 && Boolean(state.single) && references.length > 0;
+    for (const [selector, active] of [["#analysis-results-tab", !medieval], ["#medieval-breakdown-tab", medieval]]) {
+      const button = $(selector);
+      button.classList.toggle("active", active);
+      button.setAttribute("aria-selected", String(active));
+      button.tabIndex = active ? 0 : -1;
+    }
+    for (const selector of ["#matches-panel", "#relaxed-estimates-panel", "#parent-estimates-panel", "#grandparent-estimates-panel"]) {
+      $(selector).hidden = !available || medieval;
+    }
+    $("#medieval-breakdown-panel").hidden = !medieval;
+  }
+
+  function renderMedievalBreakdown() {
+    const status = $("#medieval-breakdown-status");
+    const distance = $("#medieval-breakdown-distance");
+    const list = $("#medieval-breakdown-list");
+    list.replaceChildren();
+    distance.hidden = true;
+    if (!state.single) {
+      status.textContent = "Add a sample to analyse.";
+      return;
+    }
+    status.textContent = "Calculating medieval breakdown…";
+    const requestId = medievalRequest;
+    try {
+      const source = `(${window.G25MedievalModule.toString()})(self);\n(${medievalWorkerMain.toString()})();`;
+      const url = URL.createObjectURL(new Blob([source], { type: "text/javascript" }));
+      medievalWorkerUrl = url;
+      const worker = new Worker(url);
+      medievalWorker = worker;
+      const finish = () => {
+        worker.terminate();
+        if (medievalWorker === worker) {
+          URL.revokeObjectURL(medievalWorkerUrl);
+          medievalWorker = null;
+          medievalWorkerUrl = null;
+        }
+      };
+      worker.onmessage = ({ data }) => {
+        if (data.requestId !== medievalRequest || state.mode !== 1 || !state.turkish ||
+            state.analysisView !== "medieval") return;
+        finish();
+        if (data.error) {
+          status.textContent = data.error;
+          return;
+        }
+        renderMedievalFit(data.fit);
+      };
+      worker.onerror = () => {
+        if (medievalWorker !== worker) return;
+        finish();
+        status.textContent = "Medieval analysis could not start in this browser.";
+      };
+      worker.postMessage({ requestId, target: state.single, references: medievalReferences });
+    } catch (error) {
+      cancelMedieval();
+      status.textContent = `Medieval analysis could not start: ${error.message}`;
+    }
+  }
+
+  function renderMedievalFit(fit) {
+    const status = $("#medieval-breakdown-status");
+    const distance = $("#medieval-breakdown-distance");
+    const list = $("#medieval-breakdown-list");
+    status.textContent = `Estimated contributions · ${fit.groups.length} ethnicities · 100.00% total`;
+    distance.textContent = `Fit distance ${fit.distance.toFixed(3)} (G25 × 100)`;
+    distance.hidden = false;
+    const groupUnits = allocatePercentUnits(fit.groups.map((group) => group.weight), 10000);
+    fit.groups.forEach((group, groupIndex) => {
+      const details = document.createElement("details");
+      details.className = "breakdown-group";
+      const summary = document.createElement("summary");
+      const name = document.createElement("span");
+      name.className = "breakdown-name";
+      name.textContent = group.ethnicity.replaceAll("_", " ");
+      const share = document.createElement("strong");
+      share.textContent = formatPercent(groupUnits[groupIndex]);
+      summary.append(name, share);
+      const bar = document.createElement("div");
+      bar.className = "breakdown-bar";
+      const fill = document.createElement("span");
+      fill.style.width = `${groupUnits[groupIndex] / 100}%`;
+      bar.append(fill);
+      const samples = document.createElement("ul");
+      samples.className = "breakdown-samples";
+      const sampleUnits = allocatePercentUnits(group.samples.map((sample) => sample.weight), groupUnits[groupIndex]);
+      group.samples.forEach((component, sampleIndex) => {
+        const item = document.createElement("li");
+        const label = document.createElement("span");
+        label.textContent = component.sample.replaceAll("_", " ");
+        const weight = document.createElement("strong");
+        weight.textContent = formatPercent(sampleUnits[sampleIndex]);
+        item.append(label, weight);
+        samples.append(item);
+      });
+      details.append(summary, bar, samples);
+      list.append(details);
+    });
+  }
+
+  function allocatePercentUnits(weights, totalUnits) {
+    const totalWeight = weights.reduce((sum, weight) => sum + weight, 0);
+    const exact = weights.map((weight) => weight / totalWeight * totalUnits);
+    const units = exact.map(Math.floor);
+    const order = exact.map((value, index) => ({ index, remainder: value - units[index] }))
+      .sort((a, b) => b.remainder - a.remainder || a.index - b.index);
+    const remaining = totalUnits - units.reduce((sum, value) => sum + value, 0);
+    for (let i = 0; i < remaining; i += 1) units[order[i].index] += 1;
+    return units;
+  }
+
+  function formatPercent(units) {
+    return `${(units / 100).toFixed(2)}%`;
   }
 
   function renderSingleClosestTables(
@@ -790,9 +937,25 @@
   });
   $("#turkish-toggle").addEventListener("change", (event) => {
     state.turkish = event.currentTarget.checked;
+    if (!state.turkish) state.analysisView = "results";
     updateSelectedReferences(state.turkish ? turkishReferences : globalReferences);
     render();
   });
+  for (const [selector, view] of [["#analysis-results-tab", "results"], ["#medieval-breakdown-tab", "medieval"]]) {
+    const button = $(selector);
+    button.addEventListener("click", () => {
+      if (state.analysisView === view) return;
+      state.analysisView = view;
+      renderSingle();
+    });
+    button.addEventListener("keydown", (event) => {
+      if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+      event.preventDefault();
+      const other = $(view === "results" ? "#medieval-breakdown-tab" : "#analysis-results-tab");
+      other.click();
+      other.focus();
+    });
+  }
   $("#reference-search").addEventListener("input", renderReferences);
   $("#reference-category").addEventListener("change", renderReferences);
   $("#match-category").addEventListener("change", render);

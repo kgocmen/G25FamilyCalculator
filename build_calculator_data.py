@@ -11,6 +11,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 OUTPUT = ROOT / "calculator" / "references.js"
 TURKISH_OUTPUT = ROOT / "calculator" / "turkish_references.js"
+MEDIEVAL_OUTPUT = ROOT / "calculator" / "medieval_references.js"
 
 
 def read_rows(path: Path, category: str) -> list[list]:
@@ -30,7 +31,7 @@ def read_rows(path: Path, category: str) -> list[list]:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--turkish", action="store_true", help="Rebuild only the Turkish modern and ancient bundle")
+    parser.add_argument("--turkish", action="store_true", help="Rebuild only the Turkish modern, ancient and medieval bundles")
     args = parser.parse_args()
     if not args.turkish:
         rows = read_rows(ROOT / "data" / "modern_g25.txt", "modern")
@@ -47,6 +48,12 @@ def main() -> None:
         encoding="utf-8",
     )
     print(f"Bundled {len(turkish_rows)} Turkish modern and ancient references into {TURKISH_OUTPUT}")
+    medieval_rows = read_rows(ROOT / "data" / "turkish_medieval_g25_new.txt", "medieval")
+    MEDIEVAL_OUTPUT.write_text(
+        "window.G25_MEDIEVAL_REFERENCES = " + json.dumps(medieval_rows, ensure_ascii=False, separators=(",", ":")) + ";\n",
+        encoding="utf-8",
+    )
+    print(f"Bundled {len(medieval_rows)} Turkish medieval references into {MEDIEVAL_OUTPUT}")
 
 
 if __name__ == "__main__":
