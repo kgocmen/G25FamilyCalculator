@@ -5,15 +5,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#14243b">
   <title>G25 Family Calculator</title>
-  <link rel="stylesheet" href="style.css?v=20261016-3">
+  <link rel="stylesheet" href="style.css?v=20261016-4">
   <script defer src="references.js?v=20261015-5"></script>
   <script defer src="turkish_references.js?v=20261015-5"></script>
-  <script defer src="medieval_references.js?v=20261016-3"></script>
+  <script defer src="medieval_references.js?v=20261016-4"></script>
   <script defer src="core.js?v=20261015-5"></script>
   <script defer src="mixture.js?v=20261015-5"></script>
   <script defer src="medieval.js?v=20261016-1"></script>
   <script defer src="pca.js?v=20261016-1"></script>
-  <script defer src="app.js?v=20261016-3"></script>
+  <script defer src="pca_layout.js?v=20261016-1"></script>
+  <script defer src="app.js?v=20261016-4"></script>
 </head>
 <body>
   <main class="shell">
@@ -149,12 +150,12 @@
         </div>
         <output id="medieval-breakdown-distance" class="breakdown-distance" hidden></output>
       </div>
+      <div id="medieval-breakdown-list" class="breakdown-list"></div>
       <div class="pca-section">
         <h3>PCA plot</h3>
         <div id="medieval-pca-plot" class="pca-scroll" role="region" tabindex="0" aria-label="Medieval PCA plot"></div>
         <div id="medieval-pca-legend" class="pca-legend"></div>
       </div>
-      <div id="medieval-breakdown-list" class="breakdown-list"></div>
     </section>
 
     <section id="relaxed-estimates-panel" class="panel matches-panel" aria-labelledby="relaxed-estimates-title" hidden>

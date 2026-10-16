@@ -533,8 +533,8 @@
       return;
     }
 
-    const width = 900;
-    const height = 500;
+    const width = 1300;
+    const height = periodReferences.length > 30 ? 900 : 650;
     const bounds = { left: 62, right: width - 34, top: 28, bottom: height - 60 };
     const all = [...projection.points, projection.target];
     const extent = (key) => {
@@ -585,6 +585,17 @@
     const groups = [...new Set(projection.points.map((point) => point.ethnicity))].sort((a, b) => a.localeCompare(b));
     const fallback = ["#228e71", "#a75d83", "#aa7731", "#657bc0"];
     const groupColor = (group) => colors[group] || fallback[groups.indexOf(group) % fallback.length];
+    for (const group of groups) {
+      const positions = projection.points.filter((point) => point.ethnicity === group)
+        .map((point) => ({ x: plotX(point.x), y: plotY(point.y) }));
+      if (positions.length < 2) continue;
+      const hull = window.G25PcaLayout.convexHull(positions);
+      const path = hull.length === 2
+        ? `M ${hull[0].x} ${hull[0].y} L ${hull[1].x} ${hull[1].y}`
+        : `M ${hull.map((point) => `${point.x} ${point.y}`).join(" L ")} Z`;
+      add(svg, "path", { d: path, fill: hull.length === 2 ? "none" : groupColor(group),
+        stroke: groupColor(group), class: hull.length === 2 ? "pca-cluster-line" : "pca-cluster" });
+    }
     for (const point of projection.points) {
       const circle = add(svg, "circle", { cx: plotX(point.x), cy: plotY(point.y), r: 5,
         fill: groupColor(point.ethnicity), class: "pca-reference" });
@@ -592,6 +603,22 @@
     }
     const targetX = plotX(projection.target.x);
     const targetY = plotY(projection.target.y);
+    const labels = window.G25PcaLayout.layoutLabels(projection.points.map((point) => ({
+      label: point.label, x: plotX(point.x), y: plotY(point.y),
+    })), bounds, [{ x: targetX - 13, y: targetY - 13, width: 26, height: 26 }]);
+    labels.forEach((label, index) => {
+      if (!label) return;
+      const point = projection.points[index];
+      const x = plotX(point.x);
+      const y = plotY(point.y);
+      if (Math.hypot(label.leaderX - x, label.leaderY - y) > 17) {
+        add(svg, "line", { x1: x, y1: y, x2: label.leaderX, y2: label.leaderY,
+          stroke: groupColor(point.ethnicity), class: "pca-leader" });
+      }
+      const text = add(svg, "text", { x: label.x, y: label.y,
+        fill: groupColor(point.ethnicity), class: "pca-point-label" }, label.label);
+      add(text, "title", {}, point.label.replaceAll("_", " "));
+    });
     const marker = add(svg, "path", { d: `M ${targetX} ${targetY - 10} L ${targetX + 10} ${targetY} L ${targetX} ${targetY + 10} L ${targetX - 10} ${targetY} Z`,
       class: "pca-target" });
     add(marker, "title", {}, projection.target.label);
