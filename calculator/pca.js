@@ -45,7 +45,7 @@ function G25PcaModule(root) {
     return { vector, variance };
   }
 
-  function projectPca(target, references) {
+  function projectPca(target, references, overlays = []) {
     if (!target || !Array.isArray(target.values) || target.values.length !== DIMENSIONS ||
         !target.values.every(Number.isFinite)) {
       throw new Error("The input needs 25 finite G25 coordinates.");
@@ -82,10 +82,19 @@ function G25PcaModule(root) {
       const centeredValues = values.map((value, i) => value - mean[i]);
       return { x: dot(centeredValues, first.vector), y: dot(centeredValues, second.vector) };
     };
+    const projectedOverlays = overlays.map((overlay) => {
+      const values = Array.isArray(overlay) ? overlay.slice(2) : overlay.values;
+      const label = Array.isArray(overlay) ? overlay[1] : overlay.label;
+      if (!Array.isArray(values) || values.length !== DIMENSIONS || !values.every(Number.isFinite)) {
+        throw new Error("A PCA overlay has invalid G25 coordinates.");
+      }
+      return { label, ...position(values) };
+    });
     return {
       points: rows.map((row) => ({ label: row.label,
         ethnicity: row.label.split(":", 1)[0], ...position(row.values) })),
       target: { label: target.label || "Input", ...position(target.values) },
+      overlays: projectedOverlays,
       explained: trace > 0 ? [first.variance / trace, second.variance / trace] : [0, 0],
     };
   }

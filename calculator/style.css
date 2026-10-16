@@ -104,15 +104,17 @@ p { margin: 0; }
 .pca-tick { fill: #6c7e90; font-size: 11px; font-variant-numeric: tabular-nums; }
 .pca-axis-label { fill: #365a72; font-size: 13px; font-weight: 700; }
 .pca-reference { stroke: #fff; stroke-width: 1.5; opacity: .88; cursor: help; }
-.pca-reference:focus-visible, .pca-target:focus-visible { outline: 3px solid #173c50; outline-offset: 3px; }
+.pca-reference:focus-visible, .pca-modern:focus-visible, .pca-target:focus-visible { outline: 3px solid #173c50; outline-offset: 3px; }
 .pca-cluster { fill-opacity: .08; stroke-opacity: .09; stroke-width: 30; stroke-linejoin: round; }
 .pca-cluster-line { stroke-opacity: .13; stroke-width: 34; stroke-linecap: round; }
 .pca-target { fill: #173c50; stroke: #fff; stroke-width: 2; cursor: help; }
+.pca-modern { fill: #d63270; stroke: #fff; stroke-width: 2; cursor: help; }
 .pca-tooltip { position: fixed; z-index: 1000; max-width: min(480px, calc(100vw - 16px)); padding: 9px 12px; border-radius: 8px; background: #14243b; color: white; box-shadow: 0 8px 24px rgba(11, 37, 60, .25); font-size: 12px; line-height: 1.4; overflow-wrap: anywhere; pointer-events: none; }
 .pca-tooltip[hidden] { display: none; }
 .pca-legend { display: flex; flex-wrap: wrap; gap: 9px 15px; margin-top: 12px; }
 .pca-legend-item { display: inline-flex; align-items: center; gap: 6px; color: #526a80; font-size: 12px; }
 .pca-legend-swatch { width: 10px; height: 10px; border-radius: 50%; }
+.pca-legend-modern-swatch { width: 12px; height: 11px; background: #d63270; clip-path: polygon(50% 0, 100% 100%, 0 100%); }
 .breakdown-list { display: grid; gap: 9px; margin-top: 20px; }
 .breakdown-group { min-width: 0; border: 1px solid #dfe7ed; border-radius: 10px; padding: 11px 14px; }
 .breakdown-group summary { display: flex; justify-content: space-between; gap: 20px; align-items: center; cursor: pointer; color: #173c50; font-size: 14px; list-style: none; }

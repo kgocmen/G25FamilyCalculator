@@ -529,8 +529,11 @@
     container.replaceChildren();
     legend.replaceChildren();
     let projection;
+    const modernReferences = references.filter((row) => row[0] === "modern");
+    const closestModern = core.nearestMatches(state.single, modernReferences, 3);
     try {
-      projection = window.G25Pca.projectPca(state.single, periodReferences);
+      projection = window.G25Pca.projectPca(state.single, periodReferences,
+        closestModern.map((match) => modernReferences[match.id]));
     } catch (error) {
       container.textContent = error.message;
       return;
@@ -539,7 +542,7 @@
     const width = 1000;
     const height = 600;
     const bounds = { left: 62, right: width - 34, top: 28, bottom: height - 60 };
-    const all = [...projection.points, projection.target];
+    const all = [...projection.points, projection.target, ...projection.overlays];
     const extent = (key) => {
       const values = all.map((point) => point[key]);
       const low = Math.min(...values);
@@ -554,7 +557,7 @@
     const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
     svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
     svg.setAttribute("role", "group");
-    svg.setAttribute("aria-label", `${period} PCA of ${projection.points.length} references and ${projection.target.label}`);
+    svg.setAttribute("aria-label", `${period} PCA of ${projection.points.length} references, ${projection.overlays.length} closest modern populations, and ${projection.target.label}`);
     const tooltip = document.createElement("div");
     tooltip.className = "pca-tooltip";
     tooltip.setAttribute("role", "tooltip");
@@ -648,6 +651,15 @@
         fill: groupColor(point.ethnicity), class: "pca-reference" });
       bindTooltip(circle, point.label);
     }
+    projection.overlays.forEach((point, index) => {
+      const x = plotX(point.x);
+      const y = plotY(point.y);
+      const triangle = add(svg, "path", {
+        d: `M ${x} ${y - 10} L ${x + 10} ${y + 8} L ${x - 10} ${y + 8} Z`,
+        class: "pca-modern",
+      });
+      bindTooltip(triangle, `#${index + 1} modern: ${point.label} · Distance ${closestModern[index].distance.toFixed(3)} (G25 × 100)`);
+    });
     const targetX = plotX(projection.target.x);
     const targetY = plotY(projection.target.y);
     const marker = add(svg, "path", { d: `M ${targetX} ${targetY - 10} L ${targetX + 10} ${targetY} L ${targetX} ${targetY + 10} L ${targetX - 10} ${targetY} Z`,
@@ -662,6 +674,14 @@
       swatch.style.backgroundColor = groupColor(group);
       item.append(swatch, document.createTextNode(group.replaceAll("_", " ")));
       legend.append(item);
+    }
+    if (projection.overlays.length) {
+      const modern = document.createElement("span");
+      modern.className = "pca-legend-item";
+      const swatch = document.createElement("span");
+      swatch.className = "pca-legend-modern-swatch";
+      modern.append(swatch, document.createTextNode(`${projection.overlays.length} closest modern`));
+      legend.append(modern);
     }
     const input = document.createElement("span");
     input.className = "pca-legend-item";
