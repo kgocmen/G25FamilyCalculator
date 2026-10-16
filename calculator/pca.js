@@ -53,23 +53,26 @@ function G25PcaModule(root) {
     if (!Array.isArray(references) || references.length < 3) {
       throw new Error("At least three medieval references are needed for PCA.");
     }
-    const rows = references.map((reference) => {
+    const readRow = (reference, description) => {
       const values = Array.isArray(reference) ? reference.slice(2) : reference.values;
       const label = Array.isArray(reference) ? reference[1] : reference.label;
       if (!Array.isArray(values) || values.length !== DIMENSIONS || !values.every(Number.isFinite)) {
-        throw new Error("A medieval reference has invalid G25 coordinates.");
+        throw new Error(`${description} has invalid G25 coordinates.`);
       }
       return { label, values };
-    });
+    };
+    const rows = references.map((reference) => readRow(reference, "A medieval reference"));
+    const overlayRows = overlays.map((overlay) => readRow(overlay, "A PCA overlay"));
+    const allRows = [...rows, target, ...overlayRows];
     const mean = Array(DIMENSIONS).fill(0);
-    for (const row of rows) {
-      for (let i = 0; i < DIMENSIONS; i += 1) mean[i] += row.values[i] / rows.length;
+    for (const row of allRows) {
+      for (let i = 0; i < DIMENSIONS; i += 1) mean[i] += row.values[i] / allRows.length;
     }
-    const centered = rows.map((row) => row.values.map((value, i) => value - mean[i]));
+    const centered = allRows.map((row) => row.values.map((value, i) => value - mean[i]));
     const covariance = Array.from({ length: DIMENSIONS }, () => Array(DIMENSIONS).fill(0));
     for (const values of centered) {
       for (let i = 0; i < DIMENSIONS; i += 1) {
-        for (let j = 0; j <= i; j += 1) covariance[i][j] += values[i] * values[j] / (rows.length - 1);
+        for (let j = 0; j <= i; j += 1) covariance[i][j] += values[i] * values[j] / (allRows.length - 1);
       }
     }
     for (let i = 0; i < DIMENSIONS; i += 1) {
@@ -82,19 +85,11 @@ function G25PcaModule(root) {
       const centeredValues = values.map((value, i) => value - mean[i]);
       return { x: dot(centeredValues, first.vector), y: dot(centeredValues, second.vector) };
     };
-    const projectedOverlays = overlays.map((overlay) => {
-      const values = Array.isArray(overlay) ? overlay.slice(2) : overlay.values;
-      const label = Array.isArray(overlay) ? overlay[1] : overlay.label;
-      if (!Array.isArray(values) || values.length !== DIMENSIONS || !values.every(Number.isFinite)) {
-        throw new Error("A PCA overlay has invalid G25 coordinates.");
-      }
-      return { label, ...position(values) };
-    });
     return {
       points: rows.map((row) => ({ label: row.label,
         ethnicity: row.label.split(":", 1)[0], ...position(row.values) })),
       target: { label: target.label || "Input", ...position(target.values) },
-      overlays: projectedOverlays,
+      overlays: overlayRows.map((row) => ({ label: row.label, ...position(row.values) })),
       explained: trace > 0 ? [first.variance / trace, second.variance / trace] : [0, 0],
     };
   }
