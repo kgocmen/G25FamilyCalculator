@@ -3,7 +3,7 @@
 
   const globalReferences = window.G25_REFERENCES || [];
   const turkishReferences = window.G25_TURKISH_REFERENCES || [];
-  const medievalReferences = window.G25_MEDIEVAL_REFERENCES || [];
+  const medievalReferences = window.G25_MEDIEVAL_REFERENCES || { early: [], late: [] };
   let references = globalReferences;
   const core = window.G25Core;
   const names = {
@@ -224,7 +224,7 @@
     if (mode !== 1) cancelMedieval();
     references = state.turkish ? turkishReferences : globalReferences;
     $("#turkish-toggle").checked = state.turkish;
-    $("#analysis-tabs").hidden = mode !== 1 || !state.turkish;
+    $("#analysis-tabs").hidden = mode !== 1 || !state.turkish || !state.single;
     $("#medieval-breakdown-panel").hidden = true;
     $("#closest-count").value = String(state.closestCount);
     $("#closest-count-value").textContent = String(state.closestCount);
@@ -433,14 +433,14 @@
       $(selector).hidden = true;
     }
     updateAnalysisView();
-    if (state.turkish && state.analysisView === "medieval") renderMedievalBreakdown();
     if (!state.single || !references.length) return;
+    if (state.turkish && isMedievalView()) {
+      renderMedievalBreakdown();
+      return;
+    }
     const modernReferences = references.filter((row) => row[0] === "modern");
     const ancientReferences = references.filter((row) => row[0] === "ancient");
     renderSingleClosestTables(modernReferences, ancientReferences);
-    if (state.turkish && state.analysisView === "medieval") {
-      return;
-    }
     renderMixtureStatus("#relaxed-modern", "Calculating unsupervised modern fits…");
     renderMixtureStatus("#relaxed-ancient", "Waiting for modern fits…");
     renderMixtureStatus("#parent-estimates", "Waiting for unsupervised fits…");
@@ -449,10 +449,18 @@
     startMixtures(state.single, modernReferences, references, mixtureRequest);
   }
 
+  function isMedievalView() {
+    return state.analysisView === "early" || state.analysisView === "late";
+  }
+
   function updateAnalysisView() {
-    const medieval = state.mode === 1 && state.turkish && state.analysisView === "medieval";
+    const medieval = state.mode === 1 && state.turkish && isMedievalView();
     const available = state.mode === 1 && Boolean(state.single) && references.length > 0;
-    for (const [selector, active] of [["#analysis-results-tab", !medieval], ["#medieval-breakdown-tab", medieval]]) {
+    for (const [selector, active] of [
+      ["#analysis-results-tab", !medieval],
+      ["#early-medieval-tab", medieval && state.analysisView === "early"],
+      ["#late-medieval-tab", medieval && state.analysisView === "late"],
+    ]) {
       const button = $(selector);
       button.classList.toggle("active", active);
       button.setAttribute("aria-selected", String(active));
@@ -461,7 +469,7 @@
     for (const selector of ["#matches-panel", "#relaxed-estimates-panel", "#parent-estimates-panel", "#grandparent-estimates-panel"]) {
       $(selector).hidden = !available || medieval;
     }
-    $("#medieval-breakdown-panel").hidden = !medieval;
+    $("#medieval-breakdown-panel").hidden = !available || !medieval;
   }
 
   function renderMedievalBreakdown() {
@@ -470,11 +478,9 @@
     const list = $("#medieval-breakdown-list");
     list.replaceChildren();
     distance.hidden = true;
-    if (!state.single) {
-      status.textContent = "Add a sample to analyse.";
-      return;
-    }
-    status.textContent = "Calculating medieval breakdown…";
+    const period = state.analysisView === "early" ? "Early Medieval" : "Late Medieval";
+    $("#medieval-breakdown-title").textContent = period;
+    status.textContent = `Calculating ${period} fit…`;
     const requestId = medievalRequest;
     try {
       const source = `(${window.G25MedievalModule.toString()})(self);\n(${medievalWorkerMain.toString()})();`;
@@ -492,7 +498,7 @@
       };
       worker.onmessage = ({ data }) => {
         if (data.requestId !== medievalRequest || state.mode !== 1 || !state.turkish ||
-            state.analysisView !== "medieval") return;
+            !isMedievalView()) return;
         finish();
         if (data.error) {
           status.textContent = data.error;
@@ -505,7 +511,7 @@
         finish();
         status.textContent = "Medieval analysis could not start in this browser.";
       };
-      worker.postMessage({ requestId, target: state.single, references: medievalReferences });
+      worker.postMessage({ requestId, target: state.single, references: medievalReferences[state.analysisView] || [] });
     } catch (error) {
       cancelMedieval();
       status.textContent = `Medieval analysis could not start: ${error.message}`;
@@ -941,7 +947,10 @@
     updateSelectedReferences(state.turkish ? turkishReferences : globalReferences);
     render();
   });
-  for (const [selector, view] of [["#analysis-results-tab", "results"], ["#medieval-breakdown-tab", "medieval"]]) {
+  const analysisTabViews = ["results", "early", "late"];
+  const analysisTabSelectors = ["#analysis-results-tab", "#early-medieval-tab", "#late-medieval-tab"];
+  for (const [index, selector] of analysisTabSelectors.entries()) {
+    const view = analysisTabViews[index];
     const button = $(selector);
     button.addEventListener("click", () => {
       if (state.analysisView === view) return;
@@ -951,7 +960,8 @@
     button.addEventListener("keydown", (event) => {
       if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
       event.preventDefault();
-      const other = $(view === "results" ? "#medieval-breakdown-tab" : "#analysis-results-tab");
+      const direction = event.key === "ArrowRight" ? 1 : -1;
+      const other = $(analysisTabSelectors[(index + direction + analysisTabSelectors.length) % analysisTabSelectors.length]);
       other.click();
       other.focus();
     });

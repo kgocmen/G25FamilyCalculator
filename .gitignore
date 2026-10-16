@@ -4,5 +4,7 @@ data/*
 !data/turkish_ancient_g25.txt
 !data/turkish_medieval_g25.txt
 !data/turkish_medieval_g25_new.txt
+!data/turkish_early_medieval_g25.txt
+!data/turkish_late_medieval_g25.txt
 *.py
 !build_calculator_data.py

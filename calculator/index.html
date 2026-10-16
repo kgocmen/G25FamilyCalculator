@@ -5,14 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#14243b">
   <title>G25 Family Calculator</title>
-  <link rel="stylesheet" href="style.css?v=20261016-1">
+  <link rel="stylesheet" href="style.css?v=20261016-2">
   <script defer src="references.js?v=20261015-5"></script>
   <script defer src="turkish_references.js?v=20261015-5"></script>
-  <script defer src="medieval_references.js?v=20261016-1"></script>
+  <script defer src="medieval_references.js?v=20261016-2"></script>
   <script defer src="core.js?v=20261015-5"></script>
   <script defer src="mixture.js?v=20261015-5"></script>
   <script defer src="medieval.js?v=20261016-1"></script>
-  <script defer src="app.js?v=20261016-1"></script>
+  <script defer src="app.js?v=20261016-2"></script>
 </head>
 <body>
   <main class="shell">
@@ -68,7 +68,8 @@
 
     <div id="analysis-tabs" class="analysis-tabs" role="tablist" aria-label="Analyse results" hidden>
       <button id="analysis-results-tab" class="analysis-tab active" type="button" role="tab" aria-selected="true" aria-controls="matches-panel">Results</button>
-      <button id="medieval-breakdown-tab" class="analysis-tab" type="button" role="tab" aria-selected="false" aria-controls="medieval-breakdown-panel">Medieval breakdown</button>
+      <button id="early-medieval-tab" class="analysis-tab" type="button" role="tab" aria-selected="false" aria-controls="medieval-breakdown-panel">Early Medieval</button>
+      <button id="late-medieval-tab" class="analysis-tab" type="button" role="tab" aria-selected="false" aria-controls="medieval-breakdown-panel">Late Medieval</button>
     </div>
 
     <section id="result-panel" class="panel result-panel" aria-labelledby="result-title">
@@ -142,8 +143,8 @@
     <section id="medieval-breakdown-panel" class="panel matches-panel" aria-labelledby="medieval-breakdown-title" hidden>
       <div class="section-head">
         <div>
-          <h2 id="medieval-breakdown-title">Medieval breakdown</h2>
-          <p id="medieval-breakdown-status" role="status">Add a sample to analyse.</p>
+          <h2 id="medieval-breakdown-title">Early Medieval</h2>
+          <p id="medieval-breakdown-status" role="status"></p>
         </div>
         <output id="medieval-breakdown-distance" class="breakdown-distance" hidden></output>
       </div>

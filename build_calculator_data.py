@@ -48,12 +48,15 @@ def main() -> None:
         encoding="utf-8",
     )
     print(f"Bundled {len(turkish_rows)} Turkish modern and ancient references into {TURKISH_OUTPUT}")
-    medieval_rows = read_rows(ROOT / "data" / "turkish_medieval_g25_new.txt", "medieval")
+    medieval_rows = {
+        "early": read_rows(ROOT / "data" / "turkish_early_medieval_g25.txt", "medieval"),
+        "late": read_rows(ROOT / "data" / "turkish_late_medieval_g25.txt", "medieval"),
+    }
     MEDIEVAL_OUTPUT.write_text(
         "window.G25_MEDIEVAL_REFERENCES = " + json.dumps(medieval_rows, ensure_ascii=False, separators=(",", ":")) + ";\n",
         encoding="utf-8",
     )
-    print(f"Bundled {len(medieval_rows)} Turkish medieval references into {MEDIEVAL_OUTPUT}")
+    print(f"Bundled {len(medieval_rows['early'])} early and {len(medieval_rows['late'])} late Turkish medieval references into {MEDIEVAL_OUTPUT}")
 
 
 if __name__ == "__main__":
