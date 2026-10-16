@@ -693,10 +693,10 @@
     const status = $("#medieval-breakdown-status");
     const distance = $("#medieval-breakdown-distance");
     const list = $("#medieval-breakdown-list");
-    status.textContent = `Estimated contributions · ${fit.groups.length} ethnicities · 100.00% total`;
+    status.textContent = `Estimated contributions · ${fit.groups.length} ethnicities · 100.0% total`;
     distance.textContent = `Fit distance ${fit.distance.toFixed(3)}`;
     distance.hidden = false;
-    const groupUnits = allocatePercentUnits(fit.groups.map((group) => group.weight), 10000);
+    const groupUnits = allocatePercentUnits(fit.groups.map((group) => group.weight), 1000);
     fit.groups.forEach((group, groupIndex) => {
       const details = document.createElement("details");
       details.className = "breakdown-group";
@@ -710,7 +710,7 @@
       const bar = document.createElement("div");
       bar.className = "breakdown-bar";
       const fill = document.createElement("span");
-      fill.style.width = `${groupUnits[groupIndex] / 100}%`;
+      fill.style.width = `${groupUnits[groupIndex] / 10}%`;
       bar.append(fill);
       const samples = document.createElement("ul");
       samples.className = "breakdown-samples";
@@ -741,7 +741,7 @@
   }
 
   function formatPercent(units) {
-    return `${(units / 100).toFixed(2)}%`;
+    return `${(units / 10).toFixed(1)}%`;
   }
 
   function renderSingleClosestTables(

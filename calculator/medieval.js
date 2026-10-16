@@ -97,7 +97,7 @@ function G25MedievalModule(root) {
       }
     }
 
-    // Values below 0.005% cannot be shown at two decimal places.
+    // Remove negligible fitted components before normalizing the reported mixture.
     const retained = weights.map((weight, index) => ({ weight, index }))
       .filter(({ weight }) => weight >= 0.00005);
     if (!retained.length) retained.push({ weight: 1, index: nearest });
