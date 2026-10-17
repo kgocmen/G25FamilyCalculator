@@ -5,16 +5,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#14243b">
   <title>G25 Family Calculator</title>
-  <link rel="stylesheet" href="style.css?v=20261016-6">
+  <link rel="stylesheet" href="style.css?v=20261017-2">
   <script defer src="references.js?v=20261015-5"></script>
   <script defer src="turkish_references.js?v=20261015-5"></script>
   <script defer src="medieval_references.js?v=20261016-8"></script>
-  <script defer src="core.js?v=20261017-1"></script>
+  <script defer src="core.js?v=20261017-2"></script>
   <script defer src="mixture.js?v=20261015-5"></script>
   <script defer src="medieval.js?v=20261016-1"></script>
   <script defer src="pca.js?v=20261016-3"></script>
   <script defer src="pca_layout.js?v=20261016-2"></script>
-  <script defer src="app.js?v=20261017-1"></script>
+  <script defer src="app.js?v=20261017-2"></script>
 </head>
 <body>
   <main class="shell">
@@ -216,6 +216,13 @@
     <section id="remaining-admixture-panel" class="panel matches-panel" aria-labelledby="remaining-admixture-title" hidden>
       <div class="section-head">
         <h2 id="remaining-admixture-title">Best fitting remaining admixture</h2>
+        <label class="match-filter">Percentage step
+          <select id="remaining-step" aria-label="Remaining admixture percentage step">
+            <option value="1">1%</option>
+            <option value="5" selected>5%</option>
+            <option value="10">10%</option>
+          </select>
+        </label>
         <label class="match-filter">Reference set
           <select id="remaining-category" aria-label="Remaining admixture reference category">
             <option value="modern">Modern</option>

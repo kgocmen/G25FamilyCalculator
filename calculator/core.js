@@ -65,7 +65,8 @@
     })).sort((a, b) => a.distance - b.distance || a.id - b.id).slice(0, limit);
   }
 
-  function remainingAdmixture(target, source, references) {
+  function remainingAdmixture(target, source, references, step = 5) {
+    if (![1, 5, 10].includes(step)) throw new Error("Choose a percentage step of 1, 5 or 10.");
     if (!target || !source || !validateVector(target.values) || !validateVector(source.values)) {
       throw new Error("Both targets need valid G25 coordinates.");
     }
@@ -76,8 +77,8 @@
       values: Array.isArray(row) ? row.slice(2) : row.values,
     }));
     if (candidates.some((row) => !validateVector(row.values))) throw new Error("Invalid G25 coordinates.");
-    return Array.from({ length: 19 }, (_, index) => {
-      const percent = (index + 1) * 5;
+    return Array.from({ length: 100 / step - 1 }, (_, index) => {
+      const percent = (index + 1) * step;
       const weight = percent / 100;
       let best = null;
       for (const candidate of candidates) {
@@ -115,7 +116,8 @@
         }
       }
       const selected = new Map([first, minimum, last].map((fit) => [fit.percent, fit]));
-      result.push(...[...selected.values()].sort((a, b) => a.percent - b.percent));
+      result.push(...[...selected.values()].sort((a, b) => a.percent - b.percent)
+        .map((fit) => ({ ...fit, isGroupBest: Boolean(fit.best) && fit.percent === minimum.percent })));
       start = end + 1;
     }
     return result;

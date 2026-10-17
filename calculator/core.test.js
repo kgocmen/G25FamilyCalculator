@@ -6,6 +6,27 @@ function person(label, value) {
   return { label, values: Array(25).fill(value) };
 }
 
+test("remaining admixture supports each step and marks the best row within each group", () => {
+  const { remainingAdmixture, summarizeRemainingAdmixture } = require("./core.js");
+  const target = person("A", 0.17);
+  const source = person("B", 1);
+  const references = [person("Zero", 0)];
+  for (const step of [1, 5, 10]) {
+    const fits = remainingAdmixture(target, source, references, step);
+    assert.deepEqual(fits.map((fit) => fit.percent), Array.from({ length: 100 / step - 1 }, (_, i) => (i + 1) * step));
+    const summary = summarizeRemainingAdmixture(fits, target, source, references);
+    assert.deepEqual(summary.filter((fit) => fit.isGroupBest).map((fit) => fit.percent), [17]);
+  }
+  const range = remainingAdmixture(target, source, references, 10).slice(0, 2);
+  const summary = summarizeRemainingAdmixture(range, target, source, references);
+  assert.deepEqual(summary.map((fit) => [fit.percent, fit.isGroupBest]), [[10, false], [17, true], [20, false]]);
+  const endpoint = person("A", 0);
+  const endpointFits = remainingAdmixture(endpoint, source, references, 10);
+  assert.deepEqual(summarizeRemainingAdmixture(endpointFits, endpoint, source, references)
+    .filter((fit) => fit.isGroupBest).map((fit) => fit.percent), [10]);
+  assert.throws(() => remainingAdmixture(target, source, references, 0), /percentage step/);
+});
+
 test("remaining admixture summary searches whole percentages within each population run", () => {
   const { remainingAdmixture, summarizeRemainingAdmixture } = require("./core.js");
   const source = person("B", 1);
@@ -31,7 +52,7 @@ test("remaining admixture summary searches whole percentages within each populat
   assert.deepEqual(summarizeRemainingAdmixture(tied, flat, flat, references).map((fit) => fit.percent), [5, 95]);
   assert.deepEqual(summarizeRemainingAdmixture([]), []);
   const empty = [{ percent: 5, best: null }, { percent: 10, best: null }, { percent: 15, best: null }];
-  assert.deepEqual(summarizeRemainingAdmixture(empty), [empty[0], empty[2]]);
+  assert.deepEqual(summarizeRemainingAdmixture(empty), [empty[0], empty[2]].map((fit) => ({ ...fit, isGroupBest: false })));
 
   // Search only inside each consecutive run, even when a population returns later.
   const runs = [tied[0], tied[1], { ...tied[2], best: { ...tied[2].best, id: 1 } }, tied[3], tied[4]];

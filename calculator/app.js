@@ -934,11 +934,12 @@
     $("#remaining-admixture-panel").hidden = false;
     const [actual, calculated] = state.compare;
     const category = $("#remaining-category").value;
+    const step = Number($("#remaining-step").value);
     const candidates = category === "all" ? references : references.filter((row) => row[0] === category);
     $("#remaining-a-title").textContent = `A: ${actual.label} ≈ % B: ${calculated.label} + remainder`;
     $("#remaining-b-title").textContent = `B: ${calculated.label} ≈ % A: ${actual.label} + remainder`;
-    renderRemainingAdmixture($("#remaining-a"), core.summarizeRemainingAdmixture(core.remainingAdmixture(actual, calculated, candidates), actual, calculated, candidates), "B");
-    renderRemainingAdmixture($("#remaining-b"), core.summarizeRemainingAdmixture(core.remainingAdmixture(calculated, actual, candidates), calculated, actual, candidates), "A");
+    renderRemainingAdmixture($("#remaining-a"), core.summarizeRemainingAdmixture(core.remainingAdmixture(actual, calculated, candidates, step), actual, calculated, candidates), "B");
+    renderRemainingAdmixture($("#remaining-b"), core.summarizeRemainingAdmixture(core.remainingAdmixture(calculated, actual, candidates, step), calculated, actual, candidates), "A");
   }
 
   function renderRemainingAdmixture(container, fits, sourceName) {
@@ -951,9 +952,13 @@
       head.append(cell);
     }
     const body = table.createTBody();
-    for (const { percent, remainingPercent, best } of fits) {
+    for (const { percent, remainingPercent, best, isGroupBest } of fits) {
       const row = body.insertRow();
-      for (const value of [`${percent}%`, best ? `${best.label} · ${best.category}` : "No matching populations", `${remainingPercent}%`, best ? best.distance.toFixed(3) : "—"]) {
+      if (isGroupBest) {
+        row.className = "admixture-best-row";
+        row.title = "Best fit in this consecutive population group";
+      }
+      for (const value of [`${percent}%${isGroupBest ? " ★" : ""}`, best ? `${best.label} · ${best.category}` : "No matching populations", `${remainingPercent}%`, best ? best.distance.toFixed(3) : "—"]) {
         row.insertCell().textContent = value;
       }
     }
@@ -1170,6 +1175,7 @@
   }
   $("#reference-search").addEventListener("input", renderReferences);
   $("#reference-category").addEventListener("change", renderReferences);
+  $("#remaining-step").addEventListener("change", renderRemainingTables);
   $("#remaining-category").addEventListener("change", renderRemainingTables);
   $("#analyse-match-category").addEventListener("change", renderSingleClosestTables);
   $("#match-category").addEventListener("change", render);
