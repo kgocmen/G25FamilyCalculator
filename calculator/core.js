@@ -65,6 +65,16 @@
     })).sort((a, b) => a.distance - b.distance || a.id - b.id).slice(0, limit);
   }
 
+  function visibleRemainingAdmixture(fits, references, targets) {
+    return fits.filter((fit) => {
+      if (!fit.best) return true;
+      const row = references[fit.best.id];
+      const values = Array.isArray(row) ? row.slice(2) : row.values;
+      return !targets.some((target) => fit.best.label === target.label ||
+        values.every((value, index) => value === target.values[index]));
+    });
+  }
+
   function remainingAdmixture(target, source, references, step = 5) {
     if (![1, 5, 10].includes(step)) throw new Error("Choose a percentage step of 1, 5 or 10.");
     if (!target || !source || !validateVector(target.values) || !validateVector(source.values)) {
@@ -288,7 +298,7 @@
     return [csvLabel, ...values.map(formatNumber)].join(",");
   }
 
-  const api = { ancestorWeights, calculate, calculateComparison, closestMatches, distance, estimateChildFromKnown, formatLine, missingAncestorLabel, nearestMatches, parseLine, prepareMatches, rankMatches, remainingAdmixture, summarizeRemainingAdmixture, resultLabel };
+  const api = { ancestorWeights, calculate, calculateComparison, closestMatches, distance, estimateChildFromKnown, visibleRemainingAdmixture, formatLine, missingAncestorLabel, nearestMatches, parseLine, prepareMatches, rankMatches, remainingAdmixture, summarizeRemainingAdmixture, resultLabel };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.G25Core = api;
 })(typeof window !== "undefined" ? window : globalThis);

@@ -938,8 +938,8 @@
     const candidates = category === "all" ? references : references.filter((row) => row[0] === category);
     $("#remaining-a-title").textContent = `A: ${actual.label} ≈ % B: ${calculated.label} + remainder`;
     $("#remaining-b-title").textContent = `B: ${calculated.label} ≈ % A: ${actual.label} + remainder`;
-    renderRemainingAdmixture($("#remaining-a"), core.summarizeRemainingAdmixture(core.remainingAdmixture(actual, calculated, candidates, step), actual, calculated, candidates), "B");
-    renderRemainingAdmixture($("#remaining-b"), core.summarizeRemainingAdmixture(core.remainingAdmixture(calculated, actual, candidates, step), calculated, actual, candidates), "A");
+    renderRemainingAdmixture($("#remaining-a"), core.visibleRemainingAdmixture(core.summarizeRemainingAdmixture(core.remainingAdmixture(actual, calculated, candidates, step), actual, calculated, candidates), candidates, [actual, calculated]), "B");
+    renderRemainingAdmixture($("#remaining-b"), core.visibleRemainingAdmixture(core.summarizeRemainingAdmixture(core.remainingAdmixture(calculated, actual, candidates, step), calculated, actual, candidates), candidates, [actual, calculated]), "A");
   }
 
   function renderRemainingAdmixture(container, fits, sourceName) {
@@ -952,13 +952,18 @@
       head.append(cell);
     }
     const body = table.createTBody();
+    const bestDistance = Math.min(...fits.filter((fit) => fit.best).map((fit) => fit.best.distance));
     for (const { percent, remainingPercent, best, isGroupBest } of fits) {
       const row = body.insertRow();
       if (isGroupBest) {
-        row.className = "admixture-best-row";
+        row.className = "admixture-group-best-row";
         row.title = "Best fit in this consecutive population group";
       }
-      for (const value of [`${percent}%${isGroupBest ? " ★" : ""}`, best ? `${best.label} · ${best.category}` : "No matching populations", `${remainingPercent}%`, best ? best.distance.toFixed(3) : "—"]) {
+      if (best && best.distance === bestDistance) {
+        row.classList.add("admixture-best-row");
+        row.title = "Best fit in this table";
+      }
+      for (const value of [`${percent}%`, best ? `${best.label} · ${best.category}` : "No matching populations", `${remainingPercent}%`, best ? best.distance.toFixed(3) : "—"]) {
         row.insertCell().textContent = value;
       }
     }

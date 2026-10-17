@@ -160,5 +160,6 @@ dialog::backdrop { background: rgba(13, 35, 54, .55); }
   .extreme-grid { grid-template-columns: 1fr; }
 }
 
+.matches-table .admixture-group-best-row td { font-weight: 750; }
 .matches-table .admixture-best-row { background: #edf9f5; }
 .matches-table .admixture-best-row td { color: #15745e; font-weight: 750; }

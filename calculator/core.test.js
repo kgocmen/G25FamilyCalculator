@@ -6,6 +6,20 @@ function person(label, value) {
   return { label, values: Array(25).fill(value) };
 }
 
+test("target remainders participate in fitting but their result rows are hidden", () => {
+  const { remainingAdmixture, visibleRemainingAdmixture } = require("./core.js");
+  const targets = [person("A", 0), person("B", 1)];
+  const references = [person("A", 0), person("B", 1), person("Other", 2)];
+  const fits = remainingAdmixture(targets[0], targets[1], references);
+  assert.ok(fits.every((fit) => fit.best.label === "A"));
+  assert.deepEqual(visibleRemainingAdmixture(fits, references, targets), []);
+  assert.ok(fits.every((fit) => fit.best.label === "A"));
+  const rows = references.map((row, id) => ({ best: { id, label: row.label } }));
+  assert.deepEqual(visibleRemainingAdmixture(rows, references, targets), [rows[2]]);
+  const alias = [{ best: { id: 0, label: "Alias A" } }];
+  assert.deepEqual(visibleRemainingAdmixture(alias, references, targets), []);
+});
+
 test("remaining admixture supports each step and marks the best row within each group", () => {
   const { remainingAdmixture, summarizeRemainingAdmixture } = require("./core.js");
   const target = person("A", 0.17);
