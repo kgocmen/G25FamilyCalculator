@@ -5,16 +5,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#14243b">
   <title>G25 Family Calculator</title>
-  <link rel="stylesheet" href="style.css?v=20261017-3">
+  <link rel="stylesheet" href="style.css?v=20261017-13">
   <script defer src="references.js?v=20261015-5"></script>
   <script defer src="turkish_references.js?v=20261015-5"></script>
   <script defer src="medieval_references.js?v=20261016-8"></script>
-  <script defer src="core.js?v=20261017-3"></script>
+  <script defer src="core.js?v=20261017-13"></script>
   <script defer src="mixture.js?v=20261015-5"></script>
   <script defer src="medieval.js?v=20261016-1"></script>
   <script defer src="pca.js?v=20261016-3"></script>
   <script defer src="pca_layout.js?v=20261016-2"></script>
-  <script defer src="app.js?v=20261017-3"></script>
+  <script defer src="app.js?v=20261017-13"></script>
 </head>
 <body>
   <main class="shell">
@@ -45,6 +45,16 @@
         <button class="mode-button" type="button" data-mode="4" aria-pressed="false">4 grandparents</button>
         <button class="mode-button" type="button" data-mode="8" aria-pressed="false">8 great-grandparents</button>
       </div>
+      <details id="blacklist-panel" class="blacklist-panel">
+        <summary>Blacklist (<span id="blacklist-count">0</span>)</summary>
+        <div class="blacklist-tools">
+          <input id="blacklist-search" type="search" placeholder="Find a population to exclude…" aria-label="Find a population to blacklist" autocomplete="off">
+          <button id="blacklist-clear" type="button" class="text-button" disabled>Clear blacklist</button>
+        </div>
+        <ul id="blacklist-search-results" class="blacklist-list"></ul>
+        <p id="blacklist-empty" class="method-note">No blacklisted populations.</p>
+        <ul id="blacklist-list" class="blacklist-list" tabindex="0" aria-label="Excluded populations"></ul>
+      </details>
       <div id="single-input" hidden>
         <div id="single-row"></div>
       </div>
@@ -54,11 +64,20 @@
         <p id="compare-distance" class="comparison" hidden></p>
       </div>
       <div id="family-inputs">
-        <label id="male-option" class="male-option">
-          <input id="male-toggle" type="checkbox">
-          <span>Male</span>
-          <small id="male-weight-note">Mother 50% · Father 50%</small>
-        </label>
+        <div class="family-controls">
+          <div class="family-weight-controls">
+            <label id="male-option" class="male-option">
+              <input id="male-toggle" type="checkbox">
+              <span>Male</span>
+              <small id="male-weight-note">Mother 50% · Father 50%</small>
+            </label>
+          </div>
+          <div class="family-fit-actions">
+            <div class="family-distance-slot"><output id="family-child-distance" class="family-child-distance" aria-live="polite" hidden></output></div>
+            <button id="family-optimise" class="primary-button" type="button" disabled>Optimise</button>
+          </div>
+        </div>
+        <p id="family-optimise-status" class="method-note" role="status" hidden></p>
         <p id="selection-hint" class="legacy-copy" hidden></p>
         <div class="group-label"><span>CHILD</span></div>
         <div id="offspring-row"></div>
@@ -88,13 +107,15 @@
     </section>
 
     <section id="suggestions-panel" class="panel matches-panel" aria-labelledby="suggestions-title" hidden>
+      <button id="suggestions-accordion-toggle" class="accordion-toggle" type="button" aria-expanded="true" aria-controls="suggestions-accordion-body" hidden>Closest populations for calculated coordinates</button>
+      <div id="suggestions-accordion-body">
       <div class="section-head">
         <div>
           <h2 id="suggestions-title">Closest populations for calculated coordinates</h2>
           <p id="suggestions-intro" class="panel-intro" hidden></p>
         </div>
         <label class="result-count"><span>Show top <output id="suggestion-count-value" for="suggestion-count">10</output></span>
-          <input id="suggestion-count" type="range" min="10" max="100" step="1" value="10" aria-label="Number of suggested populations to show">
+          <input id="suggestion-count" type="range" min="5" max="100" step="1" value="10" aria-label="Number of suggested populations to show">
         </label>
         <label class="match-filter">Reference set
           <select id="suggestion-category" aria-label="Suggested population reference category">
@@ -108,16 +129,19 @@
         <h3 id="suggestions-list-title"></h3>
         <div id="suggestions-list" class="table-scroll" tabindex="0" role="region" aria-label="Closest populations for calculated family coordinates"></div>
       </div>
+      </div>
     </section>
 
     <section id="matches-panel" class="panel matches-panel" aria-labelledby="matches-title" hidden>
+      <button id="closest-accordion-toggle" class="accordion-toggle" type="button" aria-expanded="true" aria-controls="closest-accordion-body" hidden>Closest populations</button>
+      <div id="closest-accordion-body">
       <div class="section-head">
         <div>
           <h2 id="matches-title">Closest populations</h2>
           <p id="matches-intro" class="legacy-copy" hidden></p>
         </div>
         <label class="result-count"><span>Show top <output id="closest-count-value" for="closest-count">10</output></span>
-          <input id="closest-count" type="range" min="10" max="100" step="1" value="10" aria-label="Number of closest populations to show">
+          <input id="closest-count" type="range" min="5" max="100" step="1" value="10" aria-label="Number of closest populations to show">
         </label>
         <label id="analyse-match-filter" class="match-filter" hidden>Reference set
           <select id="analyse-match-category" aria-label="Analyse closest population reference category">
@@ -147,6 +171,7 @@
         <div id="calculated-matches" class="table-scroll" tabindex="0" role="region" aria-label="Calculated closest populations table"></div>
       </div>
       <p id="matches-note" class="legacy-copy" hidden></p>
+      </div>
     </section>
 
     <section id="medieval-breakdown-panel" class="panel matches-panel" aria-labelledby="medieval-breakdown-title" hidden>
@@ -172,7 +197,7 @@
           <p class="panel-intro">Modern and ancient fitted separately; proportions vary.</p>
         </div>
         <label class="result-count"><span>Show top <output id="relaxed-count-value" for="relaxed-count">10</output></span>
-          <input id="relaxed-count" type="range" min="10" max="100" step="1" value="10" aria-label="Number of unsupervised fits to show">
+          <input id="relaxed-count" type="range" min="5" max="100" step="1" value="10" aria-label="Number of unsupervised fits to show">
         </label>
       </div>
       <div class="match-group">
@@ -191,7 +216,7 @@
           <h2 id="parent-estimates-title">Strict 2-way fit · 50/50</h2>
         </div>
         <label class="result-count"><span>Show top <output id="strict-parent-count-value" for="strict-parent-count">10</output></span>
-          <input id="strict-parent-count" type="range" min="10" max="100" step="1" value="10" aria-label="Number of strict two-way fits to show">
+          <input id="strict-parent-count" type="range" min="5" max="100" step="1" value="10" aria-label="Number of strict two-way fits to show">
         </label>
       </div>
       <div id="parent-estimates" class="table-scroll mixture-scroll" tabindex="0" role="region" aria-label="Two-way mixture estimates table"></div>
@@ -203,7 +228,7 @@
           <h2 id="grandparent-estimates-title">Strict 4-way fit · 25% each</h2>
         </div>
         <label class="result-count"><span>Show top <output id="strict-grandparent-count-value" for="strict-grandparent-count">10</output></span>
-          <input id="strict-grandparent-count" type="range" min="10" max="100" step="1" value="10" aria-label="Number of strict four-way fits to show">
+          <input id="strict-grandparent-count" type="range" min="5" max="100" step="1" value="10" aria-label="Number of strict four-way fits to show">
         </label>
       </div>
       <div id="strict-four-progress" class="analysis-progress" role="group" aria-label="Strict four-way calculation progress">
@@ -243,6 +268,9 @@
       </div>
     </section>
 
+    <section id="metrics-group" hidden>
+      <button id="metrics-accordion-toggle" class="accordion-toggle" type="button" aria-expanded="true" aria-controls="metrics-accordion-body" hidden>Difference, ratio and D3</button>
+      <div id="metrics-accordion-body">
     <section id="metric-controls" class="panel matches-panel" aria-labelledby="metric-limit-title" hidden>
       <div class="metric-limit-heading">
         <div>
@@ -298,6 +326,8 @@
           <h3>Up to 10 largest D3 values</h3>
           <div id="largest-d3" class="table-scroll" tabindex="0" role="region" aria-label="Largest D3 values table"></div>
         </div>
+      </div>
+    </section>
       </div>
     </section>
   </main>

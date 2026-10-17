@@ -54,6 +54,211 @@
   let strictReady = { parents: false, grandparents: false };
   let suggestionTarget = null;
 
+  const blacklistStorageKey = "g25-temporary-blacklist";
+  const blacklist = new Map();
+  try {
+    const saved = JSON.parse(sessionStorage.getItem(blacklistStorageKey) || "[]");
+    if (Array.isArray(saved)) saved.forEach((item) => {
+      if (item && typeof item.category === "string" && typeof item.label === "string") {
+        blacklist.set(populationKey(item), item);
+      }
+    });
+  } catch (_) { /* Session storage may be unavailable for local files. */ }
+
+  function populationKey(row) {
+    return JSON.stringify(Array.isArray(row) ? [row[0], row[1]] : [row.category, row.label]);
+  }
+
+  function allowedReferences(rows) {
+    return rows.filter((row) => !blacklist.has(populationKey(row)));
+  }
+
+  function changeBlacklist(item, excluded) {
+    if (excluded) blacklist.set(populationKey(item), { category: item.category, label: item.label });
+    else blacklist.delete(populationKey(item));
+    refreshBlacklist();
+  }
+
+  function refreshBlacklist() {
+    try { sessionStorage.setItem(blacklistStorageKey, JSON.stringify([...blacklist.values()])); } catch (_) {}
+    familyMessage = "";
+    render();
+  }
+
+  function excludeButton(item) {
+    const excluded = blacklist.has(populationKey(item));
+    const button = makeButton(excluded ? "−" : "+", () => changeBlacklist(item, !excluded));
+    button.className = "exclude-population";
+    button.setAttribute("aria-label", `${excluded ? "Restore" : "Blacklist"} ${item.label}`);
+    return button;
+  }
+
+  function renderBlacklist() {
+    $("#blacklist-count").textContent = String(blacklist.size);
+    $("#blacklist-clear").disabled = !blacklist.size;
+    const list = $("#blacklist-list");
+    list.replaceChildren();
+    const entries = [...blacklist.values()].sort((a, b) =>
+      Number(b.category === "modern") - Number(a.category === "modern") ||
+      a.category.localeCompare(b.category) ||
+      a.label.localeCompare(b.label, undefined, { sensitivity: "base", numeric: true }));
+    for (const item of entries) {
+      const entry = document.createElement("li");
+      const name = document.createElement("span");
+      name.textContent = `${item.label} · ${item.category}`;
+      const restore = makeButton("−", () => changeBlacklist(item, false));
+      restore.className = "exclude-population restore-population";
+      restore.setAttribute("aria-label", `Restore ${item.label}`);
+      entry.append(name, restore);
+      list.append(entry);
+    }
+    $("#blacklist-empty").hidden = blacklist.size > 0;
+    renderBlacklistSearch();
+  }
+
+  function renderBlacklistSearch() {
+    const results = $("#blacklist-search-results");
+    results.replaceChildren();
+    const query = normalizeSearch($("#blacklist-search").value);
+    if (!query) return;
+    const words = query.split(/\s+/);
+    const pool = [...(state.turkish ? turkishReferences : globalReferences),
+      ...(medievalReferences.early || []), ...(medievalReferences.late || [])];
+    const seen = new Set();
+    let shown = 0;
+    for (const row of pool) {
+      const key = populationKey(row);
+      if (seen.has(key) || blacklist.has(key) || !words.every((word) => normalizeSearch(row[1]).includes(word))) continue;
+      seen.add(key);
+      const entry = document.createElement("li");
+      const name = makeButton(`${row[1]} · ${row[0]}`, () =>
+        changeBlacklist({ category: row[0], label: row[1] }, true));
+      name.className = "blacklist-search-population";
+      entry.append(name);
+      results.append(entry);
+      shown += 1;
+      if (shown === 20) break;
+    }
+    if (!shown) {
+      const empty = document.createElement("li");
+      empty.textContent = "No available populations match this search.";
+      results.append(empty);
+    }
+  }
+
+  const familyLocks = { 2: Array(2).fill(false), 4: Array(4).fill(false), 8: Array(8).fill(false) };
+  const familyReverts = { 2: null, 4: null, 8: null };
+  let familyJob = null;
+  let familyMessage = "";
+
+  const familyAccordionOpen = { suggestions: true, closest: true, metrics: true };
+
+  function renderFamilyAccordions() {
+    const family = [2, 4, 8].includes(state.mode);
+    for (const [key, panel] of [["suggestions", "suggestions-panel"], ["closest", "matches-panel"], ["metrics", "metrics-group"]]) {
+      const expanded = !family || familyAccordionOpen[key];
+      $("#" + panel).classList.toggle("family-accordion", family);
+      const button = $("#" + key + "-accordion-toggle");
+      button.hidden = !family;
+      button.setAttribute("aria-expanded", String(expanded));
+      $("#" + key + "-accordion-body").hidden = !expanded;
+    }
+    $("#metrics-group").classList.toggle("panel", family);
+    $("#metrics-group").classList.toggle("matches-panel", family);
+  }
+
+  function familyFingerprint(mode) {
+    return JSON.stringify([state.offspring, state.slots[mode], familyLocks[mode],
+      mode !== 8 && state.male, state.turkish, [...blacklist.keys()].sort()]);
+  }
+
+  function renderFamilyOptimise() {
+    const mode = state.mode;
+    if (familyJob && (mode !== familyJob.mode || familyFingerprint(mode) !== familyJob.fingerprint)) {
+      familyJob.worker.terminate();
+      URL.revokeObjectURL(familyJob.url);
+      familyJob = null;
+      familyMessage = "";
+    }
+    if (![2, 4, 8].includes(mode)) return;
+    const snapshot = familyReverts[mode];
+    if (snapshot && snapshot.fingerprint !== familyFingerprint(mode)) {
+      familyReverts[mode] = null;
+      familyMessage = "";
+    }
+    const ancestors = state.slots[mode];
+    const complete = state.offspring && ancestors.every(Boolean);
+    const lockedCount = ancestors.filter((item, index) => item &&
+      (item.source !== "reference" || familyLocks[mode][index])).length;
+    const button = $("#family-optimise");
+    button.textContent = familyJob ? "Optimising…" : familyReverts[mode] ? "Revert" : "Optimise";
+    button.disabled = Boolean(familyJob) || !complete || lockedCount < ({ 2: 0, 4: 1, 8: 4 }[mode]);
+    const status = $("#family-optimise-status");
+    status.textContent = familyMessage || (!complete ? ""
+      : lockedCount < ({ 2: 0, 4: 1, 8: 4 }[mode]) ? `Lock at least ${{ 2: 0, 4: 1, 8: 4 }[mode]} of ${mode} contributors to optimise.` : "");
+    status.hidden = !status.textContent;
+  }
+
+  function optimiseFamily() {
+    const mode = state.mode;
+    if (familyReverts[mode]) {
+      state.slots[mode] = familyReverts[mode].ancestors;
+      familyReverts[mode] = null;
+      familyMessage = "";
+      render();
+      return;
+    }
+    const ancestors = [...state.slots[mode]];
+    const fingerprint = familyFingerprint(mode);
+    let worker;
+    let url;
+    try {
+      const source = `(${window.G25CoreModule.toString()})(self);\nself.onmessage = (event) => {
+        const { offspring, ancestors, locks, references, male } = event.data;
+        try {
+          self.postMessage({ result: self.G25Core.optimiseFamily(offspring, ancestors, locks, references, male) });
+        } catch (error) {
+          self.postMessage({ error: error.message });
+        }
+      };`;
+      url = URL.createObjectURL(new Blob([source], { type: "text/javascript" }));
+      worker = new Worker(url);
+      familyJob = { worker, url, mode, fingerprint };
+      familyMessage = "Searching modern populations…";
+      renderFamilyOptimise();
+      worker.onmessage = (event) => {
+        if (!familyJob || familyJob.worker !== worker) return;
+        worker.terminate();
+        URL.revokeObjectURL(url);
+        familyJob = null;
+        if (state.mode !== mode || familyFingerprint(mode) !== fingerprint) return;
+        if (event.data.error) familyMessage = event.data.error;
+        else {
+          state.slots[mode] = event.data.result.ancestors;
+          familyReverts[mode] = { ancestors, fingerprint: familyFingerprint(mode) };
+          familyMessage = "";
+        }
+        render();
+      };
+      worker.onerror = () => {
+        if (!familyJob || familyJob.worker !== worker) return;
+        worker.terminate();
+        URL.revokeObjectURL(url);
+        familyJob = null;
+        familyMessage = "Optimisation failed. Please try again.";
+        render();
+      };
+      worker.postMessage({ offspring: state.offspring, ancestors, locks: familyLocks[mode],
+        references: references.filter((row) => row[0] === "modern"), male: mode !== 8 && state.male });
+    } catch (error) {
+      if (worker) worker.terminate();
+      if (url) URL.revokeObjectURL(url);
+      familyJob = null;
+      familyMessage = `Optimisation could not start: ${error.message}`;
+      render();
+    }
+  }
+
   function cancelMixtures() {
     mixtureRequest += 1;
     if (mixtureWorker) mixtureWorker.terminate();
@@ -125,6 +330,8 @@
     else if (state.pickerTarget.type === "compare") state.compare[state.pickerTarget.index] = item;
     else if (state.pickerTarget.type === "offspring") state.offspring = item;
     else state.slots[state.mode][state.pickerTarget.index] = item;
+    if (state.pickerTarget.type === "slot") familyReverts[state.mode] = null;
+    familyMessage = "";
     picker.close();
     render();
   }
@@ -194,6 +401,21 @@
 
     const actions = document.createElement("div");
     actions.className = "row-actions";
+    if (target.type === "slot" && item) {
+      const pasted = item.source !== "reference";
+      const locked = pasted || familyLocks[state.mode][target.index];
+      const lockButton = makeButton(locked ? "Locked" : "Lock", () => {
+        familyLocks[state.mode][target.index] = !familyLocks[state.mode][target.index];
+        render();
+      });
+      lockButton.className = "contributor-lock";
+      lockButton.setAttribute("aria-pressed", String(locked));
+      lockButton.setAttribute("aria-label", `${locked ? "Unlock" : "Lock"} ${title}`);
+      lockButton.disabled = pasted;
+      lockButton.title = pasted ? "Pasted contributors are always locked" : "Keep this contributor during optimisation";
+      actions.append(lockButton);
+      if (item.source === "reference") actions.append(excludeButton(item));
+    }
     if (onCompare) {
       const compareButton = makeButton("Compare", onCompare);
       compareButton.setAttribute("aria-pressed", String(selected));
@@ -224,8 +446,11 @@
 
   function render() {
     const mode = state.mode;
+    renderFamilyOptimise();
+    renderFamilyAccordions();
     if (mode !== 1) cancelMedieval();
-    references = state.turkish ? turkishReferences : globalReferences;
+    references = allowedReferences(state.turkish ? turkishReferences : globalReferences);
+    renderBlacklist();
     $("#turkish-toggle").checked = state.turkish;
     $("#analysis-tabs").hidden = mode !== 1 || !state.turkish || !state.single;
     $("#medieval-breakdown-panel").hidden = true;
@@ -267,6 +492,8 @@
     const weights = core.ancestorWeights(mode, male);
     const result = core.calculate(state.offspring, ancestors, male);
     const complete = Boolean(state.offspring) && ancestors.every(Boolean);
+    $("#family-child-distance").hidden = !complete;
+    $("#family-child-distance").textContent = complete ? `Genetic distance: ${result.distance.toFixed(3)}` : "";
     const selectedIndex = state.selectedIndexByMode[mode];
     const selectedName = selectedIndex === null ? "child" : names[mode][selectedIndex].toLowerCase();
     const targetComparison = complete
@@ -292,9 +519,11 @@
 
     $("#male-option").hidden = mode !== 2 && mode !== 4;
     $("#male-toggle").checked = state.male;
+    const maternalShare = Number((weights[0] * 100).toFixed(2));
+    const paternalShare = Number((weights[mode / 2] * 100).toFixed(2));
     $("#male-weight-note").textContent = mode === 4
-      ? male ? "Maternal 25.5% each · Paternal 24.5% each" : "Each grandparent 25%"
-      : male ? "Mother 51% · Father 49%" : "Mother 50% · Father 50%";
+      ? `Maternal ${maternalShare}% each · Paternal ${paternalShare}% each`
+      : `Mother ${maternalShare}% · Father ${paternalShare}%`;
 
     let message;
     let output = "";
@@ -319,7 +548,7 @@
     } else {
       message = "Add the child or ancestors.";
     }
-    if (!references.length) message = "Reference data is unavailable. Reload the page.";
+    if (!references.length) message = blacklist.size ? "No reference populations remain. Restore entries in the blacklist." : "Reference data is unavailable. Reload the page.";
     $("#result-title").textContent = result.kind === "residual" && result.missing.length === 1
       ? `Calculated missing ${singular[mode].replaceAll("_", " ")}`
       : result.kind === "residual" ? "Combined missing ancestors" : "Calculated G25 row";
@@ -350,8 +579,8 @@
       methodNote = `Combined missing coordinates = (child − each known ancestor's weighted contribution) / ${missingWeight}.`;
     } else if (male) {
       methodNote = mode === 2
-        ? "The calculated child is 51% mother + 49% father."
-        : "The calculated child is 25.5% from each maternal grandparent + 24.5% from each paternal grandparent.";
+        ? `The calculated child is ${maternalShare}% mother + ${paternalShare}% father.`
+        : `The calculated child is ${maternalShare}% from each maternal grandparent + ${paternalShare}% from each paternal grandparent.`;
     } else if (targetComparison && selectedIndex !== null) {
       methodNote = `Calculated ${selectedName} = ${mode} × child − the other ${mode - 1} ancestors.`;
     } else {
@@ -433,7 +662,7 @@
     preparedMatches = null;
     preparedContext = null;
     $("#single-row").replaceChildren(createRow("Sample", { type: "single" }, state.single, null));
-    for (const selector of ["#remaining-admixture-panel", "#metric-controls", "#difference-panel", "#ratio-panel", "#d3-panel"]) {
+    for (const selector of ["#metrics-group", "#remaining-admixture-panel", "#metric-controls", "#difference-panel", "#ratio-panel", "#d3-panel"]) {
       $(selector).hidden = true;
     }
     updateAnalysisView();
@@ -483,7 +712,7 @@
     list.replaceChildren();
     distance.hidden = true;
     const period = state.analysisView === "early" ? "Early Medieval" : "Late Medieval";
-    const periodReferences = medievalReferences[state.analysisView] || [];
+    const periodReferences = allowedReferences(medievalReferences[state.analysisView] || []);
     $("#medieval-breakdown-title").textContent = period;
     status.textContent = `Calculating ${period} fit…`;
     renderMedievalPca(periodReferences, period);
@@ -722,7 +951,7 @@
         label.textContent = component.sample.replaceAll("_", " ");
         const weight = document.createElement("strong");
         weight.textContent = formatPercent(sampleUnits[sampleIndex]);
-        item.append(label, weight);
+        item.append(label, weight, excludeButton({ label: component.label, category: "medieval" }));
         samples.append(item);
       });
       details.append(summary, bar, samples);
@@ -787,11 +1016,12 @@
       const cells = [String(index + 1), ...parts.map((part) =>
         showWeights ? `${part.label} · ${(part.weight * 100).toFixed(1)}%`
           : part.label), fit.distance.toFixed(3)];
-      for (const value of cells) {
+      cells.forEach((value, column) => {
         const cell = document.createElement("td");
         cell.textContent = value;
+        if (column > 0 && column <= parts.length) cell.append(excludeButton(parts[column - 1]));
         row.append(cell);
-      }
+      });
       body.append(row);
     });
     if (!fits.length) {
@@ -909,7 +1139,7 @@
 
   function renderMatches(targetComparison, selectedName, compareMode = false) {
     $("#remaining-admixture-panel").hidden = true;
-    const panels = [$("#matches-panel"), $("#metric-controls"), $("#difference-panel"), $("#ratio-panel"), $("#d3-panel")];
+    const panels = [$("#metrics-group"), $("#matches-panel"), $("#metric-controls"), $("#difference-panel"), $("#ratio-panel"), $("#d3-panel")];
     if (!targetComparison || !references.length) {
       panels.forEach((panel) => { panel.hidden = true; });
       preparedMatches = null;
@@ -964,7 +1194,9 @@
         row.title = "Best fit in this table";
       }
       for (const value of [`${percent}%`, best ? `${best.label} · ${best.category}` : "No matching populations", `${remainingPercent}%`, best ? best.distance.toFixed(3) : "—"]) {
-        row.insertCell().textContent = value;
+        const cell = row.insertCell();
+        cell.textContent = value;
+        if (best && value === `${best.label} · ${best.category}`) cell.append(excludeButton(best));
       }
     }
     container.replaceChildren(table);
@@ -1034,7 +1266,10 @@
       cells.forEach((text, column) => {
         const cell = document.createElement("td");
         cell.textContent = text;
-        if (column === 1) cell.title = displayName;
+        if (column === 1) {
+          cell.title = displayName;
+          if (match.category !== "target") cell.append(excludeButton(match));
+        }
         row.append(cell);
       });
       body.append(row);
@@ -1138,6 +1373,8 @@
     state.compare = [null, null];
     state.offspring = null;
     for (const mode of [2, 4, 8]) {
+      familyLocks[mode].fill(false);
+      familyReverts[mode] = null;
       state.slots[mode].fill(null);
       state.selectedIndexByMode[mode] = null;
     }
@@ -1147,8 +1384,21 @@
     state.strictParentCount = 10;
     state.strictGrandparentCount = 10;
     state.male = false;
+    familyMessage = "";
     render();
   });
+  for (const key of ["suggestions", "closest", "metrics"]) {
+    $("#" + key + "-accordion-toggle").addEventListener("click", () => {
+      familyAccordionOpen[key] = !familyAccordionOpen[key];
+      renderFamilyAccordions();
+    });
+  }
+  $("#blacklist-search").addEventListener("input", renderBlacklistSearch);
+  $("#blacklist-clear").addEventListener("click", () => {
+    blacklist.clear();
+    refreshBlacklist();
+  });
+  $("#family-optimise").addEventListener("click", optimiseFamily);
   $("#male-toggle").addEventListener("change", (event) => {
     state.male = event.currentTarget.checked;
     render();

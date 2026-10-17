@@ -1,4 +1,4 @@
-(function (root) {
+(function G25CoreModule(root) {
   "use strict";
 
   const DIMENSIONS = 25;
@@ -286,6 +286,166 @@
     return { actual: ancestors[selectedIndex], calculated, distance: distance(ancestors[selectedIndex].values, inferred) };
   }
 
+  function bestFamilyCombination(residual, candidates, weights) {
+    const n = candidates.length;
+    const vectors = candidates.map((row) => row.values);
+    const count = weights.length;
+    const pairWeight = weights[count - 1];
+    const score = (ids) => residual.reduce((sum, value, k) => {
+      const delta = value - ids.reduce((total, id, slot) => total + weights[slot] * vectors[id][k], 0);
+      return sum + delta * delta;
+    }, 0);
+    // Establish a valid upper bound before the exhaustive spatial search.
+    let bestIds = Array(count).fill(0);
+    let bestScore = score(bestIds);
+    for (let pass = 0; pass < 3; pass += 1) {
+      for (let slot = 0; slot < count; slot += 1) {
+        for (let id = 0; id < n; id += 1) {
+          const trial = [...bestIds];
+          trial[slot] = id;
+          const value = score(trial);
+          if (value < bestScore) { bestScore = value; bestIds = trial; }
+        }
+      }
+    }
+    if (bestScore === 0) return bestIds;
+    const pairIds = new Uint32Array(n * (n + 1) / 2);
+    let next = 0;
+    for (let i = 0; i < n; i += 1) {
+      for (let j = i; j < n; j += 1) pairIds[next++] = i * n + j;
+    }
+    const coordinate = (id, k) => pairWeight * (vectors[Math.floor(id / n)][k] + vectors[id % n][k]);
+    function build(lo, hi, depth) {
+      if (hi - lo > 64) {
+        for (let attempt = 0; attempt < DIMENSIONS; attempt += 1) {
+          const axis = (depth + attempt) % DIMENSIONS;
+          let min = Infinity;
+          let max = -Infinity;
+          for (let at = lo; at < hi; at += 1) {
+            const value = coordinate(pairIds[at], axis);
+            min = Math.min(min, value); max = Math.max(max, value);
+          }
+          if (min === max) continue;
+          const middle = (min + max) / 2;
+          let left = lo;
+          let right = hi - 1;
+          while (left <= right) {
+            while (left <= right && coordinate(pairIds[left], axis) < middle) left += 1;
+            while (left <= right && coordinate(pairIds[right], axis) >= middle) right -= 1;
+            if (left < right) {
+              [pairIds[left], pairIds[right]] = [pairIds[right], pairIds[left]];
+              left += 1; right -= 1;
+            }
+          }
+          if (left === lo || left === hi) continue;
+          const a = build(lo, left, depth + 1);
+          const b = build(left, hi, depth + 1);
+          return { a, b, min: a.min.map((value, k) => Math.min(value, b.min[k])),
+            max: a.max.map((value, k) => Math.max(value, b.max[k])) };
+        }
+      }
+      const min = new Float64Array(DIMENSIONS).fill(Infinity);
+      const max = new Float64Array(DIMENSIONS).fill(-Infinity);
+      for (let at = lo; at < hi; at += 1) {
+        for (let k = 0; k < DIMENSIONS; k += 1) {
+          const value = coordinate(pairIds[at], k);
+          min[k] = Math.min(min[k], value); max[k] = Math.max(max[k], value);
+        }
+      }
+      return { lo, hi, min, max };
+    }
+    const tree = build(0, pairIds.length, 0);
+    const query = new Float64Array(DIMENSIONS);
+    const bound = (node) => {
+      let sum = 0;
+      for (let k = 0; k < DIMENSIONS; k += 1) {
+        const delta = Math.max(node.min[k] - query[k], 0, query[k] - node.max[k]);
+        sum += delta * delta;
+      }
+      return sum;
+    };
+    function search(node, prefix) {
+      // A small tolerance keeps roundoff at box boundaries from pruning a better fit.
+      if (bound(node) > bestScore + 1e-18) return;
+      if (node.a) {
+        const aFirst = bound(node.a) <= bound(node.b);
+        search(aFirst ? node.a : node.b, prefix);
+        search(aFirst ? node.b : node.a, prefix);
+        return;
+      }
+      for (let at = node.lo; at < node.hi; at += 1) {
+        const id = pairIds[at];
+        const ids = [...prefix, Math.floor(id / n), id % n];
+        const value = score(ids);
+        if (value < bestScore) { bestScore = value; bestIds = ids; }
+      }
+    }
+    for (let i = 0; i < n; i += 1) {
+      for (let j = count === 4 ? i : 0; j < (count === 4 ? n : 1); j += 1) {
+        for (let k = 0; k < DIMENSIONS; k += 1) {
+          query[k] = residual[k] - weights[0] * vectors[i][k] - (count === 4 ? weights[1] * vectors[j][k] : 0);
+        }
+        search(tree, count === 4 ? [i, j] : [i]);
+        if (bestScore === 0) return bestIds;
+      }
+    }
+    return bestIds;
+  }
+
+  function optimiseFamily(offspring, ancestors, locks, references, male = false) {
+    if (!offspring || !validateVector(offspring.values) || ancestors.some((row) => !row || !validateVector(row.values))) {
+      throw new Error("Fill the child and every contributor before optimising.");
+    }
+    const weights = ancestorWeights(ancestors.length, male);
+    const unlocked = ancestors.map((row, index) => row.source !== "reference" || locks[index] ? -1 : index)
+      .filter((index) => index >= 0);
+    const minimumLocks = { 2: 0, 4: 1, 8: 4 }[ancestors.length];
+    if (minimumLocks === undefined || ancestors.length - unlocked.length < minimumLocks) {
+      throw new Error(`Lock at least ${minimumLocks ?? ancestors.length} contributors before optimising.`);
+    }
+    // Put an equal-weight pair last so its unordered sums can share one index.
+    if (unlocked.length === 3 && weights[unlocked[1]] !== weights[unlocked[2]]) {
+      [unlocked[0], unlocked[2]] = [unlocked[2], unlocked[0]];
+    }
+    if (!unlocked.length) return { ancestors: [...ancestors], distance: calculate(offspring, ancestors, male).distance };
+    const candidates = references.filter((row) => (Array.isArray(row) ? row[0] : row.category) === "modern")
+      .map((row) => ({ category: "modern", label: Array.isArray(row) ? row[1] : row.label,
+        values: Array.isArray(row) ? row.slice(2) : row.values, source: "reference" }));
+    if (!candidates.length) throw new Error("No modern reference populations are available.");
+    if (candidates.some((row) => !validateVector(row.values))) throw new Error("Invalid reference coordinates.");
+    const residual = offspring.values.map((value, k) => value - ancestors.reduce((sum, row, index) =>
+      sum + (unlocked.includes(index) ? 0 : weights[index] * row.values[k]), 0));
+    if (unlocked.length > 2) {
+      const ids = bestFamilyCombination(residual, candidates, unlocked.map((index) => weights[index]));
+      const result = [...ancestors];
+      unlocked.forEach((index, position) => { result[index] = candidates[ids[position]]; });
+      return { ancestors: result, distance: calculate(offspring, result, male).distance };
+    }
+    let bestScore = Infinity;
+    let bestPair = null;
+    const firstWeight = weights[unlocked[0]];
+    const secondWeight = unlocked.length === 2 ? weights[unlocked[1]] : 0;
+    for (let i = 0; i < candidates.length; i += 1) {
+      const rest = residual.map((value, k) => value - firstWeight * candidates[i].values[k]);
+      const start = secondWeight === firstWeight ? i : 0;
+      for (let j = start; j < (secondWeight ? candidates.length : 1); j += 1) {
+        let score = 0;
+        for (let k = 0; k < DIMENSIONS; k += 1) {
+          const delta = rest[k] - (secondWeight ? secondWeight * candidates[j].values[k] : 0);
+          score += delta * delta;
+          if (score >= bestScore) break;
+        }
+        if (score < bestScore) {
+          bestScore = score;
+          bestPair = [i, j];
+        }
+      }
+    }
+    const result = [...ancestors];
+    unlocked.forEach((index, position) => { result[index] = candidates[bestPair[position]]; });
+    return { ancestors: result, distance: calculate(offspring, result, male).distance };
+  }
+
   function formatNumber(value) {
     const rounded = value.toFixed(12).replace(/\.?0+$/, "");
     return rounded === "-0" || rounded === "" ? "0" : rounded;
@@ -298,7 +458,10 @@
     return [csvLabel, ...values.map(formatNumber)].join(",");
   }
 
-  const api = { ancestorWeights, calculate, calculateComparison, closestMatches, distance, estimateChildFromKnown, visibleRemainingAdmixture, formatLine, missingAncestorLabel, nearestMatches, parseLine, prepareMatches, rankMatches, remainingAdmixture, summarizeRemainingAdmixture, resultLabel };
+  const api = { optimiseFamily, ancestorWeights, calculate, calculateComparison, closestMatches, distance, estimateChildFromKnown, visibleRemainingAdmixture, formatLine, missingAncestorLabel, nearestMatches, parseLine, prepareMatches, rankMatches, remainingAdmixture, summarizeRemainingAdmixture, resultLabel };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
-  else root.G25Core = api;
+  else {
+    root.G25Core = api;
+    root.G25CoreModule = G25CoreModule;
+  }
 })(typeof window !== "undefined" ? window : globalThis);
