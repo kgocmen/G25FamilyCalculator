@@ -18,6 +18,10 @@ def read_rows(path: Path, category: str) -> list[list]:
     rows = []
     with path.open(encoding="utf-8", newline="") as file:
         for number, row in enumerate(csv.reader(file), 1):
+            # Combined exports include a category before the label. Accept
+            # matching prefixes even when they occur midway through a file.
+            if len(row) == 27 and row[0].strip() == category:
+                row = row[1:]
             if len(row) != 26:
                 raise ValueError(f"{path}:{number}: expected label and 25 coordinates")
             if not row[0].strip():
