@@ -5,22 +5,28 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#14243b">
   <title>G25 Family Calculator</title>
-  <link rel="stylesheet" href="style.css?v=20261017-13">
+  <link rel="stylesheet" href="style.css?v=20261017-18">
   <script defer src="references.js?v=20261015-5"></script>
-  <script defer src="turkish_references.js?v=20261015-5"></script>
-  <script defer src="medieval_references.js?v=20261016-8"></script>
-  <script defer src="core.js?v=20261017-13"></script>
+  <script defer src="turkish_references.js?v=20261017-18"></script>
+  <script defer src="medieval_references.js?v=20261017-18"></script>
+  <script defer src="core.js?v=20261017-18"></script>
   <script defer src="mixture.js?v=20261015-5"></script>
-  <script defer src="medieval.js?v=20261016-1"></script>
+  <script defer src="medieval.js?v=20261017-18"></script>
   <script defer src="pca.js?v=20261016-3"></script>
   <script defer src="pca_layout.js?v=20261016-2"></script>
-  <script defer src="app.js?v=20261017-13"></script>
+  <script defer src="app.js?v=20261017-18"></script>
 </head>
 <body>
   <main class="shell">
     <header class="page-header">
       <div class="eyebrow">REFERENCE DATA FROM WORLD GENETICS</div>
-      <h1>G25 Family Calculator</h1>
+      <div class="page-title-row">
+        <h1>G25 Family Calculator</h1>
+        <button id="open-populations" class="population-launcher" type="button" aria-haspopup="dialog" aria-controls="population-panel">
+          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="3" fill="currentColor" stroke="none"/><circle cx="15" cy="17" r="3" fill="currentColor" stroke="none"/></svg>
+          Populations <span id="population-rule-count" hidden>0</span>
+        </button>
+      </div>
     </header>
 
     <section class="panel input-panel" aria-labelledby="inputs-title">
@@ -30,10 +36,6 @@
           <p id="inputs-intro" class="legacy-copy" hidden></p>
         </div>
         <div class="input-head-actions">
-          <label class="turkish-option" title="Use the Turkish reference sets">
-            <input id="turkish-toggle" type="checkbox">
-            <span>Turkish references</span>
-          </label>
           <button id="clear-all" class="text-button" type="button">Clear all</button>
         </div>
       </div>
@@ -45,16 +47,6 @@
         <button class="mode-button" type="button" data-mode="4" aria-pressed="false">4 grandparents</button>
         <button class="mode-button" type="button" data-mode="8" aria-pressed="false">8 great-grandparents</button>
       </div>
-      <details id="blacklist-panel" class="blacklist-panel">
-        <summary>Blacklist (<span id="blacklist-count">0</span>)</summary>
-        <div class="blacklist-tools">
-          <input id="blacklist-search" type="search" placeholder="Find a population to exclude…" aria-label="Find a population to blacklist" autocomplete="off">
-          <button id="blacklist-clear" type="button" class="text-button" disabled>Clear blacklist</button>
-        </div>
-        <ul id="blacklist-search-results" class="blacklist-list"></ul>
-        <p id="blacklist-empty" class="method-note">No blacklisted populations.</p>
-        <ul id="blacklist-list" class="blacklist-list" tabindex="0" aria-label="Excluded populations"></ul>
-      </details>
       <div id="single-input" hidden>
         <div id="single-row"></div>
       </div>
@@ -64,10 +56,12 @@
         <p id="compare-distance" class="comparison" hidden></p>
       </div>
       <div id="family-inputs">
+        <div class="group-label"><span>CHILD</span></div>
         <div class="family-controls">
           <div class="family-weight-controls">
-            <label id="male-option" class="male-option">
-              <input id="male-toggle" type="checkbox">
+            <label id="male-option" class="male-option switch-label">
+              <input id="male-toggle" class="switch-input" type="checkbox" role="switch" aria-label="Male inheritance weighting">
+              <span class="switch-track" aria-hidden="true"></span>
               <span>Male</span>
               <small id="male-weight-note">Mother 50% · Father 50%</small>
             </label>
@@ -79,7 +73,6 @@
         </div>
         <p id="family-optimise-status" class="method-note" role="status" hidden></p>
         <p id="selection-hint" class="legacy-copy" hidden></p>
-        <div class="group-label"><span>CHILD</span></div>
         <div id="offspring-row"></div>
 
         <div class="group-label ancestor-label"><span id="generation-label">PARENTS</span></div>
@@ -180,6 +173,13 @@
           <h2 id="medieval-breakdown-title">Early Medieval</h2>
           <p id="medieval-breakdown-status" role="status"></p>
         </div>
+        <label class="match-filter medieval-group-filter">Max groups
+          <select id="medieval-group-limit" aria-label="Maximum medieval ancestry groups">
+            <option value="3">3 groups</option>
+            <option value="4">4 groups</option>
+            <option value="5" selected>5 groups</option>
+          </select>
+        </label>
         <output id="medieval-breakdown-distance" class="breakdown-distance" hidden></output>
       </div>
       <div id="medieval-breakdown-list" class="breakdown-list"></div>
@@ -331,6 +331,45 @@
       </div>
     </section>
   </main>
+
+  <dialog id="population-panel" class="population-panel" aria-labelledby="population-panel-title">
+    <div class="population-panel-head">
+      <div>
+        <div class="eyebrow">REFERENCE CONTROLS</div>
+        <h2 id="population-panel-title">Populations</h2>
+      </div>
+      <button id="close-populations" type="button" class="close-button" aria-label="Close population controls">×</button>
+    </div>
+    <div class="population-panel-body">
+      <label class="reference-switch-option switch-label">
+        <span class="reference-switch-label">Turkish references</span>
+        <input id="turkish-toggle" class="switch-input" type="checkbox" role="switch" aria-label="Turkish references">
+        <span class="switch-track" aria-hidden="true"></span>
+      </label>
+      <div class="population-list-modes" role="group" aria-label="List to add populations to">
+        <button id="population-mode-exclude" type="button" aria-pressed="true"><span class="population-mode-dot exclude-dot"></span>Blacklist <span id="blacklist-count">0</span></button>
+        <button id="population-mode-only" type="button" aria-pressed="false"><span class="population-mode-dot only-dot"></span>Only use <span id="whitelist-count">0</span></button>
+      </div>
+      <div class="population-search-wrap">
+        <input id="blacklist-search" type="search" placeholder="Search populations to exclude…" aria-label="Search populations to manage" autocomplete="off">
+      </div>
+      <ul id="blacklist-search-results" class="blacklist-list population-search-results" aria-label="Population search results"></ul>
+      <div class="population-managed-heading">
+        <h3>Managed populations</h3>
+        <button id="blacklist-clear" type="button" class="text-button" disabled>Clear all</button>
+      </div>
+      <div id="blacklist-empty" class="population-empty">
+        <span class="population-empty-icon" aria-hidden="true">≡</span>
+        <p>No population rules yet</p>
+        <span>Search above to build either list.</span>
+      </div>
+      <ul id="blacklist-list" class="blacklist-list population-managed-list" tabindex="0" aria-label="Blacklisted and only-use populations"></ul>
+    </div>
+    <div class="population-panel-footer">
+      <span class="population-status-dot" aria-hidden="true"></span>
+      <p id="population-filter-status" role="status">All populations available</p>
+    </div>
+  </dialog>
 
   <dialog id="picker" aria-labelledby="picker-title">
     <div class="dialog-head">

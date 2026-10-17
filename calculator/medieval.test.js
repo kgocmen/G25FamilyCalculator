@@ -34,3 +34,29 @@ test("invalid G25 vectors are rejected", () => {
   assert.throws(() => fitAdmixture({ values: [1] }, [reference("Türk:Karluk", 0)]), /25 finite/);
   assert.throws(() => fitAdmixture({ values: Array(25).fill(0) }, []), /unavailable/);
 });
+
+test("group caps refit and normalize the selected groups instead of hiding components", () => {
+  const references = Array.from({ length: 6 }, (_, group) => ["medieval", `Group${group}:Sample`,
+    ...Array.from({ length: 25 }, (_, k) => k === group ? 1 : 0)]);
+  const target = { values: Array.from({ length: 25 }, (_, k) => k < 6 ? 1 / 6 : 0) };
+  let previousDistance = Infinity;
+  for (const limit of [3, 4, 5]) {
+    const fit = fitAdmixture(target, references, limit);
+    assert.equal(fit.groups.length, limit);
+    assert.ok(Math.abs(fit.components.reduce((sum, part) => sum + part.weight, 0) - 1) < 1e-12);
+    assert.ok(Math.abs(fit.distance - Math.sqrt((6 - limit) / (6 * limit)) * 100) < 1e-5);
+    assert.ok(fit.distance < previousDistance);
+    previousDistance = fit.distance;
+  }
+  assert.equal(fitAdmixture(target, references).groups.length, 5);
+  assert.throws(() => fitAdmixture(target, references, 2), /3, 4 or 5/);
+});
+
+test("several samples in one ancestry group do not consume extra group slots", () => {
+  const references = Array.from({ length: 4 }, (_, sample) => ["medieval", `Rum:Sample${sample}`,
+    ...Array.from({ length: 25 }, (_, k) => k === sample ? 1 : 0)]);
+  const fit = fitAdmixture({ values: Array.from({ length: 25 }, (_, k) => k < 4 ? 0.25 : 0) }, references, 3);
+  assert.equal(fit.groups.length, 1);
+  assert.equal(fit.components.length, 4);
+  assert.ok(fit.distance < 1e-5);
+});

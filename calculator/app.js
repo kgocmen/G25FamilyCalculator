@@ -22,6 +22,7 @@
     mode: 2,
     turkish: false,
     analysisView: "results",
+    medievalGroupLimit: 5,
     single: null,
     compare: [null, null],
     offspring: null,
@@ -56,6 +57,9 @@
 
   const blacklistStorageKey = "g25-temporary-blacklist";
   const blacklist = new Map();
+  const whitelist = new Map();
+  const whitelistStorageKey = "g25-temporary-whitelist";
+  let populationListMode = "exclude";
   try {
     const saved = JSON.parse(sessionStorage.getItem(blacklistStorageKey) || "[]");
     if (Array.isArray(saved)) saved.forEach((item) => {
@@ -65,29 +69,51 @@
     });
   } catch (_) { /* Session storage may be unavailable for local files. */ }
 
+  try {
+    const saved = JSON.parse(sessionStorage.getItem(whitelistStorageKey) || "[]");
+    if (Array.isArray(saved)) saved.forEach((item) => {
+      if (item && typeof item.category === "string" && typeof item.label === "string") {
+        whitelist.set(populationKey(item), item);
+      }
+    });
+  } catch (_) {}
+
   function populationKey(row) {
     return JSON.stringify(Array.isArray(row) ? [row[0], row[1]] : [row.category, row.label]);
   }
 
   function allowedReferences(rows) {
-    return rows.filter((row) => !blacklist.has(populationKey(row)));
+    return rows.filter((row) => !blacklist.has(populationKey(row)) &&
+      (!whitelist.size || whitelist.has(populationKey(row))));
   }
 
   function changeBlacklist(item, excluded) {
-    if (excluded) blacklist.set(populationKey(item), { category: item.category, label: item.label });
+    if (excluded) {
+      whitelist.delete(populationKey(item));
+      blacklist.set(populationKey(item), { category: item.category, label: item.label });
+    }
     else blacklist.delete(populationKey(item));
+    refreshBlacklist();
+  }
+
+  function changeWhitelist(item, included) {
+    if (included) {
+      blacklist.delete(populationKey(item));
+      whitelist.set(populationKey(item), { category: item.category, label: item.label });
+    } else whitelist.delete(populationKey(item));
     refreshBlacklist();
   }
 
   function refreshBlacklist() {
     try { sessionStorage.setItem(blacklistStorageKey, JSON.stringify([...blacklist.values()])); } catch (_) {}
+    try { sessionStorage.setItem(whitelistStorageKey, JSON.stringify([...whitelist.values()])); } catch (_) {}
     familyMessage = "";
     render();
   }
 
   function excludeButton(item) {
     const excluded = blacklist.has(populationKey(item));
-    const button = makeButton(excluded ? "−" : "+", () => changeBlacklist(item, !excluded));
+    const button = makeButton("−", () => changeBlacklist(item, !excluded));
     button.className = "exclude-population";
     button.setAttribute("aria-label", `${excluded ? "Restore" : "Blacklist"} ${item.label}`);
     return button;
@@ -95,24 +121,44 @@
 
   function renderBlacklist() {
     $("#blacklist-count").textContent = String(blacklist.size);
-    $("#blacklist-clear").disabled = !blacklist.size;
+    $("#whitelist-count").textContent = String(whitelist.size);
+    const total = blacklist.size + whitelist.size;
+    $("#blacklist-clear").disabled = !total;
+    $("#population-rule-count").textContent = String(total);
+    $("#population-rule-count").hidden = !total;
+    $("#population-mode-exclude").setAttribute("aria-pressed", String(populationListMode === "exclude"));
+    $("#population-mode-only").setAttribute("aria-pressed", String(populationListMode === "only"));
+    $("#blacklist-search").placeholder = populationListMode === "only"
+      ? "Search populations to use exclusively…" : "Search populations to exclude…";
+    $("#population-filter-status").textContent = whitelist.size
+      ? `Only use active · ${whitelist.size} selected · ${blacklist.size} excluded`
+      : blacklist.size ? `All populations except ${blacklist.size} excluded` : "All populations available";
     const list = $("#blacklist-list");
     list.replaceChildren();
-    const entries = [...blacklist.values()].sort((a, b) =>
+    const entries = [...blacklist.values(), ...whitelist.values()].sort((a, b) =>
       Number(b.category === "modern") - Number(a.category === "modern") ||
       a.category.localeCompare(b.category) ||
       a.label.localeCompare(b.label, undefined, { sensitivity: "base", numeric: true }));
     for (const item of entries) {
+      const only = whitelist.has(populationKey(item)) && !blacklist.has(populationKey(item));
       const entry = document.createElement("li");
       const name = document.createElement("span");
-      name.textContent = `${item.label} · ${item.category}`;
-      const restore = makeButton("−", () => changeBlacklist(item, false));
+      name.className = "population-entry-name";
+      const label = document.createElement("span");
+      label.textContent = item.label;
+      const category = document.createElement("small");
+      category.textContent = item.category;
+      name.append(label, category);
+      const badge = document.createElement("span");
+      badge.className = `population-rule-badge ${only ? "only" : "excluded"}`;
+      badge.textContent = only ? "Only use" : "Excluded";
+      const restore = makeButton("−", () => only ? changeWhitelist(item, false) : changeBlacklist(item, false));
       restore.className = "exclude-population restore-population";
-      restore.setAttribute("aria-label", `Restore ${item.label}`);
-      entry.append(name, restore);
+      restore.setAttribute("aria-label", `Remove ${item.label} from ${only ? "only-use list" : "blacklist"}`);
+      entry.append(name, badge, restore);
       list.append(entry);
     }
-    $("#blacklist-empty").hidden = blacklist.size > 0;
+    $("#blacklist-empty").hidden = total > 0;
     renderBlacklistSearch();
   }
 
@@ -128,11 +174,14 @@
     let shown = 0;
     for (const row of pool) {
       const key = populationKey(row);
-      if (seen.has(key) || blacklist.has(key) || !words.every((word) => normalizeSearch(row[1]).includes(word))) continue;
+      if (seen.has(key) || (populationListMode === "only" ? whitelist : blacklist).has(key) || !words.every((word) => normalizeSearch(row[1]).includes(word))) continue;
       seen.add(key);
       const entry = document.createElement("li");
-      const name = makeButton(`${row[1]} · ${row[0]}`, () =>
-        changeBlacklist({ category: row[0], label: row[1] }, true));
+      const name = makeButton(`${row[1]} · ${row[0]}`, () => {
+        const item = { category: row[0], label: row[1] };
+        if (populationListMode === "only") changeWhitelist(item, true);
+        else changeBlacklist(item, true);
+      });
       name.className = "blacklist-search-population";
       entry.append(name);
       results.append(entry);
@@ -169,7 +218,7 @@
 
   function familyFingerprint(mode) {
     return JSON.stringify([state.offspring, state.slots[mode], familyLocks[mode],
-      mode !== 8 && state.male, state.turkish, [...blacklist.keys()].sort()]);
+      mode !== 8 && state.male, state.turkish, [...blacklist.keys()].sort(), [...whitelist.keys()].sort()]);
   }
 
   function renderFamilyOptimise() {
@@ -280,7 +329,7 @@
   function medievalWorkerMain() {
     self.onmessage = ({ data }) => {
       try {
-        const fit = self.G25Medieval.fitAdmixture(data.target, data.references);
+        const fit = self.G25Medieval.fitAdmixture(data.target, data.references, data.groupLimit);
         self.postMessage({ requestId: data.requestId, fit });
       } catch (error) {
         self.postMessage({ requestId: data.requestId, error: error.message });
@@ -548,7 +597,7 @@
     } else {
       message = "Add the child or ancestors.";
     }
-    if (!references.length) message = blacklist.size ? "No reference populations remain. Restore entries in the blacklist." : "Reference data is unavailable. Reload the page.";
+    if (!references.length) message = blacklist.size || whitelist.size ? "No reference populations match your lists. Update them in Populations." : "Reference data is unavailable. Reload the page.";
     $("#result-title").textContent = result.kind === "residual" && result.missing.length === 1
       ? `Calculated missing ${singular[mode].replaceAll("_", " ")}`
       : result.kind === "residual" ? "Combined missing ancestors" : "Calculated G25 row";
@@ -666,11 +715,12 @@
       $(selector).hidden = true;
     }
     updateAnalysisView();
-    if (!state.single || !references.length) return;
+    if (!state.single) return;
     if (state.turkish && isMedievalView()) {
       renderMedievalBreakdown();
       return;
     }
+    if (!references.length) return;
     const modernReferences = references.filter((row) => row[0] === "modern");
     const ancientReferences = references.filter((row) => row[0] === "ancient");
     renderSingleClosestTables();
@@ -688,7 +738,7 @@
 
   function updateAnalysisView() {
     const medieval = state.mode === 1 && state.turkish && isMedievalView();
-    const available = state.mode === 1 && Boolean(state.single) && references.length > 0;
+    const available = state.mode === 1 && Boolean(state.single) && (medieval || references.length > 0);
     for (const [selector, active] of [
       ["#analysis-results-tab", !medieval],
       ["#early-medieval-tab", medieval && state.analysisView === "early"],
@@ -711,6 +761,7 @@
     const list = $("#medieval-breakdown-list");
     list.replaceChildren();
     distance.hidden = true;
+    $("#medieval-group-limit").value = String(state.medievalGroupLimit);
     const period = state.analysisView === "early" ? "Early Medieval" : "Late Medieval";
     const periodReferences = allowedReferences(medievalReferences[state.analysisView] || []);
     $("#medieval-breakdown-title").textContent = period;
@@ -746,7 +797,7 @@
         finish();
         status.textContent = "Medieval analysis could not start in this browser.";
       };
-      worker.postMessage({ requestId, target: state.single, references: periodReferences });
+      worker.postMessage({ requestId, target: state.single, references: periodReferences, groupLimit: state.medievalGroupLimit });
     } catch (error) {
       cancelMedieval();
       status.textContent = `Medieval analysis could not start: ${error.message}`;
@@ -858,9 +909,11 @@
       "text-anchor": "middle", class: "pca-axis-label" }, `PC2 · ${(projection.explained[1] * 100).toFixed(1)}%`);
 
     const colors = {
-      "Türk": "#087c8c", "Türki": "#087c8c", "Rum": "#c87525", "Slav": "#8256ad",
+      "Türk": "#087c8c", "Türki": "#087c8c", "Türkî": "#087c8c", "Rum": "#c87525", "Slav": "#8256ad",
       "Ermeni": "#bd5063", "İran": "#587e36", "Levant": "#4f70bc",
       "Kartvel": "#956d3a", "Mezopotamya": "#737d88",
+      "Osmanlı Türk": "#087c8c", "Kuzey Kafkasya": "#9c6caa",
+      "Kafkas": "#956d3a", "Balkan": "#8256ad", "Levant ve Mezopotamya": "#4f70bc",
     };
     const groups = [...new Set(projection.points.map((point) => point.ethnicity))].sort((a, b) => a.localeCompare(b));
     const fallback = ["#228e71", "#a75d83", "#aa7731", "#657bc0"];
@@ -1384,6 +1437,7 @@
     state.strictParentCount = 10;
     state.strictGrandparentCount = 10;
     state.male = false;
+    state.medievalGroupLimit = 5;
     familyMessage = "";
     render();
   });
@@ -1393,15 +1447,32 @@
       renderFamilyAccordions();
     });
   }
+  $("#open-populations").addEventListener("click", () => {
+    renderBlacklist();
+    $("#population-panel").showModal();
+    $("#blacklist-search").focus();
+  });
+  $("#close-populations").addEventListener("click", () => $("#population-panel").close());
+  for (const [selector, mode] of [["#population-mode-exclude", "exclude"], ["#population-mode-only", "only"]]) {
+    $(selector).addEventListener("click", () => {
+      populationListMode = mode;
+      renderBlacklist();
+    });
+  }
   $("#blacklist-search").addEventListener("input", renderBlacklistSearch);
   $("#blacklist-clear").addEventListener("click", () => {
     blacklist.clear();
+    whitelist.clear();
     refreshBlacklist();
   });
   $("#family-optimise").addEventListener("click", optimiseFamily);
   $("#male-toggle").addEventListener("change", (event) => {
     state.male = event.currentTarget.checked;
     render();
+  });
+  $("#medieval-group-limit").addEventListener("change", (event) => {
+    state.medievalGroupLimit = Number(event.currentTarget.value);
+    renderSingle();
   });
   $("#turkish-toggle").addEventListener("change", (event) => {
     state.turkish = event.currentTarget.checked;

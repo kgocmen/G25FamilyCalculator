@@ -28,7 +28,7 @@ function G25MedievalModule(root) {
     return weights.reduce((sum, weight, index) => sum + weight * product[index], 0);
   }
 
-  function fitAdmixture(target, references) {
+  function fitUnrestricted(target, references) {
     if (!target || !Array.isArray(target.values) || target.values.length !== DIMENSIONS ||
         !target.values.every(Number.isFinite)) {
       throw new Error("The input needs 25 finite G25 coordinates.");
@@ -63,16 +63,10 @@ function G25MedievalModule(root) {
     let weights = Array(n).fill(0);
     weights[nearest] = 1;
     if (nearestScore > 1e-20) {
-      let direction = Array(n).fill(1 / Math.sqrt(n));
-      let eigenvalue = 0;
-      for (let iteration = 0; iteration < 40; iteration += 1) {
-        const product = multiply(matrix, direction);
-        const norm = Math.hypot(...product);
-        if (norm < 1e-20) break;
-        direction = product.map((value) => value / norm);
-        eigenvalue = direction.reduce((sum, value, index) => sum + value * product[index], 0);
-      }
-      const step = 1 / Math.max(eigenvalue * 1.01, 1e-20);
+      // A row-sum bound remains valid even when the uniform direction is in
+      // the Gram matrix's null space (for example an exact balanced mixture).
+      const lipschitz = Math.max(...matrix.map((row) => row.reduce((sum, value) => sum + Math.abs(value), 0)));
+      const step = 1 / Math.max(lipschitz * 1.01, 1e-20);
       let momentum = 1;
       let extrapolated = [...weights];
       let previousScore = nearestScore;
@@ -130,6 +124,30 @@ function G25MedievalModule(root) {
     const groups = [...byEthnicity.values()]
       .sort((a, b) => b.weight - a.weight || a.ethnicity.localeCompare(b.ethnicity));
     return { distance, components, groups };
+  }
+
+  function fitAdmixture(target, references, groupLimit = 5) {
+    if (![3, 4, 5].includes(groupLimit)) throw new Error("Choose a limit of 3, 4 or 5 groups.");
+    const unrestricted = fitUnrestricted(target, references);
+    if (unrestricted.groups.length <= groupLimit) return unrestricted;
+    const groupName = (row) => (Array.isArray(row) ? row[1] : row.label).split(":")[0];
+    const names = [...new Set(references.map(groupName))].sort();
+    let best = null;
+    // Evaluate every allowed group subset, refitting all samples within it.
+    // The cap applies to ancestry groups, not individual reference samples.
+    function search(start, selected) {
+      if (selected.length === groupLimit) {
+        const subset = references.filter((row) => selected.includes(groupName(row)));
+        const fit = fitUnrestricted(target, subset);
+        if (!best || fit.distance < best.distance) best = fit;
+        return;
+      }
+      for (let i = start; i <= names.length - (groupLimit - selected.length); i += 1) {
+        search(i + 1, [...selected, names[i]]);
+      }
+    }
+    search(0, []);
+    return best;
   }
 
   const api = { fitAdmixture };
