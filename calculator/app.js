@@ -937,8 +937,8 @@
     const candidates = category === "all" ? references : references.filter((row) => row[0] === category);
     $("#remaining-a-title").textContent = `A: ${actual.label} ≈ % B: ${calculated.label} + remainder`;
     $("#remaining-b-title").textContent = `B: ${calculated.label} ≈ % A: ${actual.label} + remainder`;
-    renderRemainingAdmixture($("#remaining-a"), core.remainingAdmixture(actual, calculated, candidates), "B");
-    renderRemainingAdmixture($("#remaining-b"), core.remainingAdmixture(calculated, actual, candidates), "A");
+    renderRemainingAdmixture($("#remaining-a"), core.summarizeRemainingAdmixture(core.remainingAdmixture(actual, calculated, candidates), actual, calculated, candidates), "B");
+    renderRemainingAdmixture($("#remaining-b"), core.summarizeRemainingAdmixture(core.remainingAdmixture(calculated, actual, candidates), calculated, actual, candidates), "A");
   }
 
   function renderRemainingAdmixture(container, fits, sourceName) {
@@ -951,7 +951,7 @@
       head.append(cell);
     }
     const body = table.createTBody();
-    for (const { percent, remainingPercent, best } of core.summarizeRemainingAdmixture(fits)) {
+    for (const { percent, remainingPercent, best } of fits) {
       const row = body.insertRow();
       for (const value of [`${percent}%`, best ? `${best.label} · ${best.category}` : "No matching populations", `${remainingPercent}%`, best ? best.distance.toFixed(3) : "—"]) {
         row.insertCell().textContent = value;

@@ -92,19 +92,30 @@
     });
   }
 
-  function summarizeRemainingAdmixture(fits) {
+  function summarizeRemainingAdmixture(fits, target, source, references) {
     const result = [];
     for (let start = 0; start < fits.length;) {
       let end = start;
-      let minimum = start;
-      let maximum = start;
       while (end + 1 < fits.length && fits[end + 1].best?.id === fits[start].best?.id) end += 1;
-      for (let index = start + 1; index <= end; index += 1) {
-        if (fits[index].best?.distance < fits[minimum].best?.distance) minimum = index;
-        if (fits[index].best?.distance > fits[maximum].best?.distance) maximum = index;
+      const first = fits[start];
+      const last = fits[end];
+      let minimum = first;
+      if (first.best) {
+        const reference = references[first.best.id];
+        const values = Array.isArray(reference) ? reference.slice(2) : reference.values;
+        for (let percent = first.percent + 1; percent <= last.percent; percent += 1) {
+          const weight = percent / 100;
+          const mixture = source.values.map((value, dimension) =>
+            weight * value + (1 - weight) * values[dimension]);
+          const fitDistance = distance(target.values, mixture);
+          if (fitDistance < minimum.best.distance) {
+            minimum = { percent, remainingPercent: 100 - percent,
+              best: { ...first.best, distance: fitDistance } };
+          }
+        }
       }
-      const selected = [...new Set([start, end, minimum, maximum])].sort((a, b) => a - b);
-      result.push(...selected.map((index) => fits[index]));
+      const selected = new Map([first, minimum, last].map((fit) => [fit.percent, fit]));
+      result.push(...[...selected.values()].sort((a, b) => a.percent - b.percent));
       start = end + 1;
     }
     return result;

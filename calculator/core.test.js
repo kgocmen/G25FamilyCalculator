@@ -6,19 +6,29 @@ function person(label, value) {
   return { label, values: Array(25).fill(value) };
 }
 
-test("remaining admixture summary retains endpoints and distinct extrema of each consecutive run", () => {
-  const { summarizeRemainingAdmixture } = require("./core.js");
-  const fits = [5, 4, 1, 3, 6, 4, 5, 2, 1, 3].map((distance, index) => ({
-    percent: (index + 1) * 5,
-    best: { id: index < 7 ? 0 : index < 9 ? 1 : 0, distance },
-  }));
-  assert.deepEqual(summarizeRemainingAdmixture(fits).map((fit) => fit.percent), [5, 15, 25, 35, 40, 45, 50]);
-  const tied = fits.slice(0, 4).map((fit) => ({ ...fit, best: { id: 0, distance: 1 } }));
-  assert.deepEqual(summarizeRemainingAdmixture(tied), [tied[0], tied[3]]);
+test("remaining admixture summary searches whole percentages within each population run", () => {
+  const { remainingAdmixture, summarizeRemainingAdmixture } = require("./core.js");
+  const source = person("B", 1);
+  const references = [{ ...person("Zero", 0), category: "modern" }];
+  const summarize = (target) => summarizeRemainingAdmixture(
+    remainingAdmixture(target, source, references), target, source, references);
+  const fits = summarize(person("A", 0.37));
+  assert.deepEqual(fits.map((fit) => fit.percent), [5, 37, 95]);
+  assert.equal(fits[1].remainingPercent, 63);
+  assert.equal(fits[1].best.distance, 0);
+  assert.deepEqual(summarize(person("A", 0)).map((fit) => fit.percent), [5, 95]);
+  assert.deepEqual(summarize(person("A", 1)).map((fit) => fit.percent), [5, 95]);
+  const flat = person("Flat", 0);
+  const tied = remainingAdmixture(flat, flat, references);
+  assert.deepEqual(summarizeRemainingAdmixture(tied, flat, flat, references).map((fit) => fit.percent), [5, 95]);
   assert.deepEqual(summarizeRemainingAdmixture([]), []);
-  assert.deepEqual(summarizeRemainingAdmixture([fits[0]]), [fits[0]]);
   const empty = [{ percent: 5, best: null }, { percent: 10, best: null }, { percent: 15, best: null }];
   assert.deepEqual(summarizeRemainingAdmixture(empty), [empty[0], empty[2]]);
+
+  // Search only inside each consecutive run, even when a population returns later.
+  const runs = [tied[0], tied[1], { ...tied[2], best: { ...tied[2].best, id: 1 } }, tied[3], tied[4]];
+  const result = summarizeRemainingAdmixture(runs, flat, flat, [...references, references[0]]);
+  assert.deepEqual(result.map((fit) => fit.percent), [5, 10, 15, 20, 25]);
 });
 
 test("remaining admixture finds the best single population at every fixed percentage", () => {
