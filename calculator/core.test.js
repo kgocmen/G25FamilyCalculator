@@ -20,6 +20,20 @@ test("target remainders participate in fitting but their result rows are hidden"
   assert.deepEqual(visibleRemainingAdmixture(alias, references, targets), []);
 });
 
+test("remaining rows exceeding the direct A-B distance are hidden in both directions", () => {
+  const { distance, visibleRemainingAdmixture } = require("./core.js");
+  const targets = [person("A", 0), person("B", 1)];
+  const references = [person("Other", 2)];
+  const between = distance(targets[0].values, targets[1].values);
+  const rows = [between - 1, between, between + 1].map((distance) => ({
+    best: { id: 0, label: "Other", distance },
+  }));
+  for (const pair of [targets, [...targets].reverse()]) {
+    assert.deepEqual(visibleRemainingAdmixture(rows, references, pair), rows.slice(0, 2));
+  }
+  assert.equal(rows.length, 3);
+});
+
 test("remaining admixture supports each step and marks the best row within each group", () => {
   const { remainingAdmixture, summarizeRemainingAdmixture } = require("./core.js");
   const target = person("A", 0.17);

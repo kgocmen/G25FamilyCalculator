@@ -66,8 +66,10 @@
   }
 
   function visibleRemainingAdmixture(fits, references, targets) {
+    const between = distance(targets[0].values, targets[1].values);
     return fits.filter((fit) => {
       if (!fit.best) return true;
+      if (fit.best.distance > between) return false;
       const row = references[fit.best.id];
       const values = Array.isArray(row) ? row.slice(2) : row.values;
       return !targets.some((target) => fit.best.label === target.label ||
