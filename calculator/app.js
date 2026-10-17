@@ -432,7 +432,7 @@
     preparedMatches = null;
     preparedContext = null;
     $("#single-row").replaceChildren(createRow("Sample", { type: "single" }, state.single, null));
-    for (const selector of ["#metric-controls", "#difference-panel", "#ratio-panel", "#d3-panel"]) {
+    for (const selector of ["#remaining-admixture-panel", "#metric-controls", "#difference-panel", "#ratio-panel", "#d3-panel"]) {
       $(selector).hidden = true;
     }
     updateAnalysisView();
@@ -910,6 +910,7 @@
   }
 
   function renderMatches(targetComparison, selectedName, compareMode = false) {
+    $("#remaining-admixture-panel").hidden = true;
     const panels = [$("#matches-panel"), $("#metric-controls"), $("#difference-panel"), $("#ratio-panel"), $("#d3-panel")];
     if (!targetComparison || !references.length) {
       panels.forEach((panel) => { panel.hidden = true; });
@@ -922,11 +923,38 @@
     const candidates = category === "all" ? references : references.filter((row) => row[0] === category);
     preparedMatches = core.prepareMatches(targetComparison.actual, targetComparison.calculated, candidates);
     preparedContext = { selectedName, compareMode };
+    if (compareMode) {
+      $("#remaining-admixture-panel").hidden = false;
+      const { actual, calculated } = targetComparison;
+      $("#remaining-a-title").textContent = `A: ${actual.label} ≈ % B + remainder`;
+      $("#remaining-b-title").textContent = `B: ${calculated.label} ≈ % A + remainder`;
+      renderRemainingAdmixture($("#remaining-a"), core.remainingAdmixture(actual, calculated, candidates), "B");
+      renderRemainingAdmixture($("#remaining-b"), core.remainingAdmixture(calculated, actual, candidates), "A");
+    }
     const slider = $("#metric-limit");
     slider.max = String(preparedMatches.furthestDistance);
     slider.value = String(Math.min(state.metricLimit, preparedMatches.furthestDistance));
     $("#metric-max-label").textContent = preparedMatches.furthestDistance.toFixed(3);
     renderRankedMatches();
+  }
+
+  function renderRemainingAdmixture(container, fits, sourceName) {
+    const table = document.createElement("table");
+    table.className = "matches-table";
+    const head = table.createTHead().insertRow();
+    for (const label of [`${sourceName} %`, "Remaining population", "Remainder %", "Fit distance"]) {
+      const cell = document.createElement("th");
+      cell.textContent = label;
+      head.append(cell);
+    }
+    const body = table.createTBody();
+    for (const { percent, remainingPercent, best } of fits) {
+      const row = body.insertRow();
+      for (const value of [`${percent}%`, best ? `${best.label} · ${best.category}` : "No matching populations", `${remainingPercent}%`, best ? best.distance.toFixed(3) : "—"]) {
+        row.insertCell().textContent = value;
+      }
+    }
+    container.replaceChildren(table);
   }
 
   function renderRankedMatches() {

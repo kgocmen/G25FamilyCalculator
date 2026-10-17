@@ -6,6 +6,41 @@ function person(label, value) {
   return { label, values: Array(25).fill(value) };
 }
 
+test("remaining admixture finds the best single population at every fixed percentage", () => {
+  const { remainingAdmixture, distance } = require("./core.js");
+  const target = person("A", 0.01);
+  const source = person("B", 0.02);
+  const references = [
+    ["modern", "Zero", ...Array(25).fill(0)],
+    ["ancient", "Negative", ...Array(25).fill(-0.02)],
+    ["modern", "Near", ...Array(25).fill(0.009)],
+  ];
+  const fits = remainingAdmixture(target, source, references);
+  assert.deepEqual(fits.map((fit) => fit.percent), Array.from({ length: 19 }, (_, i) => (i + 1) * 5));
+  assert.equal(fits[9].best.label, "Zero");
+  assert.equal(fits[9].best.distance, 0);
+  assert.equal(fits[14].best.label, "Negative");
+  assert.ok(fits[14].best.distance < 1e-12);
+  for (const fit of fits) {
+    assert.equal(fit.remainingPercent, 100 - fit.percent);
+    const distances = references.map((row) => distance(target.values,
+      source.values.map((value, i) => value * fit.percent / 100 + row[i + 2] * fit.remainingPercent / 100)));
+    assert.ok(Math.abs(fit.best.distance - Math.min(...distances)) < 1e-12);
+  }
+  const reverse = remainingAdmixture(source, target, references);
+  assert.ok(reverse[9].best.distance > 0);
+});
+
+test("remaining admixture handles empty references, ties, objects and invalid coordinates", () => {
+  const { remainingAdmixture } = require("./core.js");
+  const target = person("A", 0);
+  assert.ok(remainingAdmixture(target, target, []).every((fit) => fit.best === null));
+  const references = ["First", "Second"].map((label) => ({ ...person(label, 0), category: "modern" }));
+  assert.ok(remainingAdmixture(target, target, references).every((fit) => fit.best.label === "First" && fit.best.distance === 0));
+  assert.throws(() => remainingAdmixture(null, target, references), /valid G25/);
+  assert.throws(() => remainingAdmixture(target, target, [{ values: [0] }]), /Invalid G25/);
+});
+
 test("partial child estimates normalize known contributors and rank their closest references", () => {
   assert.equal(estimateChildFromKnown([null, null]), null);
   const parents = [person("Mother", 10), null];

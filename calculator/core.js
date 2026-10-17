@@ -65,6 +65,33 @@
     })).sort((a, b) => a.distance - b.distance || a.id - b.id).slice(0, limit);
   }
 
+  function remainingAdmixture(target, source, references) {
+    if (!target || !source || !validateVector(target.values) || !validateVector(source.values)) {
+      throw new Error("Both targets need valid G25 coordinates.");
+    }
+    const candidates = references.map((row, id) => ({
+      id,
+      category: Array.isArray(row) ? row[0] : row.category,
+      label: Array.isArray(row) ? row[1] : row.label,
+      values: Array.isArray(row) ? row.slice(2) : row.values,
+    }));
+    if (candidates.some((row) => !validateVector(row.values))) throw new Error("Invalid G25 coordinates.");
+    return Array.from({ length: 19 }, (_, index) => {
+      const percent = (index + 1) * 5;
+      const weight = percent / 100;
+      let best = null;
+      for (const candidate of candidates) {
+        const mixture = source.values.map((value, dimension) =>
+          weight * value + (1 - weight) * candidate.values[dimension]);
+        const fitDistance = distance(target.values, mixture);
+        if (!best || fitDistance < best.distance) {
+          best = { id: candidate.id, category: candidate.category, label: candidate.label, distance: fitDistance };
+        }
+      }
+      return { percent, remainingPercent: 100 - percent, best };
+    });
+  }
+
   function prepareMatches(actual, calculated, references) {
     if (!validateVector(actual.values) || !validateVector(calculated.values)) {
       throw new Error("Both targets need valid G25 coordinates.");
@@ -230,7 +257,7 @@
     return [csvLabel, ...values.map(formatNumber)].join(",");
   }
 
-  const api = { ancestorWeights, calculate, calculateComparison, closestMatches, distance, estimateChildFromKnown, formatLine, missingAncestorLabel, nearestMatches, parseLine, prepareMatches, rankMatches, resultLabel };
+  const api = { ancestorWeights, calculate, calculateComparison, closestMatches, distance, estimateChildFromKnown, formatLine, missingAncestorLabel, nearestMatches, parseLine, prepareMatches, rankMatches, remainingAdmixture, resultLabel };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.G25Core = api;
 })(typeof window !== "undefined" ? window : globalThis);

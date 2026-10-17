@@ -206,6 +206,21 @@
       <div id="grandparent-estimates" class="table-scroll mixture-scroll" tabindex="0" role="region" aria-label="Four-way mixture estimates table"></div>
     </section>
 
+    <section id="remaining-admixture-panel" class="panel matches-panel" aria-labelledby="remaining-admixture-title" hidden>
+      <h2 id="remaining-admixture-title">Best fitting remaining admixture</h2>
+      <p class="panel-intro">At each 5% step, find the single reference population that best completes the mixture. Fit distance measures the distance from the full mixture to the target. Uses the selected population filter.</p>
+      <div class="extreme-grid">
+        <div class="match-group">
+          <h3 id="remaining-a-title">A ≈ % B + remainder</h3>
+          <div id="remaining-a" class="table-scroll" tabindex="0" role="region" aria-label="Best remaining admixture for A"></div>
+        </div>
+        <div class="match-group">
+          <h3 id="remaining-b-title">B ≈ % A + remainder</h3>
+          <div id="remaining-b" class="table-scroll" tabindex="0" role="region" aria-label="Best remaining admixture for B"></div>
+        </div>
+      </div>
+    </section>
+
     <section id="metric-controls" class="panel matches-panel" aria-labelledby="metric-limit-title" hidden>
       <div class="metric-limit-heading">
         <div>
