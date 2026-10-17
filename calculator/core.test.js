@@ -16,6 +16,14 @@ test("remaining admixture summary searches whole percentages within each populat
   assert.deepEqual(fits.map((fit) => fit.percent), [5, 37, 95]);
   assert.equal(fits[1].remainingPercent, 63);
   assert.equal(fits[1].best.distance, 0);
+  const target47 = person("A", 0.47);
+  const range = remainingAdmixture(target47, source, references)
+    .filter((fit) => fit.percent >= 30 && fit.percent <= 80);
+  const summary = summarizeRemainingAdmixture(range, target47, source, references);
+  assert.deepEqual(summary.map((fit) => fit.percent), [30, 47, 80]);
+  assert.equal(summary[1].best.distance, 0);
+  assert.ok(summary[1].best.distance < range.find((fit) => fit.percent === 45).best.distance);
+  assert.ok(summary[1].best.distance < range.find((fit) => fit.percent === 50).best.distance);
   assert.deepEqual(summarize(person("A", 0)).map((fit) => fit.percent), [5, 95]);
   assert.deepEqual(summarize(person("A", 1)).map((fit) => fit.percent), [5, 95]);
   const flat = person("Flat", 0);
