@@ -6,6 +6,21 @@ function person(label, value) {
   return { label, values: Array(25).fill(value) };
 }
 
+test("remaining admixture summary retains endpoints and distinct extrema of each consecutive run", () => {
+  const { summarizeRemainingAdmixture } = require("./core.js");
+  const fits = [5, 4, 1, 3, 6, 4, 5, 2, 1, 3].map((distance, index) => ({
+    percent: (index + 1) * 5,
+    best: { id: index < 7 ? 0 : index < 9 ? 1 : 0, distance },
+  }));
+  assert.deepEqual(summarizeRemainingAdmixture(fits).map((fit) => fit.percent), [5, 15, 25, 35, 40, 45, 50]);
+  const tied = fits.slice(0, 4).map((fit) => ({ ...fit, best: { id: 0, distance: 1 } }));
+  assert.deepEqual(summarizeRemainingAdmixture(tied), [tied[0], tied[3]]);
+  assert.deepEqual(summarizeRemainingAdmixture([]), []);
+  assert.deepEqual(summarizeRemainingAdmixture([fits[0]]), [fits[0]]);
+  const empty = [{ percent: 5, best: null }, { percent: 10, best: null }, { percent: 15, best: null }];
+  assert.deepEqual(summarizeRemainingAdmixture(empty), [empty[0], empty[2]]);
+});
+
 test("remaining admixture finds the best single population at every fixed percentage", () => {
   const { remainingAdmixture, distance } = require("./core.js");
   const target = person("A", 0.01);

@@ -119,7 +119,14 @@
         <label class="result-count"><span>Show top <output id="closest-count-value" for="closest-count">10</output></span>
           <input id="closest-count" type="range" min="10" max="100" step="1" value="10" aria-label="Number of closest populations to show">
         </label>
-        <label id="match-filter" class="match-filter">Reference set for all tables
+        <label id="analyse-match-filter" class="match-filter" hidden>Reference set
+          <select id="analyse-match-category" aria-label="Analyse closest population reference category">
+            <option value="modern">Modern</option>
+            <option value="ancient">Ancient</option>
+            <option value="all">All</option>
+          </select>
+        </label>
+        <label id="match-filter" class="match-filter">Reference set for distances and metrics
           <select id="match-category" aria-label="Comparison reference category">
             <option value="modern">Modern</option>
             <option value="ancient">Ancient</option>
@@ -207,8 +214,17 @@
     </section>
 
     <section id="remaining-admixture-panel" class="panel matches-panel" aria-labelledby="remaining-admixture-title" hidden>
-      <h2 id="remaining-admixture-title">Best fitting remaining admixture</h2>
-      <p class="panel-intro">At each 5% step, find the single reference population that best completes the mixture. Fit distance measures the distance from the full mixture to the target. Uses the selected population filter.</p>
+      <div class="section-head">
+        <h2 id="remaining-admixture-title">Best fitting remaining admixture</h2>
+        <label class="match-filter">Reference set
+          <select id="remaining-category" aria-label="Remaining admixture reference category">
+            <option value="modern">Modern</option>
+            <option value="ancient">Ancient</option>
+            <option value="all">All</option>
+          </select>
+        </label>
+      </div>
+      <p class="panel-intro">At each 5% step, find the single reference population that best completes the mixture. Fit distance measures the distance from the full mixture to the target. Uses its own population filter. Consecutive steps with the same remainder show only the endpoints and minimum/maximum fit distance rows.</p>
       <div class="extreme-grid">
         <div class="match-group">
           <h3 id="remaining-a-title">A ≈ % B + remainder</h3>

@@ -243,9 +243,10 @@
     if (compareInputs) compareInputs.hidden = mode !== 0;
     $("#family-inputs").hidden = mode === 0 || mode === 1;
     $("#result-panel").hidden = mode === 0 || mode === 1;
-    $("#single-ancient-matches-group").hidden = mode !== 1;
+    $("#single-ancient-matches-group").hidden = true;
     $("#calculated-matches-group").hidden = mode === 1;
     $("#match-filter").hidden = mode === 1;
+    $("#analyse-match-filter").hidden = mode !== 1;
     $("#inputs-title").textContent = mode === 1 ? "Analyse" : mode === 0 ? "Compare" : "Family inputs";
     if (mode === 1) {
       $("#suggestions-panel").hidden = true;
@@ -443,7 +444,7 @@
     }
     const modernReferences = references.filter((row) => row[0] === "modern");
     const ancientReferences = references.filter((row) => row[0] === "ancient");
-    renderSingleClosestTables(modernReferences, ancientReferences);
+    renderSingleClosestTables();
     renderMixtureStatus("#relaxed-modern", "Calculating unsupervised modern fits…");
     renderMixtureStatus("#relaxed-ancient", "Waiting for modern fits…");
     renderMixtureStatus("#parent-estimates", "Waiting for unsupervised fits…");
@@ -744,17 +745,14 @@
     return `${(units / 10).toFixed(1)}%`;
   }
 
-  function renderSingleClosestTables(
-    modernReferences = references.filter((row) => row[0] === "modern"),
-    ancientReferences = references.filter((row) => row[0] === "ancient"),
-  ) {
+  function renderSingleClosestTables() {
     if (!state.single || !references.length) return;
-    $("#actual-matches-title").textContent = `Up to ${state.closestCount} closest modern populations to ${state.single.label}`;
-    $("#single-ancient-matches-title").textContent = `Up to ${state.closestCount} closest ancient populations to ${state.single.label}`;
-    renderMatchTable($("#actual-matches"), core.nearestMatches(state.single, modernReferences, state.closestCount),
-      { distanceKey: "distance", omitCategory: true });
-    renderMatchTable($("#single-ancient-matches"), core.nearestMatches(state.single, ancientReferences, state.closestCount),
-      { distanceKey: "distance", omitCategory: true });
+    const category = $("#analyse-match-category").value;
+    const candidates = category === "all" ? references : references.filter((row) => row[0] === category);
+    $("#single-ancient-matches-group").hidden = true;
+    $("#actual-matches-title").textContent = `Up to ${state.closestCount} closest ${category === "all" ? "" : `${category} `}populations to ${state.single.label}`;
+    renderMatchTable($("#actual-matches"), core.nearestMatches(state.single, candidates, state.closestCount),
+      { distanceKey: "distance", omitCategory: category !== "all" });
   }
 
   function renderMixtureStatus(selector, message) {
@@ -923,19 +921,24 @@
     const candidates = category === "all" ? references : references.filter((row) => row[0] === category);
     preparedMatches = core.prepareMatches(targetComparison.actual, targetComparison.calculated, candidates);
     preparedContext = { selectedName, compareMode };
-    if (compareMode) {
-      $("#remaining-admixture-panel").hidden = false;
-      const { actual, calculated } = targetComparison;
-      $("#remaining-a-title").textContent = `A: ${actual.label} ≈ % B + remainder`;
-      $("#remaining-b-title").textContent = `B: ${calculated.label} ≈ % A + remainder`;
-      renderRemainingAdmixture($("#remaining-a"), core.remainingAdmixture(actual, calculated, candidates), "B");
-      renderRemainingAdmixture($("#remaining-b"), core.remainingAdmixture(calculated, actual, candidates), "A");
-    }
+    if (compareMode) renderRemainingTables();
     const slider = $("#metric-limit");
     slider.max = String(preparedMatches.furthestDistance);
     slider.value = String(Math.min(state.metricLimit, preparedMatches.furthestDistance));
     $("#metric-max-label").textContent = preparedMatches.furthestDistance.toFixed(3);
     renderRankedMatches();
+  }
+
+  function renderRemainingTables() {
+    if (state.mode !== 0 || !state.compare.every(Boolean) || !references.length) return;
+    $("#remaining-admixture-panel").hidden = false;
+    const [actual, calculated] = state.compare;
+    const category = $("#remaining-category").value;
+    const candidates = category === "all" ? references : references.filter((row) => row[0] === category);
+    $("#remaining-a-title").textContent = `A: ${actual.label} ≈ % B: ${calculated.label} + remainder`;
+    $("#remaining-b-title").textContent = `B: ${calculated.label} ≈ % A: ${actual.label} + remainder`;
+    renderRemainingAdmixture($("#remaining-a"), core.remainingAdmixture(actual, calculated, candidates), "B");
+    renderRemainingAdmixture($("#remaining-b"), core.remainingAdmixture(calculated, actual, candidates), "A");
   }
 
   function renderRemainingAdmixture(container, fits, sourceName) {
@@ -948,7 +951,7 @@
       head.append(cell);
     }
     const body = table.createTBody();
-    for (const { percent, remainingPercent, best } of fits) {
+    for (const { percent, remainingPercent, best } of core.summarizeRemainingAdmixture(fits)) {
       const row = body.insertRow();
       for (const value of [`${percent}%`, best ? `${best.label} · ${best.category}` : "No matching populations", `${remainingPercent}%`, best ? best.distance.toFixed(3) : "—"]) {
         row.insertCell().textContent = value;
@@ -1167,6 +1170,8 @@
   }
   $("#reference-search").addEventListener("input", renderReferences);
   $("#reference-category").addEventListener("change", renderReferences);
+  $("#remaining-category").addEventListener("change", renderRemainingTables);
+  $("#analyse-match-category").addEventListener("change", renderSingleClosestTables);
   $("#match-category").addEventListener("change", render);
   $("#suggestion-category").addEventListener("change", renderSuggestionTable);
   $("#suggestion-count").addEventListener("input", (event) => {

@@ -92,6 +92,24 @@
     });
   }
 
+  function summarizeRemainingAdmixture(fits) {
+    const result = [];
+    for (let start = 0; start < fits.length;) {
+      let end = start;
+      let minimum = start;
+      let maximum = start;
+      while (end + 1 < fits.length && fits[end + 1].best?.id === fits[start].best?.id) end += 1;
+      for (let index = start + 1; index <= end; index += 1) {
+        if (fits[index].best?.distance < fits[minimum].best?.distance) minimum = index;
+        if (fits[index].best?.distance > fits[maximum].best?.distance) maximum = index;
+      }
+      const selected = [...new Set([start, end, minimum, maximum])].sort((a, b) => a - b);
+      result.push(...selected.map((index) => fits[index]));
+      start = end + 1;
+    }
+    return result;
+  }
+
   function prepareMatches(actual, calculated, references) {
     if (!validateVector(actual.values) || !validateVector(calculated.values)) {
       throw new Error("Both targets need valid G25 coordinates.");
@@ -257,7 +275,7 @@
     return [csvLabel, ...values.map(formatNumber)].join(",");
   }
 
-  const api = { ancestorWeights, calculate, calculateComparison, closestMatches, distance, estimateChildFromKnown, formatLine, missingAncestorLabel, nearestMatches, parseLine, prepareMatches, rankMatches, remainingAdmixture, resultLabel };
+  const api = { ancestorWeights, calculate, calculateComparison, closestMatches, distance, estimateChildFromKnown, formatLine, missingAncestorLabel, nearestMatches, parseLine, prepareMatches, rankMatches, remainingAdmixture, summarizeRemainingAdmixture, resultLabel };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.G25Core = api;
 })(typeof window !== "undefined" ? window : globalThis);
