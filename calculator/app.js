@@ -406,8 +406,15 @@
             fit = selected.fit;
             pca = selected.pca;
           }
+          const mixedSourceFits = data.groupLimit > 1
+            ? data.modernPcas.filter((entry) => (entry.mixedReferences || entry.references).length >= 3)
+              .map((entry) => {
+                const source = { ...entry, references: entry.mixedReferences || entry.references };
+                return { pca: source, fit: self.G25Medieval.fitAdmixture(
+                  data.target, source.references, data.groupLimit, "modern") };
+              }) : [];
           const candidate = self.G25ModernPca.findMixedPca(
-            data.target, pcaFits, data.groupLimit, self.G25Medieval.fitAdmixture);
+            data.target, mixedSourceFits, data.groupLimit, self.G25Medieval.fitAdmixture, pcaFits);
           if (candidate) {
             availableMixed = candidate;
             if (data.selectedPcaId === "auto") {
@@ -869,7 +876,7 @@
     $("#modern-group-limit option[value='1']").disabled = mixedActive;
     options.replaceChildren();
     const choices = modernMixedPca && state.modernGroupLimit > 1
-      ? [...modernPcas, { id: "mixed", title: `Mixed · ${modernMixedPca.sourceTitles.join(" + ")}`,
+      ? [...modernPcas, { id: "mixed", title: "Mixed PCA",
         references: modernMixedPca.references, referenceAnchors: [] }]
       : modernPcas;
     const rankedPcas = window.G25ModernPca.rankModernPcas(
@@ -962,7 +969,7 @@
       displayedPcaId = selectedMixed ? "mixed" : pca?.id || null;
       periodReferences = selectedMixed ? modernMixedPca.references : pca ? regularPcaReferences(pca) : [];
       const hasPlot = periodReferences.length >= (selectedMixed ? 1 : 3);
-      period = selectedMixed ? `Mixed · ${modernMixedPca.sourceTitles.join(" + ")}` : pca ? pca.title : "Modern";
+      period = selectedMixed ? "Mixed" : pca ? pca.title : "Modern";
       $("#medieval-breakdown-title").textContent = displayedPcaId ? `Modern · ${period}${selectedMixed ? " PCA" : ""}` : "Modern";
       $("#pca-heading-title").textContent = selectedMixed ? `${period} PCA` : pca ? `${pca.title} PCA` : "Custom PCA";
       const label = closest ? closest.label.replaceAll("_", " ") : null;
@@ -1028,7 +1035,7 @@
           populateModernPcaSelect();
         }
         if (data.mixed) {
-          const mixedTitle = `Mixed · ${modernMixedPca.sourceTitles.join(" + ")}`;
+          const mixedTitle = "Mixed";
           $("#medieval-breakdown-title").textContent = `Modern · ${mixedTitle} PCA`;
           $("#pca-heading-title").textContent = `${mixedTitle} PCA`;
           renderMedievalPca(modernMixedPca.references, mixedTitle, true, closestModern, true);
@@ -1051,6 +1058,7 @@
         closestPcaId,
         modernPcas: scanModernPcas ? modernPcas.map((pca) => ({
           id: pca.id, title: pca.title, references: regularPcaReferences(pca),
+          mixedReferences: allowedPcaReferences(pca),
         })) : null });
     } catch (error) {
       cancelMedieval();
