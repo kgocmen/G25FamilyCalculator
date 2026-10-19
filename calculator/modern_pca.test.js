@@ -1,7 +1,8 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
 const { nearestMatches } = require("./core.js");
-const { selectModernPca, rankModernPcas, buildMixedPca, mixedFitIsBetter } = require("./modern_pca.js");
+const { selectModernPca, rankModernPcas, buildMixedPca, mixedFitIsBetter,
+  isIstanbulReference } = require("./modern_pca.js");
 
 const row = (label, first) => ["modern", label, first, ...Array(24).fill(0)];
 const target = (first) => ({ label: "Input", values: [first, ...Array(24).fill(0)] });
@@ -78,6 +79,8 @@ test("Istanbul informs admixture but never ranks the closest PCA", () => {
   assert.equal(selected.closest.id, 1);
   assert.equal(selected.pca.id, "near");
   assert.ok(pcas.every((pca) => pca.references.includes(istanbul)));
+  assert.equal(isIstanbulReference(istanbul), true);
+  assert.equal(isIstanbulReference(row("Türk_Balkan:Türk_İstanbul_(Balkan_Profili)", 0)), false);
 });
 
 test("mixed PCA uses non-Istanbul fitted components from all maps without duplicate samples", () => {

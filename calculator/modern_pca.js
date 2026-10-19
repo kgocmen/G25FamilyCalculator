@@ -56,7 +56,8 @@ function G25ModernPcaModule(root) {
       mixedFit.distance < bestDistance * 0.75;
   }
 
-  const api = { selectModernPca, rankModernPcas, buildMixedPca, mixedFitIsBetter };
+  const api = { selectModernPca, rankModernPcas, buildMixedPca, mixedFitIsBetter,
+    isIstanbulReference };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else {
     root.G25ModernPca = api;

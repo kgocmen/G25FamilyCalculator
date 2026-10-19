@@ -104,6 +104,11 @@
     });
   }
 
+  function regularPcaReferences(pca) {
+    return allowedPcaReferences(pca).filter((row) =>
+      !window.G25ModernPca.isIstanbulReference(row));
+  }
+
   function changeBlacklist(item, excluded) {
     if (excluded) {
       whitelist.delete(populationKey(item));
@@ -369,8 +374,15 @@
             fit = selected.fit;
             pca = selected.pca;
           }
+          const mixedSourceFits = data.groupLimit > 1
+            ? data.modernPcas.filter((entry) => (entry.mixedReferences || entry.references).length >= 3)
+              .map((entry) => {
+                const source = { ...entry, references: entry.mixedReferences || entry.references };
+                return { pca: source, fit: self.G25Medieval.fitAdmixture(
+                  data.target, source.references, data.groupLimit, "modern") };
+              }) : [];
           const candidate = data.groupLimit > 1
-            ? self.G25ModernPca.buildMixedPca(pcaFits) : null;
+            ? self.G25ModernPca.buildMixedPca(mixedSourceFits) : null;
           if (candidate) {
             const mixedFit = self.G25Medieval.fitAdmixture(
               data.target, candidate.references, data.groupLimit, "modern");
@@ -928,7 +940,7 @@
       closestModern = closest;
       const selectedMixed = state.modernGroupLimit > 1 && state.modernPcaId === "mixed" && modernMixedPca;
       displayedPcaId = selectedMixed ? "mixed" : pca?.id || null;
-      periodReferences = selectedMixed ? modernMixedPca.componentRows : pca ? allowedPcaReferences(pca) : [];
+      periodReferences = selectedMixed ? modernMixedPca.componentRows : pca ? regularPcaReferences(pca) : [];
       const hasPlot = periodReferences.length >= (selectedMixed ? 1 : 3);
       period = selectedMixed ? "Mixed" : pca ? pca.title : "Modern";
       $("#medieval-breakdown-title").textContent = displayedPcaId ? `Modern · ${period}${selectedMixed ? " PCA" : ""}` : "Modern";
@@ -1021,7 +1033,8 @@
         selectedPcaId: isModern ? state.modernPcaId : null,
         closestPcaId,
         modernPcas: scanModernPcas ? modernPcas.map((pca) => ({
-          id: pca.id, title: pca.title, references: allowedPcaReferences(pca),
+          id: pca.id, title: pca.title, references: regularPcaReferences(pca),
+          mixedReferences: allowedPcaReferences(pca),
         })) : null });
     } catch (error) {
       cancelMedieval();
