@@ -3,6 +3,7 @@
 
   const globalReferences = window.G25_REFERENCES || [];
   const turkishReferences = window.G25_TURKISH_REFERENCES || [];
+  const turkishModernAnalysisReferences = window.G25_TURKISH_MODERN_ANALYSIS_REFERENCES || [];
   const medievalReferences = window.G25_MEDIEVAL_REFERENCES || { early: [], late: [] };
   let references = globalReferences;
   const core = window.G25Core;
@@ -169,6 +170,7 @@
     if (!query) return;
     const words = query.split(/\s+/);
     const pool = [...(state.turkish ? turkishReferences : globalReferences),
+      ...(state.turkish ? turkishModernAnalysisReferences : []),
       ...(medievalReferences.early || []), ...(medievalReferences.late || [])];
     const seen = new Set();
     let shown = 0;
@@ -329,7 +331,7 @@
   function medievalWorkerMain() {
     self.onmessage = ({ data }) => {
       try {
-        const fit = self.G25Medieval.fitAdmixture(data.target, data.references, data.groupLimit);
+        const fit = self.G25Medieval.fitAdmixture(data.target, data.references, data.groupLimit, data.groupStyle);
         self.postMessage({ requestId: data.requestId, fit });
       } catch (error) {
         self.postMessage({ requestId: data.requestId, error: error.message });
@@ -716,7 +718,7 @@
     }
     updateAnalysisView();
     if (!state.single) return;
-    if (state.turkish && isMedievalView()) {
+    if (state.turkish && isPeriodView()) {
       renderMedievalBreakdown();
       return;
     }
@@ -732,17 +734,18 @@
     startMixtures(state.single, modernReferences, references, mixtureRequest);
   }
 
-  function isMedievalView() {
-    return state.analysisView === "early" || state.analysisView === "late";
+  function isPeriodView() {
+    return state.analysisView === "early" || state.analysisView === "late" || state.analysisView === "modern";
   }
 
   function updateAnalysisView() {
-    const medieval = state.mode === 1 && state.turkish && isMedievalView();
-    const available = state.mode === 1 && Boolean(state.single) && (medieval || references.length > 0);
+    const periodView = state.mode === 1 && state.turkish && isPeriodView();
+    const available = state.mode === 1 && Boolean(state.single) && (periodView || references.length > 0);
     for (const [selector, active] of [
-      ["#analysis-results-tab", !medieval],
-      ["#early-medieval-tab", medieval && state.analysisView === "early"],
-      ["#late-medieval-tab", medieval && state.analysisView === "late"],
+      ["#analysis-results-tab", !periodView],
+      ["#early-medieval-tab", periodView && state.analysisView === "early"],
+      ["#late-medieval-tab", periodView && state.analysisView === "late"],
+      ["#modern-analysis-tab", periodView && state.analysisView === "modern"],
     ]) {
       const button = $(selector);
       button.classList.toggle("active", active);
@@ -750,9 +753,9 @@
       button.tabIndex = active ? 0 : -1;
     }
     for (const selector of ["#matches-panel", "#relaxed-estimates-panel", "#parent-estimates-panel", "#grandparent-estimates-panel"]) {
-      $(selector).hidden = !available || medieval;
+      $(selector).hidden = !available || periodView;
     }
-    $("#medieval-breakdown-panel").hidden = !available || !medieval;
+    $("#medieval-breakdown-panel").hidden = !available || !periodView;
   }
 
   function renderMedievalBreakdown() {
@@ -762,11 +765,13 @@
     list.replaceChildren();
     distance.hidden = true;
     $("#medieval-group-limit").value = String(state.medievalGroupLimit);
-    const period = state.analysisView === "early" ? "Early Medieval" : "Late Medieval";
-    const periodReferences = allowedReferences(medievalReferences[state.analysisView] || []);
+    const isModern = state.analysisView === "modern";
+    const period = isModern ? "Modern" : state.analysisView === "early" ? "Early Medieval" : "Late Medieval";
+    const periodReferences = allowedReferences(isModern
+      ? turkishModernAnalysisReferences : medievalReferences[state.analysisView] || []);
     $("#medieval-breakdown-title").textContent = period;
     status.textContent = `Calculating ${period} fit…`;
-    renderMedievalPca(periodReferences, period);
+    renderMedievalPca(periodReferences, period, isModern);
     const requestId = medievalRequest;
     try {
       const source = `(${window.G25MedievalModule.toString()})(self);\n(${medievalWorkerMain.toString()})();`;
@@ -784,37 +789,39 @@
       };
       worker.onmessage = ({ data }) => {
         if (data.requestId !== medievalRequest || state.mode !== 1 || !state.turkish ||
-            !isMedievalView()) return;
+            !isPeriodView()) return;
         finish();
         if (data.error) {
           status.textContent = data.error;
           return;
         }
-        renderMedievalFit(data.fit);
+        renderMedievalFit(data.fit, isModern);
       };
       worker.onerror = () => {
         if (medievalWorker !== worker) return;
         finish();
-        status.textContent = "Medieval analysis could not start in this browser.";
+        status.textContent = "Analysis could not start in this browser.";
       };
-      worker.postMessage({ requestId, target: state.single, references: periodReferences, groupLimit: state.medievalGroupLimit });
+      worker.postMessage({ requestId, target: state.single, references: periodReferences,
+        groupLimit: state.medievalGroupLimit, groupStyle: isModern ? "modern" : "colon" });
     } catch (error) {
       cancelMedieval();
-      status.textContent = `Medieval analysis could not start: ${error.message}`;
+      status.textContent = `Analysis could not start: ${error.message}`;
     }
   }
 
-  function renderMedievalPca(periodReferences, period) {
+  function renderMedievalPca(periodReferences, period, isModern) {
     const container = $("#medieval-pca-plot");
     const legend = $("#medieval-pca-legend");
     container.replaceChildren();
     legend.replaceChildren();
     let projection;
-    const modernReferences = references.filter((row) => row[0] === "modern");
+    const modernReferences = isModern ? periodReferences : references.filter((row) => row[0] === "modern");
     const closestModern = core.nearestMatches(state.single, modernReferences, 3);
     try {
       projection = window.G25Pca.projectPca(state.single, periodReferences,
-        closestModern.map((match) => modernReferences[match.id]));
+        isModern ? [] : closestModern.map((match) => modernReferences[match.id]),
+        isModern ? "modern" : "colon");
     } catch (error) {
       container.textContent = error.message;
       return;
@@ -838,7 +845,7 @@
     const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
     svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
     svg.setAttribute("role", "group");
-    svg.setAttribute("aria-label", `${period} PCA of ${projection.points.length} references, ${projection.overlays.length} closest modern populations, and ${projection.target.label}`);
+    svg.setAttribute("aria-label", `${period} PCA of ${projection.points.length} references and ${projection.target.label}`);
     const tooltip = document.createElement("div");
     tooltip.className = "pca-tooltip";
     tooltip.setAttribute("role", "tooltip");
@@ -917,7 +924,9 @@
     };
     const groups = [...new Set(projection.points.map((point) => point.ethnicity))].sort((a, b) => a.localeCompare(b));
     const fallback = ["#228e71", "#a75d83", "#aa7731", "#657bc0"];
-    const groupColor = (group) => colors[group] || fallback[groups.indexOf(group) % fallback.length];
+    const groupColor = (group) => colors[group] || (isModern
+      ? `hsl(${Math.round(groups.indexOf(group) * 137.5) % 360} 52% 42%)`
+      : fallback[groups.indexOf(group) % fallback.length]);
     for (const group of groups) {
       const positions = projection.points.filter((point) => point.ethnicity === group)
         .map((point) => ({ x: plotX(point.x), y: plotY(point.y) }));
@@ -929,19 +938,22 @@
       add(svg, "path", { d: path, fill: hull.length === 2 ? "none" : groupColor(group),
         stroke: groupColor(group), class: hull.length === 2 ? "pca-cluster-line" : "pca-cluster" });
     }
-    for (const point of projection.points) {
+    const closestIndices = isModern ? new Set(closestModern.map((match) => match.id)) : new Set();
+    projection.points.forEach((point, index) => {
+      if (closestIndices.has(index)) return;
       const circle = add(svg, "circle", { cx: plotX(point.x), cy: plotY(point.y), r: 6,
         fill: groupColor(point.ethnicity), class: "pca-reference" });
       bindTooltip(circle, point.label);
-    }
-    projection.overlays.forEach((point, index) => {
+    });
+    closestModern.forEach((match, index) => {
+      const point = isModern ? projection.points[match.id] : projection.overlays[index];
       const x = plotX(point.x);
       const y = plotY(point.y);
       const triangle = add(svg, "path", {
         d: `M ${x} ${y - 10} L ${x + 10} ${y + 8} L ${x - 10} ${y + 8} Z`,
         class: "pca-modern",
       });
-      bindTooltip(triangle, `#${index + 1} modern: ${point.label} · Distance ${closestModern[index].distance.toFixed(3)}`);
+      bindTooltip(triangle, `#${index + 1} modern: ${point.label} · Distance ${match.distance.toFixed(3)}`);
     });
     const targetX = plotX(projection.target.x);
     const targetY = plotY(projection.target.y);
@@ -958,12 +970,12 @@
       item.append(swatch, document.createTextNode(group.replaceAll("_", " ")));
       legend.append(item);
     }
-    if (projection.overlays.length) {
+    if (closestModern.length) {
       const modern = document.createElement("span");
       modern.className = "pca-legend-item";
       const swatch = document.createElement("span");
       swatch.className = "pca-legend-modern-swatch";
-      modern.append(swatch, document.createTextNode(`${projection.overlays.length} closest modern`));
+      modern.append(swatch, document.createTextNode(`${closestModern.length} closest modern`));
       legend.append(modern);
     }
     const input = document.createElement("span");
@@ -972,11 +984,11 @@
     legend.append(input);
   }
 
-  function renderMedievalFit(fit) {
+  function renderMedievalFit(fit, isModern = false) {
     const status = $("#medieval-breakdown-status");
     const distance = $("#medieval-breakdown-distance");
     const list = $("#medieval-breakdown-list");
-    status.textContent = `Estimated contributions · ${fit.groups.length} ethnicities · 100.0% total`;
+    status.textContent = `Estimated contributions · ${fit.groups.length} ${fit.groups.length === 1 ? "ethnicity" : "ethnicities"} · 100.0% total`;
     distance.textContent = `Fit distance ${fit.distance.toFixed(3)}`;
     distance.hidden = false;
     const groupUnits = allocatePercentUnits(fit.groups.map((group) => group.weight), 1000);
@@ -1004,7 +1016,7 @@
         label.textContent = component.sample.replaceAll("_", " ");
         const weight = document.createElement("strong");
         weight.textContent = formatPercent(sampleUnits[sampleIndex]);
-        item.append(label, weight, excludeButton({ label: component.label, category: "medieval" }));
+        item.append(label, weight, excludeButton({ label: component.label, category: isModern ? "modern" : "medieval" }));
         samples.append(item);
       });
       details.append(summary, bar, samples);
@@ -1480,8 +1492,8 @@
     updateSelectedReferences(state.turkish ? turkishReferences : globalReferences);
     render();
   });
-  const analysisTabViews = ["results", "early", "late"];
-  const analysisTabSelectors = ["#analysis-results-tab", "#early-medieval-tab", "#late-medieval-tab"];
+  const analysisTabViews = ["results", "early", "late", "modern"];
+  const analysisTabSelectors = ["#analysis-results-tab", "#early-medieval-tab", "#late-medieval-tab", "#modern-analysis-tab"];
   for (const [index, selector] of analysisTabSelectors.entries()) {
     const view = analysisTabViews[index];
     const button = $(selector);

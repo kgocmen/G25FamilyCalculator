@@ -7,14 +7,15 @@
   <title>G25 Family Calculator</title>
   <link rel="stylesheet" href="style.css?v=20261017-18">
   <script defer src="references.js?v=20261017-19"></script>
-  <script defer src="turkish_references.js?v=20261017-19"></script>
+  <script defer src="turkish_references.js?v=20261019-1"></script>
+  <script defer src="turkish_modern_analysis.js?v=20261019-1"></script>
   <script defer src="medieval_references.js?v=20261017-20"></script>
   <script defer src="core.js?v=20261017-21"></script>
   <script defer src="mixture.js?v=20261015-5"></script>
-  <script defer src="medieval.js?v=20261017-18"></script>
-  <script defer src="pca.js?v=20261016-3"></script>
+  <script defer src="medieval.js?v=20261019-1"></script>
+  <script defer src="pca.js?v=20261019-1"></script>
   <script defer src="pca_layout.js?v=20261016-2"></script>
-  <script defer src="app.js?v=20261017-18"></script>
+  <script defer src="app.js?v=20261019-1"></script>
 </head>
 <body>
   <main class="shell">
@@ -84,6 +85,7 @@
       <button id="analysis-results-tab" class="analysis-tab active" type="button" role="tab" aria-selected="true" aria-controls="matches-panel">Results</button>
       <button id="early-medieval-tab" class="analysis-tab" type="button" role="tab" aria-selected="false" aria-controls="medieval-breakdown-panel">Early Medieval</button>
       <button id="late-medieval-tab" class="analysis-tab" type="button" role="tab" aria-selected="false" aria-controls="medieval-breakdown-panel">Late Medieval</button>
+      <button id="modern-analysis-tab" class="analysis-tab" type="button" role="tab" aria-selected="false" aria-controls="medieval-breakdown-panel">Modern</button>
     </div>
 
     <section id="result-panel" class="panel result-panel" aria-labelledby="result-title">
@@ -174,7 +176,7 @@
           <p id="medieval-breakdown-status" role="status"></p>
         </div>
         <label class="match-filter medieval-group-filter">Max groups
-          <select id="medieval-group-limit" aria-label="Maximum medieval ancestry groups">
+          <select id="medieval-group-limit" aria-label="Maximum ancestry groups">
             <option value="3">3 groups</option>
             <option value="4">4 groups</option>
             <option value="5" selected>5 groups</option>
@@ -185,7 +187,7 @@
       <div id="medieval-breakdown-list" class="breakdown-list"></div>
       <div class="pca-section">
         <h3>PCA plot</h3>
-        <div id="medieval-pca-plot" class="pca-scroll" role="region" tabindex="0" aria-label="Medieval PCA plot"></div>
+        <div id="medieval-pca-plot" class="pca-scroll" role="region" tabindex="0" aria-label="PCA plot"></div>
         <div id="medieval-pca-legend" class="pca-legend"></div>
       </div>
     </section>

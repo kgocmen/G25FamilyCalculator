@@ -12,6 +12,7 @@ ROOT = Path(__file__).resolve().parent
 OUTPUT = ROOT / "calculator" / "references.js"
 TURKISH_OUTPUT = ROOT / "calculator" / "turkish_references.js"
 MEDIEVAL_OUTPUT = ROOT / "calculator" / "medieval_references.js"
+MODERN_ANALYSIS_OUTPUT = ROOT / "calculator" / "turkish_modern_analysis.js"
 
 
 def read_rows(path: Path, category: str) -> list[list]:
@@ -52,6 +53,13 @@ def main() -> None:
         encoding="utf-8",
     )
     print(f"Bundled {len(turkish_rows)} Turkish modern and ancient references into {TURKISH_OUTPUT}")
+    modern_analysis_rows = read_rows(ROOT / "data" / "turkish_modern_2_g25.txt", "modern")
+    MODERN_ANALYSIS_OUTPUT.write_text(
+        "window.G25_TURKISH_MODERN_ANALYSIS_REFERENCES = "
+        + json.dumps(modern_analysis_rows, ensure_ascii=False, separators=(",", ":")) + ";\n",
+        encoding="utf-8",
+    )
+    print(f"Bundled {len(modern_analysis_rows)} grouped Turkish modern references into {MODERN_ANALYSIS_OUTPUT}")
     medieval_rows = {
         "early": read_rows(ROOT / "data" / "turkish_early_medieval_g25.txt", "medieval"),
         "late": read_rows(ROOT / "data" / "turkish_late_medieval_g25.txt", "medieval"),

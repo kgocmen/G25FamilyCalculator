@@ -49,6 +49,14 @@ test("modern overlays participate in the plotted PCA", () => {
   }
 });
 
+test("modern PCA uses prepared group names", () => {
+  const references = [reference("Türk_Anadolu:Sample", -1, 0),
+    reference("Rum_Helen:Sample", 1, 0), reference("Ermeni_Erzurum_(n=9)", 0, 1)];
+  const projected = projectPca({ values: Array(25).fill(0) }, references, [], "modern");
+  assert.deepEqual(projected.points.map((point) => point.ethnicity),
+    ["Türk_Anadolu", "Rum_Helen", "Ermeni"]);
+});
+
 test("invalid coordinates are rejected", () => {
   const references = [reference("A:1", 0, 0), reference("B:2", 1, 0), reference("C:3", 0, 1)];
   assert.throws(() => projectPca({ values: [0] }, references), /25 finite/);

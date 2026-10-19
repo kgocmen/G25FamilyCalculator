@@ -45,13 +45,13 @@ function G25PcaModule(root) {
     return { vector, variance };
   }
 
-  function projectPca(target, references, overlays = []) {
+  function projectPca(target, references, overlays = [], groupStyle = "colon") {
     if (!target || !Array.isArray(target.values) || target.values.length !== DIMENSIONS ||
         !target.values.every(Number.isFinite)) {
       throw new Error("The input needs 25 finite G25 coordinates.");
     }
     if (!Array.isArray(references) || references.length < 3) {
-      throw new Error("At least three medieval references are needed for PCA.");
+      throw new Error("At least three references are needed for PCA.");
     }
     const readRow = (reference, description) => {
       const values = Array.isArray(reference) ? reference.slice(2) : reference.values;
@@ -61,7 +61,7 @@ function G25PcaModule(root) {
       }
       return { label, values };
     };
-    const rows = references.map((reference) => readRow(reference, "A medieval reference"));
+    const rows = references.map((reference) => readRow(reference, "A reference"));
     const overlayRows = overlays.map((overlay) => readRow(overlay, "A PCA overlay"));
     const allRows = [...rows, target, ...overlayRows];
     const mean = Array(DIMENSIONS).fill(0);
@@ -87,7 +87,9 @@ function G25PcaModule(root) {
     };
     return {
       points: rows.map((row) => ({ label: row.label,
-        ethnicity: row.label.split(":", 1)[0], ...position(row.values) })),
+        ethnicity: groupStyle === "modern"
+          ? (row.label.includes(":") ? row.label.split(":", 1)[0] : row.label.split("_", 1)[0])
+          : row.label.split(":", 1)[0], ...position(row.values) })),
       target: { label: target.label || "Input", ...position(target.values) },
       overlays: overlayRows.map((row) => ({ label: row.label, ...position(row.values) })),
       explained: trace > 0 ? [first.variance / trace, second.variance / trace] : [0, 0],

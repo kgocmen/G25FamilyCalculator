@@ -3,6 +3,14 @@ function G25MedievalModule(root) {
 
   const DIMENSIONS = 25;
 
+  function groupName(label, groupStyle) {
+    if (groupStyle === "modern") {
+      const colon = label.indexOf(":");
+      return colon < 0 ? label.split("_", 1)[0] : label.slice(0, colon);
+    }
+    return label.split(":", 1)[0];
+  }
+
   function projectSimplex(values) {
     const sorted = [...values].sort((a, b) => b - a);
     let sum = 0;
@@ -28,18 +36,18 @@ function G25MedievalModule(root) {
     return weights.reduce((sum, weight, index) => sum + weight * product[index], 0);
   }
 
-  function fitUnrestricted(target, references) {
+  function fitUnrestricted(target, references, groupStyle = "colon") {
     if (!target || !Array.isArray(target.values) || target.values.length !== DIMENSIONS ||
         !target.values.every(Number.isFinite)) {
       throw new Error("The input needs 25 finite G25 coordinates.");
     }
     if (!Array.isArray(references) || !references.length) {
-      throw new Error("Medieval references are unavailable.");
+      throw new Error("References are unavailable.");
     }
     const centered = references.map((reference) => {
       const values = Array.isArray(reference) ? reference.slice(2) : reference.values;
       if (!Array.isArray(values) || values.length !== DIMENSIONS || !values.every(Number.isFinite)) {
-        throw new Error("A medieval reference has invalid G25 coordinates.");
+        throw new Error("A reference has invalid G25 coordinates.");
       }
       return values.map((value, index) => value - target.values[index]);
     });
@@ -102,7 +110,7 @@ function G25MedievalModule(root) {
       const colon = label.indexOf(":");
       return {
         label,
-        ethnicity: colon < 0 ? label : label.slice(0, colon),
+        ethnicity: groupName(label, groupStyle),
         sample: colon < 0 ? label : label.slice(colon + 1),
         weight: weight / total,
       };
@@ -126,19 +134,24 @@ function G25MedievalModule(root) {
     return { distance, components, groups };
   }
 
-  function fitAdmixture(target, references, groupLimit = 5) {
+  function fitAdmixture(target, references, groupLimit = 5, groupStyle = "colon") {
     if (![3, 4, 5].includes(groupLimit)) throw new Error("Choose a limit of 3, 4 or 5 groups.");
-    const unrestricted = fitUnrestricted(target, references);
+    if (groupStyle !== "colon" && groupStyle !== "modern") throw new Error("Unknown ancestry grouping.");
+    const unrestricted = fitUnrestricted(target, references, groupStyle);
     if (unrestricted.groups.length <= groupLimit) return unrestricted;
-    const groupName = (row) => (Array.isArray(row) ? row[1] : row.label).split(":")[0];
-    const names = [...new Set(references.map(groupName))].sort();
+    const referenceGroup = (row) => groupName(Array.isArray(row) ? row[1] : row.label, groupStyle);
+    if (groupStyle === "modern") {
+      const selected = new Set(unrestricted.groups.slice(0, groupLimit).map((group) => group.ethnicity));
+      return fitUnrestricted(target, references.filter((row) => selected.has(referenceGroup(row))), groupStyle);
+    }
+    const names = [...new Set(references.map(referenceGroup))].sort();
     let best = null;
     // Evaluate every allowed group subset, refitting all samples within it.
     // The cap applies to ancestry groups, not individual reference samples.
     function search(start, selected) {
       if (selected.length === groupLimit) {
-        const subset = references.filter((row) => selected.includes(groupName(row)));
-        const fit = fitUnrestricted(target, subset);
+        const subset = references.filter((row) => selected.includes(referenceGroup(row)));
+        const fit = fitUnrestricted(target, subset, groupStyle);
         if (!best || fit.distance < best.distance) best = fit;
         return;
       }
