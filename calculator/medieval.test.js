@@ -69,7 +69,7 @@ test("modern groups use the prefix before the colon and tolerate one ungrouped l
     reference("Ermeni_Erzurum_(n=9)", 1, 1),
   ];
   for (const [index, name] of [[1, "Türk_Anadolu"], [2, "Rum_Helen"], [3, "Ermeni"]]) {
-    const fit = fitAdmixture({ values: references[index].slice(2) }, references, 5, "modern");
+    const fit = fitAdmixture({ values: references[index].slice(2) }, references, 2, "modern");
     assert.equal(fit.groups[0].ethnicity, name);
     assert.equal(fit.groups[0].weight, 1);
   }
@@ -79,7 +79,10 @@ test("modern group limit refits selected groups", () => {
   const references = Array.from({ length: 6 }, (_, group) => ["modern", `Group_${group}:Sample`,
     ...Array.from({ length: 25 }, (_, k) => k === group ? 1 : 0)]);
   const target = { values: Array.from({ length: 25 }, (_, k) => k < 6 ? 1 / 6 : 0) };
-  const fit = fitAdmixture(target, references, 3, "modern");
-  assert.equal(fit.groups.length, 3);
-  assert.ok(Math.abs(fit.groups.reduce((sum, group) => sum + group.weight, 0) - 1) < 1e-12);
+  for (const limit of [1, 2, 3]) {
+    const fit = fitAdmixture(target, references, limit, "modern");
+    assert.equal(fit.groups.length, limit);
+    assert.ok(Math.abs(fit.groups.reduce((sum, group) => sum + group.weight, 0) - 1) < 1e-12);
+  }
+  assert.throws(() => fitAdmixture(target, references, 4, "modern"), /1, 2 or 3/);
 });

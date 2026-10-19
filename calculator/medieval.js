@@ -135,8 +135,13 @@ function G25MedievalModule(root) {
   }
 
   function fitAdmixture(target, references, groupLimit = 5, groupStyle = "colon") {
-    if (![3, 4, 5].includes(groupLimit)) throw new Error("Choose a limit of 3, 4 or 5 groups.");
     if (groupStyle !== "colon" && groupStyle !== "modern") throw new Error("Unknown ancestry grouping.");
+    const allowedLimits = groupStyle === "modern" ? [1, 2, 3] : [3, 4, 5];
+    if (!allowedLimits.includes(groupLimit)) {
+      throw new Error(groupStyle === "modern"
+        ? "Choose a limit of 1, 2 or 3 groups."
+        : "Choose a limit of 3, 4 or 5 groups.");
+    }
     const unrestricted = fitUnrestricted(target, references, groupStyle);
     if (unrestricted.groups.length <= groupLimit) return unrestricted;
     const referenceGroup = (row) => groupName(Array.isArray(row) ? row[1] : row.label, groupStyle);

@@ -12,11 +12,11 @@
   <script defer src="medieval_references.js?v=20261017-20"></script>
   <script defer src="core.js?v=20261017-21"></script>
   <script defer src="mixture.js?v=20261015-5"></script>
-  <script defer src="medieval.js?v=20261019-1"></script>
+  <script defer src="medieval.js?v=20261019-2"></script>
   <script defer src="pca.js?v=20261019-1"></script>
-  <script defer src="modern_pca.js?v=20261019-5"></script>
+  <script defer src="modern_pca.js?v=20261019-7"></script>
   <script defer src="pca_layout.js?v=20261016-2"></script>
-  <script defer src="app.js?v=20261019-9"></script>
+  <script defer src="app.js?v=20261019-14"></script>
 </head>
 <body>
   <main class="shell">
@@ -180,7 +180,7 @@
         <div class="period-controls">
           <label id="modern-pca-filter" class="match-filter modern-pca-filter" hidden>PCA
             <select id="modern-pca-select" aria-label="Modern PCA">
-              <option value="auto">Auto · closest population</option>
+              <option value="auto">Closest population</option>
             </select>
           </label>
           <label id="medieval-group-filter" class="match-filter medieval-group-filter">Max groups
@@ -188,6 +188,13 @@
               <option value="3">3 groups</option>
               <option value="4">4 groups</option>
               <option value="5" selected>5 groups</option>
+            </select>
+          </label>
+          <label id="modern-group-filter" class="match-filter medieval-group-filter" hidden>Max groups
+            <select id="modern-group-limit" aria-label="Maximum modern ancestry groups">
+              <option value="1">1 group</option>
+              <option value="2" selected>2 groups</option>
+              <option value="3">3 groups</option>
             </select>
           </label>
         </div>
