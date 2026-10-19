@@ -31,6 +31,9 @@ test("nonnegative mixture weights add to 100% and group by ethnicity", () => {
   assert.ok(Math.abs(fit.groups.find((group) => group.ethnicity === "Türk").weight - 0.5) < 1e-4);
   assert.ok(Math.abs(fit.groups.find((group) => group.ethnicity === "Rum").weight - 0.5) < 1e-4);
   assert.equal(fit.groups.find((group) => group.ethnicity === "Türk").samples.length, 2);
+  assert.equal(fit.values.length, 25);
+  assert.ok(fit.values.every((value, coordinate) => Math.abs(value - fit.components.reduce((sum, part) =>
+    sum + part.weight * references[part.referenceIndex][coordinate + 2], 0)) < 1e-12));
 });
 
 test("invalid G25 vectors are rejected", () => {

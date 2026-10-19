@@ -26,6 +26,8 @@
     medievalGroupLimit: 5,
     modernGroupLimit: 2,
     modernPcaId: "auto",
+    visualiseCategory: "modern",
+    visualiseLimit: null,
     single: null,
     compare: [null, null],
     offspring: null,
@@ -55,6 +57,7 @@
   let modernMixedPca = null;
   let modernMixedDirty = true;
   let modernPcaFitDistances = new Map();
+  let admixedOutput = "";
   let relaxedFits = { modern: [], ancient: [] };
   let relaxedReady = { modern: false, ancient: false };
   let strictFits = { parents: [], grandparents: [] };
@@ -375,6 +378,9 @@
   }
 
   function cancelMedieval() {
+    admixedOutput = "";
+    $("#copy-admixed").disabled = true;
+    $("#copy-admixed").textContent = "Copy admixed coordinates";
     medievalRequest += 1;
     if (medievalWorker) medievalWorker.terminate();
     if (medievalWorkerUrl) URL.revokeObjectURL(medievalWorkerUrl);
@@ -618,16 +624,24 @@
       button.classList.toggle("active", active);
       button.setAttribute("aria-pressed", String(active));
     });
-    $("#single-input").hidden = mode !== 1;
+    const singleMode = mode === 1 || mode === 9;
+    $("#single-input").hidden = !singleMode;
     const compareInputs = $("#compare-inputs");
     if (compareInputs) compareInputs.hidden = mode !== 0;
-    $("#family-inputs").hidden = mode === 0 || mode === 1;
-    $("#result-panel").hidden = mode === 0 || mode === 1;
+    $("#family-inputs").hidden = mode === 0 || singleMode;
+    $("#result-panel").hidden = mode === 0 || singleMode;
     $("#single-ancient-matches-group").hidden = true;
     $("#calculated-matches-group").hidden = mode === 1;
     $("#match-filter").hidden = mode === 1;
     $("#analyse-match-filter").hidden = mode !== 1;
-    $("#inputs-title").textContent = mode === 1 ? "Analyse" : mode === 0 ? "Compare" : "Family inputs";
+    $("#inputs-title").textContent = mode === 9 ? "Visualise" : mode === 1 ? "Analyse" : mode === 0 ? "Compare" : "Family inputs";
+    for (const selector of ["#visualise-category-filter", "#visualise-limit-filter"]) $(selector).hidden = mode !== 9;
+    $("#copy-admixed").hidden = mode !== 9 && !(mode === 1 && state.turkish && isPeriodView());
+    $("#medieval-breakdown-list").classList.toggle("visualise-breakdown", mode === 9);
+    if (mode === 9) {
+      renderVisualise();
+      return;
+    }
     if (mode === 1) {
       $("#suggestions-panel").hidden = true;
       suggestionTarget = null;
@@ -842,8 +856,115 @@
     return state.analysisView === "early" || state.analysisView === "late" || state.analysisView === "modern";
   }
 
+  function visualiseWorkerMain() {
+    self.onmessage = ({ data }) => {
+      try {
+        const fit = self.G25Visualise.fitAncestry(data.target, data.references, data.limit);
+        self.postMessage({ requestId: data.requestId, fit });
+      } catch (error) {
+        self.postMessage({ requestId: data.requestId, error: error.message });
+      }
+    };
+  }
+
+  function renderVisualise() {
+    cancelMixtures();
+    cancelMedieval();
+    suggestionTarget = null;
+    preparedMatches = null;
+    preparedContext = null;
+    updateAnalysisView();
+    for (const selector of ["#suggestions-panel", "#metrics-group", "#remaining-admixture-panel",
+      "#metric-controls", "#difference-panel", "#ratio-panel", "#d3-panel"]) $(selector).hidden = true;
+    $("#single-row").replaceChildren(createRow("Sample", { type: "single" }, state.single, null));
+    $("#medieval-breakdown-panel").hidden = false;
+    $("#medieval-breakdown-title").textContent = "Ancestry analysis";
+    $("#ancestry-composition-title").hidden = true;
+    $("#pca-heading-title").textContent = "PCA";
+    for (const selector of ["#medieval-group-filter", "#modern-group-filter", "#modern-pca-filter"]) $(selector).hidden = true;
+    $("#visualise-category").value = state.visualiseCategory;
+    $("#visualise-limit").value = state.visualiseLimit === null ? "unlimited" : String(state.visualiseLimit);
+    const list = $("#medieval-breakdown-list");
+    const status = $("#medieval-breakdown-status");
+    list.replaceChildren();
+    $("#medieval-breakdown-distance").hidden = true;
+    $("#pca-section").hidden = true;
+    $("#medieval-pca-plot").replaceChildren();
+    $("#medieval-pca-legend").replaceChildren();
+    $("#modern-closest-population").hidden = true;
+    if (!state.single) {
+      status.textContent = "Choose or paste a sample to visualise its ancestry and PCA.";
+      return;
+    }
+    const candidates = references.filter((row) => row[0] === state.visualiseCategory);
+    if (!candidates.length) {
+      status.textContent = "No references match this dataset and your population lists.";
+      return;
+    }
+    const closest = core.nearestMatches(state.single, candidates, 1)[0];
+    const note = $("#modern-closest-population");
+    note.textContent = `Closest population: ${closest.label.replaceAll("_", " ")} · Distance ${closest.distance.toFixed(3)}`;
+    note.hidden = false;
+    status.textContent = "Calculating ancestry composition…";
+    const requestId = medievalRequest;
+    try {
+      const source = `(${window.G25VisualiseModule.toString()})(self);\n(${visualiseWorkerMain.toString()})();`;
+      const url = URL.createObjectURL(new Blob([source], { type: "text/javascript" }));
+      medievalWorkerUrl = url;
+      const worker = new Worker(url);
+      medievalWorker = worker;
+      const finish = () => {
+        worker.terminate();
+        URL.revokeObjectURL(url);
+        if (medievalWorker === worker) {
+          medievalWorker = null;
+          medievalWorkerUrl = null;
+        }
+      };
+      worker.onmessage = ({ data }) => {
+        if (data.requestId !== medievalRequest || state.mode !== 9) return;
+        finish();
+        if (data.error) {
+          status.textContent = data.error;
+          return;
+        }
+        const fit = data.fit;
+        prepareAdmixedCopy(fit);
+        const units = allocatePercentUnits(fit.components.map((part) => part.weight), 1000);
+        status.textContent = `${fit.components.length} fitted populations · 100.0% total`;
+        $("#medieval-breakdown-distance").textContent = `Fit distance ${fit.distance.toFixed(3)}`;
+        $("#medieval-breakdown-distance").hidden = false;
+        fit.components.forEach((part, index) => {
+          const row = document.createElement("div");
+          row.className = "breakdown-group visualise-population";
+          const name = document.createElement("span");
+          name.className = "breakdown-name";
+          name.textContent = part.label.replaceAll("_", " ");
+          const weight = document.createElement("strong");
+          weight.textContent = formatPercent(units[index]);
+          row.append(name, weight, excludeButton({ label: part.label, category: state.visualiseCategory }));
+          list.append(row);
+        });
+        const fittedRows = fit.components.map((part) => candidates[part.referenceIndex]);
+        $("#pca-section").hidden = false;
+        renderMedievalPca(fittedRows, "Visualise", true, closest, true,
+          { references: candidates, groupStyle: "population" });
+      };
+      worker.onerror = () => {
+        if (requestId !== medievalRequest) return;
+        finish();
+        status.textContent = "Ancestry analysis could not start in this browser.";
+      };
+      worker.postMessage({ requestId, target: state.single, references: candidates, limit: state.visualiseLimit });
+    } catch (error) {
+      cancelMedieval();
+      status.textContent = `Ancestry analysis could not start: ${error.message}`;
+    }
+  }
+
   function updateAnalysisView() {
     const periodView = state.mode === 1 && state.turkish && isPeriodView();
+    $("#copy-admixed").hidden = state.mode !== 9 && !periodView;
     const available = state.mode === 1 && Boolean(state.single) && (periodView || references.length > 0);
     for (const [selector, active] of [
       ["#analysis-results-tab", !periodView],
@@ -1066,7 +1187,7 @@
     }
   }
 
-  function renderMedievalPca(periodReferences, period, isModern, closest = null, mixed = false) {
+  function renderMedievalPca(periodReferences, period, isModern, closest = null, mixed = false, options = {}) {
     const container = $("#medieval-pca-plot");
     const legend = $("#medieval-pca-legend");
     if (pcaTooltip) pcaTooltip.remove();
@@ -1076,9 +1197,9 @@
     for (const selector of ["#pca-zoom-in", "#pca-zoom-out", "#pca-zoom-reset"]) $(selector).disabled = true;
     $("#pca-zoom-level").textContent = "100%";
     let projection;
-    const modernReferences = isModern
+    const modernReferences = options.references || (isModern
       ? allowedReferences(turkishReferences.filter((row) => row[0] === "modern"))
-      : references.filter((row) => row[0] === "modern");
+      : references.filter((row) => row[0] === "modern"));
     const closestModern = isModern ? (closest ? [closest] : [])
       : core.nearestMatches(state.single, modernReferences, 3);
     const closestRows = closestModern.map((match) => modernReferences[match.id]);
@@ -1089,7 +1210,7 @@
     try {
       projection = window.G25Pca.projectPca(state.single, periodReferences,
         isModern && highlightedIndex >= 0 ? [] : closestRows,
-        isModern ? "modern" : "colon", mixed);
+        options.groupStyle || (isModern ? "modern" : "colon"), mixed);
     } catch (error) {
       container.textContent = error.message;
       return;
@@ -1442,7 +1563,13 @@
     legend.append(input);
   }
 
+  function prepareAdmixedCopy(fit) {
+    admixedOutput = core.formatLine(`${state.single.label}_admixed`, fit.values);
+    $("#copy-admixed").disabled = false;
+  }
+
   function renderMedievalFit(fit, isModern = false) {
+    prepareAdmixedCopy(fit);
     const status = $("#medieval-breakdown-status");
     const distance = $("#medieval-breakdown-distance");
     const list = $("#medieval-breakdown-list");
@@ -1872,7 +1999,8 @@
       } else {
         fallbackCopy(text);
       }
-      const previous = button.textContent;
+      const previous = button.dataset.copyLabel || button.textContent;
+      button.dataset.copyLabel = previous;
       button.textContent = "Copied!";
       window.setTimeout(() => { button.textContent = previous; }, 1400);
     } catch (error) {
@@ -1893,7 +2021,7 @@
   }
 
   document.querySelectorAll(".mode-button").forEach((button) => {
-    if (![0, 1, 2, 4, 8].includes(Number(button.dataset.mode))) {
+    if (![0, 1, 2, 4, 8, 9].includes(Number(button.dataset.mode))) {
       button.hidden = true;
       return;
     }
@@ -1918,6 +2046,8 @@
     state.medievalGroupLimit = 5;
     state.modernGroupLimit = 2;
     state.modernPcaId = "auto";
+    state.visualiseCategory = "modern";
+    state.visualiseLimit = null;
     modernMixedPca = null;
     modernMixedDirty = true;
     familyMessage = "";
@@ -1955,6 +2085,14 @@
   $("#medieval-group-limit").addEventListener("change", (event) => {
     state.medievalGroupLimit = Number(event.currentTarget.value);
     renderSingle();
+  });
+  $("#visualise-category").addEventListener("change", (event) => {
+    state.visualiseCategory = event.currentTarget.value;
+    render();
+  });
+  $("#visualise-limit").addEventListener("change", (event) => {
+    state.visualiseLimit = event.currentTarget.value === "unlimited" ? null : Number(event.currentTarget.value);
+    render();
   });
   $("#modern-group-limit").addEventListener("change", (event) => {
     const limit = Number(event.currentTarget.value);
@@ -2066,6 +2204,9 @@
     }
   });
   $("#copy-result").addEventListener("click", (event) => copyText(state.output, event.currentTarget));
+  $("#copy-admixed").addEventListener("click", (event) => {
+    if (admixedOutput) copyText(admixedOutput, event.currentTarget);
+  });
   rebuildGroupExclusions();
   render();
 })();

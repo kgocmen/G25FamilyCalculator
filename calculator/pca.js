@@ -88,7 +88,7 @@ function G25PcaModule(root) {
     };
     return {
       points: rows.map((row) => ({ label: row.label,
-        ethnicity: groupStyle === "modern"
+        ethnicity: groupStyle === "population" ? row.label : groupStyle === "modern"
           ? (row.label.includes(":") ? row.label.split(":", 1)[0] : row.label.split("_", 1)[0])
           : row.label.split(":", 1)[0], ...position(row.values) })),
       target: { label: target.label || "Input", ...position(target.values) },

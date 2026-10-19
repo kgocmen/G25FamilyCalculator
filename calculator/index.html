@@ -5,18 +5,19 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#14243b">
   <title>G25 Family Calculator</title>
-  <link rel="stylesheet" href="style.css?v=20261019-7">
-  <script defer src="references.js?v=20261019-1"></script>
-  <script defer src="turkish_references.js?v=20261019-5"></script>
-  <script defer src="modern_pca_references.js?v=20261019-20"></script>
-  <script defer src="medieval_references.js?v=20261019-1"></script>
+  <link rel="stylesheet" href="style.css?v=20261020-1">
+  <script defer src="references.js?v=20261020-1"></script>
+  <script defer src="turkish_references.js?v=20261020-1"></script>
+  <script defer src="modern_pca_references.js?v=20261020-1"></script>
+  <script defer src="medieval_references.js?v=20261020-1"></script>
   <script defer src="core.js?v=20261017-21"></script>
   <script defer src="mixture.js?v=20261015-5"></script>
-  <script defer src="medieval.js?v=20261019-7"></script>
-  <script defer src="pca.js?v=20261019-2"></script>
+  <script defer src="medieval.js?v=20261020-1"></script>
+  <script defer src="visualise.js?v=20261020-3"></script>
+  <script defer src="pca.js?v=20261020-1"></script>
   <script defer src="modern_pca.js?v=20261020-1"></script>
   <script defer src="pca_layout.js?v=20261016-2"></script>
-  <script defer src="app.js?v=20261020-1"></script>
+  <script defer src="app.js?v=20261020-4"></script>
 </head>
 <body>
   <main class="shell">
@@ -45,6 +46,7 @@
       <div class="mode-switch" role="group" aria-label="Calculator mode">
         <button class="mode-button" type="button" data-mode="1" aria-pressed="false">Analyse</button>
         <button class="mode-button" type="button" data-mode="0" aria-pressed="false">Compare</button>
+        <button class="mode-button" type="button" data-mode="9" aria-pressed="false">Visualise</button>
         <button class="mode-button active" type="button" data-mode="2" aria-pressed="true">2 parents</button>
         <button class="mode-button" type="button" data-mode="4" aria-pressed="false">4 grandparents</button>
         <button class="mode-button" type="button" data-mode="8" aria-pressed="false">8 great-grandparents</button>
@@ -178,6 +180,21 @@
           <p id="modern-closest-population" hidden></p>
         </div>
         <div class="period-controls">
+          <button id="copy-admixed" class="text-button" type="button" title="Copy G25 coordinates reconstructed from the fitted mixture" hidden disabled>Copy admixed coordinates</button>
+          <label id="visualise-category-filter" class="match-filter" hidden>Reference set
+            <select id="visualise-category" aria-label="Visualise reference set">
+              <option value="modern">Modern</option>
+              <option value="ancient">Ancient</option>
+            </select>
+          </label>
+          <label id="visualise-limit-filter" class="match-filter" hidden>Max populations
+            <select id="visualise-limit" aria-label="Maximum Visualise populations">
+              <option value="unlimited" selected>Unlimited</option>
+              <option value="3">3</option>
+              <option value="4">4</option>
+              <option value="5">5</option>
+            </select>
+          </label>
           <div id="modern-pca-filter" class="match-filter modern-pca-filter" hidden>
             <span id="modern-pca-label">PCA</span>
             <details id="modern-pca-chooser" class="modern-pca-chooser">

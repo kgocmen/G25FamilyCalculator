@@ -1,0 +1,143 @@
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
+const test = require("node:test");
+const vm = require("node:vm");
+const { fitAncestry } = require("./visualise.js");
+const { projectPca } = require("./pca.js");
+
+const reference = (index) => ["modern", `Shared_Group:Population_${index}`,
+  ...Array.from({ length: 25 }, (_, coordinate) => coordinate === index ? 1 : 0)];
+const references = Array.from({ length: 6 }, (_, index) => reference(index));
+const target = { values: Array.from({ length: 25 }, (_, index) => index < 6 ? 1 / 6 : 0) };
+
+test("Unlimited fits more than five populations, including more than four from one prefix", () => {
+  const fit = fitAncestry(target, references, null);
+  assert.equal(fit.components.length, 6);
+  assert.ok(fit.distance < 1e-6);
+  assert.ok(fit.components.every((part) => Math.abs(part.weight - 1 / 6) < 1e-6));
+  assert.ok(fit.components.every((part) => part.label === part.ethnicity));
+});
+
+test("3/4/5 source limits refit and normalize the complete reported mixture", () => {
+  for (const limit of [3, 4, 5]) {
+    const fit = fitAncestry(target, references, limit);
+    assert.equal(fit.components.length, limit);
+    assert.ok(Math.abs(fit.components.reduce((sum, part) => sum + part.weight, 0) - 1) < 1e-12);
+    assert.ok(Math.abs(fit.distance - Math.sqrt(1 / limit - 1 / 6) * 100) < 1e-5);
+    const residual = target.values.map((value, coordinate) => value - fit.components.reduce((sum, part) =>
+      sum + part.weight * references[part.referenceIndex][coordinate + 2], 0));
+    assert.ok(Math.abs(fit.distance - Math.hypot(...residual) * 100) < 1e-9);
+    assert.equal(fit.values.length, 25);
+    assert.ok(fit.values.every((value, coordinate) => Math.abs(value - (target.values[coordinate] - residual[coordinate])) < 1e-12));
+  }
+});
+
+test("searches the complete dataset and returns original reference indices", () => {
+  const pool = Array.from({ length: 5000 }, (_, index) => ["ancient", `Sample_${index}`, index / 5000, ...Array(24).fill(0)]);
+  const fit = fitAncestry({ values: pool[4999].slice(2) }, pool, null);
+  assert.equal(fit.distance, 0);
+  assert.equal(fit.components.length, 1);
+  assert.equal(fit.components[0].referenceIndex, 4999);
+});
+
+test("invalid inputs fail with useful messages", () => {
+  assert.throws(() => fitAncestry(target, [], null), /unavailable/);
+  assert.throws(() => fitAncestry({ values: [1] }, references, null), /25 finite/);
+  assert.throws(() => fitAncestry(target, references, 2), /Unlimited, 3, 4 or 5/);
+  assert.throws(() => fitAncestry(target, [references[0], ["modern", "Invalid", NaN]], null), /invalid G25/);
+});
+
+test("worker serializes the solver and produces unrestricted and capped fits", () => {
+  const app = fs.readFileSync(path.join(__dirname, "app.js"), "utf8");
+  const start = app.indexOf("  function visualiseWorkerMain() {");
+  const end = app.indexOf("  function renderVisualise() {", start);
+  const modules = ["visualise.js"].map((file) =>
+    fs.readFileSync(path.join(__dirname, file), "utf8")).join("\n");
+  let result;
+  const self = { postMessage(message) { result = message; } };
+  vm.runInNewContext(`${modules}\n(${app.slice(start, end).trim()})()`, { self, globalThis: self });
+  for (const limit of [null, 3, 4, 5]) {
+    self.onmessage({ data: { target, references, limit, requestId: 7 } });
+    assert.equal(result.error, undefined);
+    assert.equal(result.requestId, 7);
+    assert.equal(result.fit.components.length, limit || 6);
+    assert.equal(result.fit.values.length, 25);
+  }
+});
+
+test("population PCA supports a single fitted source and preserves complete labels", () => {
+  const projection = projectPca({ ...target, label: "Input" }, [references[0]], [references[1]], "population", true);
+  assert.equal(projection.points.length, 1);
+  assert.equal(projection.points[0].ethnicity, references[0][1]);
+  assert.equal(projection.overlays.length, 1);
+  assert.equal(projection.target.label, "Input");
+  const exact = projectPca({ values: references[0].slice(2) }, [references[0]], [], "population", true);
+  assert.ok(Number.isFinite(exact.target.x) && Number.isFinite(exact.target.y));
+});
+
+function seededPool(seed, count, dimensions = 25) {
+  const random = () => {
+    seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+    return (seed / 4294967296 - 0.5) * 0.04;
+  };
+  const references = Array.from({ length: count }, (_, index) => ["modern", `P${index}`,
+    ...Array.from({ length: 25 }, (_, coordinate) => coordinate < dimensions ? random() : 0)]);
+  return { references, random };
+}
+
+test("matches independent SciPy optima for unrestricted and exhaustive capped searches", () => {
+  const { references, random } = seededPool(20261020, 12);
+  const input = { values: Array.from({ length: 25 }, random) };
+  // SciPy SLSQP; capped distances enumerate every allowed reference subset.
+  const expected = [[null, 4.816138905238165], [3, 4.862256834987363],
+    [4, 4.8167059535382695], [5, 4.816138905236781]];
+  for (const [limit, distance] of expected) {
+    const fit = fitAncestry(input, references, limit);
+    assert.ok(Math.abs(fit.distance - distance) < 1e-7);
+    if (limit === null) assert.equal(fit.converged, true);
+  }
+});
+
+test("escapes the original capped search's local minimum", () => {
+  const { references } = seededPool(8, 16, 6);
+  const input = { values: Array.from({ length: 25 }, (_, coordinate) =>
+    [0, 3, 7, 12, 15].reduce((sum, index) => sum + references[index][coordinate + 2] / 5, 0)) };
+  // Independently exhaustively checked with SciPy; the old 3-source fit was 0.784437.
+  for (const [limit, distance] of [[3, 0.1689720584908396], [4, 0.047839218969295695], [5, 0]]) {
+    const fit = fitAncestry(input, references, limit);
+    assert.ok(Math.abs(fit.distance - distance) < 1e-7);
+    assert.ok(fit.components.length <= limit);
+  }
+});
+
+test("handles duplicate and dependent references and satisfies whole-pool optimality", () => {
+  const references = [0, 0, 0.25, 0.5, 0.75, 1, 1].map((value, index) =>
+    ["ancient", `Line${index}`, value, ...Array(24).fill(0)]);
+  const input = { values: [0.3, 0.4, ...Array(23).fill(0)] };
+  const fit = fitAncestry(input, references);
+  assert.equal(fit.converged, true);
+  assert.ok(Math.abs(fit.distance - 40) < 1e-8);
+  const residual = input.values.map((value, coordinate) => fit.components.reduce((sum, part) =>
+    sum + part.weight * references[part.referenceIndex][coordinate + 2], 0) - value);
+  const score = residual.reduce((sum, value) => sum + value * value, 0);
+  const minGradient = Math.min(...references.map((row) => residual.reduce((sum, value, coordinate) =>
+    sum + value * (row[coordinate + 2] - input.values[coordinate]), 0)));
+  assert.ok(score - minGradient < 1e-12);
+});
+
+test("global modern data converges and capped multi-start fits beat the old greedy results", () => {
+  const bundle = fs.readFileSync(path.join(__dirname, "references.js"), "utf8");
+  const references = JSON.parse(bundle.slice(bundle.indexOf("=") + 1).trim().replace(/;$/, ""))
+    .filter((row) => row[0] === "modern");
+  const input = { values: Array.from({ length: 25 }, (_, coordinate) =>
+    [3, 25, 88, 125, 255, 511].reduce((sum, index) => sum + references[index][coordinate + 2] / 6, 0)) };
+  // Original distances: Unlimited 0.026646; capped 2.960574 / 2.021077 / 1.471328.
+  for (const [limit, upperBound] of [[null, 1e-8], [3, 0.8], [4, 0.4], [5, 0.15]]) {
+    const fit = fitAncestry(input, references, limit);
+    assert.ok(fit.distance < upperBound, `${limit}: ${fit.distance}`);
+    assert.ok(limit === null || fit.components.length <= limit);
+    assert.ok(fit.components.every((part) => part.weight > 0 && references[part.referenceIndex][1] === part.label));
+    if (limit === null) assert.equal(fit.converged, true);
+  }
+});

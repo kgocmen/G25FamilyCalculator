@@ -133,6 +133,8 @@ p { margin: 0; }
 .breakdown-name { flex: 1; min-width: 0; overflow-wrap: anywhere; font-weight: 700; }
 .breakdown-group strong { flex: 0 0 auto; font-variant-numeric: tabular-nums; }
 .breakdown-group summary .exclude-group { margin-left: -12px; }
+.visualise-population { display: flex; gap: 12px; align-items: center; font-size: 14px; }
+.visualise-breakdown { max-height: 380px; overflow-y: auto; scrollbar-gutter: stable; }
 .breakdown-bar { height: 5px; margin: 10px 0 0; border-radius: 5px; background: #e6eef3; overflow: hidden; }
 .breakdown-bar span { display: block; height: 100%; border-radius: inherit; background: #368cad; }
 .breakdown-samples { display: grid; gap: 8px; margin: 12px 0 0; padding: 12px 0 0; border-top: 1px solid #edf1f4; list-style: none; }

@@ -133,7 +133,7 @@ function G25MedievalModule(root) {
     }
     const groups = [...byEthnicity.values()]
       .sort((a, b) => b.weight - a.weight || a.ethnicity.localeCompare(b.ethnicity));
-    return { distance, components, groups };
+    return { distance, components, groups, values: target.values.map((value, index) => value + residual[index]) };
   }
 
   function fitWithSampleCap(target, references, groupStyle) {

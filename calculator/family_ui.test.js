@@ -175,7 +175,7 @@ assert.ok(!document.querySelector('#family-optimise-status').textContent.include
 // The group control excludes unfitted members and aliases across PCAs as one restorable rule.
 const list = document.querySelector('#medieval-breakdown-list');
 list.replaceChildren();
-api.renderMedievalFit({ distance: 0, groups: [{ ethnicity: 'Group_A', weight: 1,
+api.renderMedievalFit({ distance: 0, values: Array(25).fill(2), groups: [{ ethnicity: 'Group_A', weight: 1,
   samples: [{ label: 'Group_A:Fitted', sample: 'Fitted', weight: 1 }] }] }, true);
 const groupSummary = list.children[0].children[0];
 const groupButton = groupSummary.children[2];
