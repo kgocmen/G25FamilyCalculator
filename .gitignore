@@ -1,9 +1,11 @@
 # Keep the curated Turkish sources alongside their browser bundle.
 data/*
+!data/pca/
+data/pca/*
+!data/pca/turkish_pca_config.txt
+!data/pca/turkish_modern_pca*_g25.txt
 !data/turkish_modern_g25.txt
 !data/turkish_ancient_g25.txt
-!data/turkish_medieval_g25.txt
-!data/turkish_medieval_g25_new.txt
 !data/turkish_early_medieval_g25.txt
 !data/turkish_late_medieval_g25.txt
 *.py

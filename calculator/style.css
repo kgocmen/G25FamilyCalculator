@@ -93,10 +93,19 @@ p { margin: 0; }
 .matches-table.mixture-table th:first-child, .matches-table.mixture-table td:first-child { min-width: 36px; }
 .mixture-status { padding: 16px; color: #607286; font-size: 13px; }
 .breakdown-distance { flex: 0 0 auto; color: #365a72; font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.breakdown-heading { margin: 24px 0 12px; color: #14243b; font-size: 15px; }
+.breakdown-heading[hidden] { display: none; }
 .pca-section { margin-top: 32px; }
-.pca-section h3 { margin: 0 0 10px; font-size: 15px; }
+.pca-heading { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 10px; }
+.pca-section h3 { margin: 0; font-size: 15px; }
+.pca-zoom-controls { display: inline-flex; align-items: center; gap: 5px; }
+.pca-zoom-controls button { min-width: 34px; min-height: 30px; padding: 4px 9px; border: 1px solid #dce4eb; border-radius: 7px; background: #fff; color: #365a72; font-weight: 700; }
+.pca-zoom-controls button:disabled { opacity: .45; cursor: default; }
+.pca-zoom-controls output { min-width: 42px; margin-left: 4px; text-align: right; color: #526a80; font-size: 12px; font-variant-numeric: tabular-nums; }
 .pca-scroll { width: 100%; overflow-x: auto; border: 1px solid #dfe7ed; border-radius: 10px; background: #fbfdfe; color: #607286; font-size: 13px; }
 .pca-scroll svg { display: block; width: 100%; min-width: 900px; height: auto; }
+.pca-scroll svg.is-zoomed { cursor: grab; touch-action: none; }
+.pca-scroll svg.is-panning { cursor: grabbing; }
 .pca-grid { stroke: #e5edf2; stroke-width: 1; }
 .pca-frame { fill: none; stroke: #b9cbd7; stroke-width: 1.2; }
 .pca-tick { fill: #6c7e90; font-size: 11px; font-variant-numeric: tabular-nums; }
@@ -260,7 +269,13 @@ body:has(#population-panel[open]) { overflow: hidden; }
 .reference-switch-label { color: #344e65; font-size: 13px; font-weight: 650; }
 .male-option.switch-label { padding: 4px 0; border: 0; gap: 9px; }
 #medieval-breakdown-panel .section-head { flex-wrap: wrap; }
-.medieval-group-filter { margin-left: auto; }
+.period-controls { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px; margin-left: auto; }
+.modern-pca-filter select { min-width: 205px; }
+@media (max-width: 600px) {
+  .period-controls { width: 100%; margin-left: 0; }
+  .period-controls .match-filter { flex: 1 1 130px; }
+  .period-controls select { width: 100%; }
+}
 
 /* Phone layouts keep the page within the viewport; wide results scroll inside tables. */
 @media (max-width: 600px) {

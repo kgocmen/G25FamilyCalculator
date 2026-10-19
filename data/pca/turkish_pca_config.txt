@@ -1,0 +1,59 @@
+{
+  "modern": [
+    {
+      "id": "dogu-akdeniz",
+      "title": "Doğu Akdeniz",
+      "file": "turkish_modern_pca1_g25.txt"
+    },
+    {
+      "id": "kafkasya",
+      "title": "Kafkasya",
+      "file": "turkish_modern_pca2_g25.txt"
+    },
+    {
+      "id": "iran",
+      "title": "İran",
+      "file": "turkish_modern_pca3_g25.txt"
+    },
+    {
+      "id": "mezopotamya",
+      "title": "Mezopotamya",
+      "file": "turkish_modern_pca4_g25.txt"
+    },
+    {
+      "id": "ege-kibris",
+      "title": "Ege ve Kıbrıs",
+      "file": "turkish_modern_pca5_g25.txt"
+    },
+    {
+      "id": "balkanlar",
+      "title": "Balkanlar",
+      "file": "turkish_modern_pca6_g25.txt"
+    },
+    {
+      "id": "ic-anadolu-ic-ege",
+      "title": "İç Anadolu ve İç Ege",
+      "file": "turkish_modern_pca7_g25.txt"
+    },
+    {
+      "id": "marmara-ege-bati-akdeniz",
+      "title": "Güney Marmara, Ege ve Batı Akdeniz",
+      "file": "turkish_modern_pca8_g25.txt"
+    },
+    {
+      "id": "yoruk-cepni",
+      "title": "Yörük ve Çepni",
+      "file": "turkish_modern_pca9_g25.txt"
+    },
+    {
+      "id": "bati-orta-karadeniz",
+      "title": "Batı Karadeniz ve Orta Karadeniz",
+      "file": "turkish_modern_pca10_g25.txt"
+    },
+    {
+      "id": "nogay-tatar",
+      "title": "Nogay ve Tatar",
+      "file": "turkish_modern_pca11_g25.txt"
+    }
+  ]
+}

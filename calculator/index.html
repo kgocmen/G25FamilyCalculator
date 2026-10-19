@@ -5,17 +5,18 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#14243b">
   <title>G25 Family Calculator</title>
-  <link rel="stylesheet" href="style.css?v=20261017-18">
+  <link rel="stylesheet" href="style.css?v=20261019-3">
   <script defer src="references.js?v=20261017-19"></script>
-  <script defer src="turkish_references.js?v=20261019-1"></script>
-  <script defer src="turkish_modern_analysis.js?v=20261019-1"></script>
+  <script defer src="turkish_references.js?v=20261019-3"></script>
+  <script defer src="modern_pca_references.js?v=20261019-14"></script>
   <script defer src="medieval_references.js?v=20261017-20"></script>
   <script defer src="core.js?v=20261017-21"></script>
   <script defer src="mixture.js?v=20261015-5"></script>
   <script defer src="medieval.js?v=20261019-1"></script>
   <script defer src="pca.js?v=20261019-1"></script>
+  <script defer src="modern_pca.js?v=20261019-5"></script>
   <script defer src="pca_layout.js?v=20261016-2"></script>
-  <script defer src="app.js?v=20261019-1"></script>
+  <script defer src="app.js?v=20261019-9"></script>
 </head>
 <body>
   <main class="shell">
@@ -174,19 +175,36 @@
         <div>
           <h2 id="medieval-breakdown-title">Early Medieval</h2>
           <p id="medieval-breakdown-status" role="status"></p>
+          <p id="modern-closest-population" hidden></p>
         </div>
-        <label class="match-filter medieval-group-filter">Max groups
-          <select id="medieval-group-limit" aria-label="Maximum ancestry groups">
-            <option value="3">3 groups</option>
-            <option value="4">4 groups</option>
-            <option value="5" selected>5 groups</option>
-          </select>
-        </label>
+        <div class="period-controls">
+          <label id="modern-pca-filter" class="match-filter modern-pca-filter" hidden>PCA
+            <select id="modern-pca-select" aria-label="Modern PCA">
+              <option value="auto">Auto · closest population</option>
+            </select>
+          </label>
+          <label id="medieval-group-filter" class="match-filter medieval-group-filter">Max groups
+            <select id="medieval-group-limit" aria-label="Maximum ancestry groups">
+              <option value="3">3 groups</option>
+              <option value="4">4 groups</option>
+              <option value="5" selected>5 groups</option>
+            </select>
+          </label>
+        </div>
         <output id="medieval-breakdown-distance" class="breakdown-distance" hidden></output>
       </div>
+      <h3 id="ancestry-composition-title" class="breakdown-heading" hidden>Ancestry composition</h3>
       <div id="medieval-breakdown-list" class="breakdown-list"></div>
-      <div class="pca-section">
-        <h3>PCA plot</h3>
+      <div id="pca-section" class="pca-section">
+        <div class="pca-heading">
+          <h3 id="pca-heading-title">PCA plot</h3>
+          <div class="pca-zoom-controls" role="group" aria-label="PCA zoom">
+            <button id="pca-zoom-in" type="button" aria-label="Zoom in PCA">+</button>
+            <button id="pca-zoom-out" type="button" aria-label="Zoom out PCA">−</button>
+            <button id="pca-zoom-reset" type="button">Reset</button>
+            <output id="pca-zoom-level" aria-live="off">100%</output>
+          </div>
+        </div>
         <div id="medieval-pca-plot" class="pca-scroll" role="region" tabindex="0" aria-label="PCA plot"></div>
         <div id="medieval-pca-legend" class="pca-legend"></div>
       </div>

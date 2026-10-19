@@ -3,7 +3,7 @@
 
   const globalReferences = window.G25_REFERENCES || [];
   const turkishReferences = window.G25_TURKISH_REFERENCES || [];
-  const turkishModernAnalysisReferences = window.G25_TURKISH_MODERN_ANALYSIS_REFERENCES || [];
+  const modernPcas = window.G25_MODERN_PCAS || [];
   const medievalReferences = window.G25_MEDIEVAL_REFERENCES || { early: [], late: [] };
   let references = globalReferences;
   const core = window.G25Core;
@@ -24,6 +24,7 @@
     turkish: false,
     analysisView: "results",
     medievalGroupLimit: 5,
+    modernPcaId: "auto",
     single: null,
     compare: [null, null],
     offspring: null,
@@ -86,6 +87,17 @@
   function allowedReferences(rows) {
     return rows.filter((row) => !blacklist.has(populationKey(row)) &&
       (!whitelist.size || whitelist.has(populationKey(row))));
+  }
+
+  function allowedPcaReferences(pca) {
+    return pca.references.filter((row, index) => {
+      const keys = [populationKey(row)];
+      if (pca.referenceAnchors[index]) {
+        keys.push(populationKey({ category: "modern", label: pca.referenceAnchors[index] }));
+      }
+      return !keys.some((key) => blacklist.has(key)) &&
+        (!whitelist.size || keys.some((key) => whitelist.has(key)));
+    });
   }
 
   function changeBlacklist(item, excluded) {
@@ -170,7 +182,7 @@
     if (!query) return;
     const words = query.split(/\s+/);
     const pool = [...(state.turkish ? turkishReferences : globalReferences),
-      ...(state.turkish ? turkishModernAnalysisReferences : []),
+      ...(state.turkish ? modernPcas.flatMap((pca) => pca.references) : []),
       ...(medievalReferences.early || []), ...(medievalReferences.late || [])];
     const seen = new Set();
     let shown = 0;
@@ -764,14 +776,49 @@
     const list = $("#medieval-breakdown-list");
     list.replaceChildren();
     distance.hidden = true;
-    $("#medieval-group-limit").value = String(state.medievalGroupLimit);
     const isModern = state.analysisView === "modern";
-    const period = isModern ? "Modern" : state.analysisView === "early" ? "Early Medieval" : "Late Medieval";
-    const periodReferences = allowedReferences(isModern
-      ? turkishModernAnalysisReferences : medievalReferences[state.analysisView] || []);
-    $("#medieval-breakdown-title").textContent = period;
-    status.textContent = `Calculating ${period} fit…`;
-    renderMedievalPca(periodReferences, period, isModern);
+    $("#medieval-group-filter").hidden = false;
+    $("#modern-pca-filter").hidden = !isModern;
+    $("#pca-section").hidden = false;
+    $("#ancestry-composition-title").hidden = !isModern;
+    $("#modern-closest-population").hidden = !isModern;
+    $("#pca-heading-title").textContent = isModern ? "Custom PCA" : "PCA plot";
+    $("#medieval-group-limit").value = String(state.medievalGroupLimit);
+    let period = state.analysisView === "early" ? "Early Medieval" : "Late Medieval";
+    let periodReferences;
+    if (isModern) {
+      $("#modern-pca-select").value = state.modernPcaId;
+      const { closest, pca } = window.G25ModernPca.selectModernPca(state.single,
+        allowedReferences(turkishReferences.filter((row) => row[0] === "modern")),
+        modernPcas, core.nearestMatches, state.modernPcaId);
+      periodReferences = pca ? allowedPcaReferences(pca) : [];
+      const hasPlot = periodReferences.length >= 3;
+      period = pca ? pca.title : "Modern";
+      $("#medieval-breakdown-title").textContent = pca ? `Modern · ${pca.title}` : "Modern";
+      $("#pca-heading-title").textContent = pca ? `${pca.title} PCA` : "Custom PCA";
+      const label = closest ? closest.label.replaceAll("_", " ") : null;
+      const closestNote = $("#modern-closest-population");
+      closestNote.textContent = closest ? `Closest population: ${label} · Distance ${closest.distance.toFixed(3)}` : "";
+      if (pca && !hasPlot) status.textContent = "At least three included references are needed for ancestry composition and PCA.";
+      else if (pca) status.textContent = "Calculating ancestry composition…";
+      else if (label) status.textContent = "No custom analysis is available for this population yet.";
+      else status.textContent = "No modern references are available.";
+      $("#pca-section").hidden = !hasPlot;
+      $("#ancestry-composition-title").hidden = !hasPlot;
+      if (hasPlot) renderMedievalPca(periodReferences, pca.title, true);
+      else {
+        $("#medieval-pca-plot").replaceChildren();
+        $("#medieval-pca-legend").replaceChildren();
+        for (const selector of ["#pca-zoom-in", "#pca-zoom-out", "#pca-zoom-reset"]) $(selector).disabled = true;
+        $("#pca-zoom-level").textContent = "100%";
+        return;
+      }
+    } else {
+      periodReferences = allowedReferences(medievalReferences[state.analysisView] || []);
+      $("#medieval-breakdown-title").textContent = period;
+      status.textContent = `Calculating ${period} fit…`;
+      renderMedievalPca(periodReferences, period, false);
+    }
     const requestId = medievalRequest;
     try {
       const source = `(${window.G25MedievalModule.toString()})(self);\n(${medievalWorkerMain.toString()})();`;
@@ -815,9 +862,11 @@
     const legend = $("#medieval-pca-legend");
     container.replaceChildren();
     legend.replaceChildren();
+    for (const selector of ["#pca-zoom-in", "#pca-zoom-out", "#pca-zoom-reset"]) $(selector).disabled = true;
+    $("#pca-zoom-level").textContent = "100%";
     let projection;
-    const modernReferences = isModern ? periodReferences : references.filter((row) => row[0] === "modern");
-    const closestModern = core.nearestMatches(state.single, modernReferences, 3);
+    const modernReferences = references.filter((row) => row[0] === "modern");
+    const closestModern = isModern ? [] : core.nearestMatches(state.single, modernReferences, 3);
     try {
       projection = window.G25Pca.projectPca(state.single, periodReferences,
         isModern ? [] : closestModern.map((match) => modernReferences[match.id]),
@@ -915,6 +964,13 @@
     add(svg, "text", { transform: `translate(17 ${(bounds.top + bounds.bottom) / 2}) rotate(-90)`,
       "text-anchor": "middle", class: "pca-axis-label" }, `PC2 · ${(projection.explained[1] * 100).toFixed(1)}%`);
 
+    const defs = add(svg, "defs", {});
+    const clipPath = add(defs, "clipPath", { id: "pca-plot-clip" });
+    add(clipPath, "rect", { x: bounds.left, y: bounds.top,
+      width: bounds.right - bounds.left, height: bounds.bottom - bounds.top });
+    const viewport = add(svg, "g", { "clip-path": "url(#pca-plot-clip)" });
+    const plotLayer = add(viewport, "g", { class: "pca-data-layer" });
+
     const colors = {
       "Türk": "#087c8c", "Türki": "#087c8c", "Türkî": "#087c8c", "Rum": "#c87525", "Slav": "#8256ad",
       "Ermeni": "#bd5063", "İran": "#587e36", "Levant": "#4f70bc",
@@ -935,21 +991,19 @@
       const path = hull.length === 2
         ? `M ${hull[0].x} ${hull[0].y} L ${hull[1].x} ${hull[1].y}`
         : `M ${hull.map((point) => `${point.x} ${point.y}`).join(" L ")} Z`;
-      add(svg, "path", { d: path, fill: hull.length === 2 ? "none" : groupColor(group),
+      add(plotLayer, "path", { d: path, fill: hull.length === 2 ? "none" : groupColor(group),
         stroke: groupColor(group), class: hull.length === 2 ? "pca-cluster-line" : "pca-cluster" });
     }
-    const closestIndices = isModern ? new Set(closestModern.map((match) => match.id)) : new Set();
-    projection.points.forEach((point, index) => {
-      if (closestIndices.has(index)) return;
-      const circle = add(svg, "circle", { cx: plotX(point.x), cy: plotY(point.y), r: 6,
+    projection.points.forEach((point) => {
+      const circle = add(plotLayer, "circle", { cx: plotX(point.x), cy: plotY(point.y), r: 6,
         fill: groupColor(point.ethnicity), class: "pca-reference" });
       bindTooltip(circle, point.label);
     });
     closestModern.forEach((match, index) => {
-      const point = isModern ? projection.points[match.id] : projection.overlays[index];
+      const point = projection.overlays[index];
       const x = plotX(point.x);
       const y = plotY(point.y);
-      const triangle = add(svg, "path", {
+      const triangle = add(plotLayer, "path", {
         d: `M ${x} ${y - 10} L ${x + 10} ${y + 8} L ${x - 10} ${y + 8} Z`,
         class: "pca-modern",
       });
@@ -957,10 +1011,84 @@
     });
     const targetX = plotX(projection.target.x);
     const targetY = plotY(projection.target.y);
-    const marker = add(svg, "path", { d: `M ${targetX} ${targetY - 10} L ${targetX + 10} ${targetY} L ${targetX} ${targetY + 10} L ${targetX - 10} ${targetY} Z`,
+    const marker = add(plotLayer, "path", { d: `M ${targetX} ${targetY - 10} L ${targetX + 10} ${targetY} L ${targetX} ${targetY + 10} L ${targetX - 10} ${targetY} Z`,
       class: "pca-target" });
     bindTooltip(marker, `Input: ${projection.target.label}`);
     container.append(svg);
+    const zoomIn = $("#pca-zoom-in");
+    const zoomOut = $("#pca-zoom-out");
+    const zoomReset = $("#pca-zoom-reset");
+    const zoomLevel = $("#pca-zoom-level");
+    const center = { x: (bounds.left + bounds.right) / 2, y: (bounds.top + bounds.bottom) / 2 };
+    let scale = 1;
+    let panX = 0;
+    let panY = 0;
+    let drag = null;
+    const updateZoom = () => {
+      const minX = bounds.right * (1 - scale);
+      const maxX = bounds.left * (1 - scale);
+      const minY = bounds.bottom * (1 - scale);
+      const maxY = bounds.top * (1 - scale);
+      panX = Math.max(minX, Math.min(maxX, panX));
+      panY = Math.max(minY, Math.min(maxY, panY));
+      plotLayer.setAttribute("transform", `matrix(${scale} 0 0 ${scale} ${panX} ${panY})`);
+      svg.classList.toggle("is-zoomed", scale > 1);
+      zoomLevel.textContent = `${Math.round(scale * 100)}%`;
+      zoomIn.disabled = scale >= 12;
+      zoomOut.disabled = scale <= 1;
+      zoomReset.disabled = scale <= 1;
+    };
+    const zoomAt = (factor, x, y) => {
+      const next = Math.max(1, Math.min(12, scale * factor));
+      panX = x - (x - panX) * next / scale;
+      panY = y - (y - panY) * next / scale;
+      scale = next;
+      hideTooltip();
+      updateZoom();
+    };
+    const svgPosition = (event) => {
+      const rect = svg.getBoundingClientRect();
+      return { x: (event.clientX - rect.left) * width / rect.width,
+        y: (event.clientY - rect.top) * height / rect.height };
+    };
+    zoomIn.onclick = () => zoomAt(1.25, center.x, center.y);
+    zoomOut.onclick = () => zoomAt(1 / 1.25, center.x, center.y);
+    zoomReset.onclick = () => { scale = 1; panX = 0; panY = 0; updateZoom(); };
+    svg.addEventListener("wheel", (event) => {
+      const { x, y } = svgPosition(event);
+      if (x < bounds.left || x > bounds.right || y < bounds.top || y > bounds.bottom) return;
+      event.preventDefault();
+      zoomAt(event.deltaY < 0 ? 1.2 : 1 / 1.2, x, y);
+    }, { passive: false });
+    svg.addEventListener("pointerdown", (event) => {
+      if (scale <= 1 || event.button !== 0 ||
+          event.target.closest(".pca-reference, .pca-modern, .pca-target")) return;
+      const { x, y } = svgPosition(event);
+      if (x < bounds.left || x > bounds.right || y < bounds.top || y > bounds.bottom) return;
+      drag = { id: event.pointerId, x: event.clientX, y: event.clientY };
+      svg.setPointerCapture(event.pointerId);
+      svg.classList.add("is-panning");
+      event.preventDefault();
+    });
+    svg.addEventListener("pointermove", (event) => {
+      if (!drag || event.pointerId !== drag.id) return;
+      const rect = svg.getBoundingClientRect();
+      panX += (event.clientX - drag.x) * width / rect.width;
+      panY += (event.clientY - drag.y) * height / rect.height;
+      drag.x = event.clientX;
+      drag.y = event.clientY;
+      hideTooltip();
+      updateZoom();
+    });
+    const stopDrag = (event) => {
+      if (!drag || event.pointerId !== drag.id) return;
+      drag = null;
+      svg.classList.remove("is-panning");
+      if (svg.hasPointerCapture(event.pointerId)) svg.releasePointerCapture(event.pointerId);
+    };
+    svg.addEventListener("pointerup", stopDrag);
+    svg.addEventListener("pointercancel", stopDrag);
+    updateZoom();
     for (const group of groups) {
       const item = document.createElement("span");
       item.className = "pca-legend-item";
@@ -1450,6 +1578,7 @@
     state.strictGrandparentCount = 10;
     state.male = false;
     state.medievalGroupLimit = 5;
+    state.modernPcaId = "auto";
     familyMessage = "";
     render();
   });
@@ -1484,6 +1613,17 @@
   });
   $("#medieval-group-limit").addEventListener("change", (event) => {
     state.medievalGroupLimit = Number(event.currentTarget.value);
+    renderSingle();
+  });
+  const modernPcaSelect = $("#modern-pca-select");
+  for (const [index, pca] of modernPcas.entries()) {
+    const option = document.createElement("option");
+    option.value = pca.id;
+    option.textContent = `PCA ${index + 1} · ${pca.title}`;
+    modernPcaSelect.append(option);
+  }
+  modernPcaSelect.addEventListener("change", (event) => {
+    state.modernPcaId = event.currentTarget.value;
     renderSingle();
   });
   $("#turkish-toggle").addEventListener("change", (event) => {

@@ -12,7 +12,8 @@ ROOT = Path(__file__).resolve().parent
 OUTPUT = ROOT / "calculator" / "references.js"
 TURKISH_OUTPUT = ROOT / "calculator" / "turkish_references.js"
 MEDIEVAL_OUTPUT = ROOT / "calculator" / "medieval_references.js"
-MODERN_ANALYSIS_OUTPUT = ROOT / "calculator" / "turkish_modern_analysis.js"
+MODERN_PCA_OUTPUT = ROOT / "calculator" / "modern_pca_references.js"
+MODERN_PCA_DIRECTORY = ROOT / "data" / "pca"
 
 
 def read_rows(path: Path, category: str) -> list[list]:
@@ -34,9 +35,41 @@ def read_rows(path: Path, category: str) -> list[list]:
     return rows
 
 
+def read_modern_pcas(modern_rows: list[list], directory: Path = MODERN_PCA_DIRECTORY) -> list[dict]:
+    config = json.loads((directory / "turkish_pca_config.txt").read_text(encoding="utf-8"))
+    if not isinstance(config, dict) or not isinstance(config.get("modern"), list):
+        raise ValueError("PCA config must contain a modern list")
+    modern_by_coordinates = {tuple(row[2:]): row[1] for row in modern_rows}
+    result = []
+    ids = set()
+    for entry in config["modern"]:
+        if not isinstance(entry, dict) or not all(isinstance(entry.get(key), str) and entry[key]
+                                                   for key in ("id", "title", "file")):
+            raise ValueError("Each modern PCA needs an id, title and file")
+        if entry["id"] in ids:
+            raise ValueError(f"Duplicate modern PCA id: {entry['id']}")
+        ids.add(entry["id"])
+        filename = entry["file"]
+        if Path(filename).name != filename or not filename.endswith("_g25.txt"):
+            raise ValueError(f"Invalid PCA filename: {filename}")
+        rows = read_rows(directory / filename, "modern")
+        if len(rows) < 3:
+            raise ValueError(f"{filename}: PCA needs at least three references")
+        anchors = []
+        for row in rows:
+            label = modern_by_coordinates.get(tuple(row[2:]))
+            if label is None:
+                raise ValueError(f"{filename}: {row[1]} is not in the Turkish modern dataset")
+            anchors.append(label)
+        result.append({"id": entry["id"], "title": entry["title"],
+                       "references": rows, "referenceAnchors": anchors,
+                       "anchorLabels": list(dict.fromkeys(anchors))})
+    return result
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--turkish", action="store_true", help="Rebuild only the Turkish modern, ancient and medieval bundles")
+    parser.add_argument("--turkish", action="store_true", help="Rebuild only the Turkish modern, ancient, medieval and PCA bundles")
     args = parser.parse_args()
     if not args.turkish:
         rows = read_rows(ROOT / "data" / "modern_g25.txt", "modern")
@@ -53,13 +86,13 @@ def main() -> None:
         encoding="utf-8",
     )
     print(f"Bundled {len(turkish_rows)} Turkish modern and ancient references into {TURKISH_OUTPUT}")
-    modern_analysis_rows = read_rows(ROOT / "data" / "turkish_modern_2_g25.txt", "modern")
-    MODERN_ANALYSIS_OUTPUT.write_text(
-        "window.G25_TURKISH_MODERN_ANALYSIS_REFERENCES = "
-        + json.dumps(modern_analysis_rows, ensure_ascii=False, separators=(",", ":")) + ";\n",
+    modern_pcas = read_modern_pcas([row for row in turkish_rows if row[0] == "modern"])
+    MODERN_PCA_OUTPUT.write_text(
+        "window.G25_MODERN_PCAS = "
+        + json.dumps(modern_pcas, ensure_ascii=False, separators=(",", ":")) + ";\n",
         encoding="utf-8",
     )
-    print(f"Bundled {len(modern_analysis_rows)} grouped Turkish modern references into {MODERN_ANALYSIS_OUTPUT}")
+    print(f"Bundled {len(modern_pcas)} Turkish modern PCA into {MODERN_PCA_OUTPUT}")
     medieval_rows = {
         "early": read_rows(ROOT / "data" / "turkish_early_medieval_g25.txt", "medieval"),
         "late": read_rows(ROOT / "data" / "turkish_late_medieval_g25.txt", "medieval"),
