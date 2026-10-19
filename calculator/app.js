@@ -362,7 +362,8 @@
           pcaFitDistances = pcaFits.map(({ pca, fit }) => ({ id: pca.id, distance: fit.distance }));
           const best = pcaFits.reduce((current, entry) =>
             !current || entry.fit.distance < current.fit.distance ? entry : current, null);
-          const selected = data.selectedPcaId === "auto" ? best
+          const selected = data.selectedPcaId === "auto"
+            ? pcaFits.find((entry) => entry.pca.id === data.closestPcaId) || best
             : pcaFits.find((entry) => entry.pca.id === data.selectedPcaId);
           if (selected) {
             fit = selected.fit;
@@ -842,11 +843,13 @@
     const rankedPcas = window.G25ModernPca.rankModernPcas(
       state.single, choices, core.nearestMatches, allowedPcaReferences);
     const distances = [...new Set(rankedPcas.map((entry) => entry.distance).filter(Number.isFinite))];
-    const knownFits = modernMixedDirty ? [] : [...modernPcaFitDistances.values()];
-    if (modernMixedPca && state.modernGroupLimit > 1) knownFits.push(modernMixedPca.fit.distance);
-    const autoFit = Math.min(...knownFits.filter(Number.isFinite));
+    const automatic = modernMixedPca && state.modernGroupLimit > 1
+      ? rankedPcas.find(({ pca }) => pca.id === "mixed")
+      : rankedPcas.find(({ pca, distance }) => pca.id !== "mixed" && Number.isFinite(distance));
+    const autoFit = automatic?.pca.id === "mixed" ? modernMixedPca.fit.distance
+      : modernMixedDirty ? null : modernPcaFitDistances.get(automatic?.pca.id);
     const entries = new Map();
-    const addOption = (id, title, color, fitDistance) => {
+    const addOption = (id, title, color, closestDistance, fitDistance) => {
       const fitText = Number.isFinite(fitDistance)
         ? `Genetic fit ${fitDistance.toFixed(3)}` : "Genetic fit —";
       const option = document.createElement("button");
@@ -858,10 +861,16 @@
       name.className = "modern-pca-option-name";
       name.textContent = title;
       name.style.color = color;
+      const metrics = document.createElement("span");
+      metrics.className = "modern-pca-metrics";
+      const proximity = document.createElement("span");
+      proximity.textContent = Number.isFinite(closestDistance)
+        ? `Closest ${closestDistance.toFixed(3)}` : "Closest —";
       const fit = document.createElement("span");
       fit.className = "modern-pca-fit";
       fit.textContent = fitText;
-      option.append(name, fit);
+      metrics.append(proximity, fit);
+      option.append(name, metrics);
       option.addEventListener("click", () => {
         chooser.open = false;
         state.modernPcaId = id;
@@ -871,13 +880,15 @@
       options.append(option);
       entries.set(id, { title, color, fitText });
     };
-    addOption("auto", "Closest population", distances.length ? modernPcaColor(0) : "#687585", autoFit);
+    addOption("auto", "Closest population", distances.length ? modernPcaColor(0) : "#687585",
+      automatic?.distance, autoFit);
     for (const { pca, distance: geneticDistance } of rankedPcas) {
       const available = Number.isFinite(geneticDistance);
       const position = distances.length > 1 ? distances.indexOf(geneticDistance) / (distances.length - 1) : 0;
       const fitDistance = pca.id === "mixed" ? modernMixedPca?.fit.distance
         : modernMixedDirty ? null : modernPcaFitDistances.get(pca.id);
-      addOption(pca.id, pca.title, available ? modernPcaColor(position) : "#687585", fitDistance);
+      addOption(pca.id, pca.title, available ? modernPcaColor(position) : "#687585",
+        geneticDistance, fitDistance);
     }
     const selected = entries.get(state.modernPcaId) || entries.get("auto");
     const currentName = $("#modern-pca-current-name");
@@ -907,8 +918,10 @@
     let periodReferences;
     let closestModern = null;
     let displayedPcaId = null;
+    let closestPcaId = null;
     if (isModern) {
       const rankedPcas = populateModernPcaSelect().filter(({ pca }) => pca.id !== "mixed");
+      closestPcaId = rankedPcas.find(({ distance }) => Number.isFinite(distance))?.pca.id || null;
       const { closest, pca } = window.G25ModernPca.selectModernPca(state.single,
         allowedReferences(turkishReferences.filter((row) => row[0] === "modern")),
         modernPcas, core.nearestMatches, state.modernPcaId, allowedPcaReferences, rankedPcas);
@@ -1006,6 +1019,7 @@
         groupLimit: isModern ? state.modernGroupLimit : state.medievalGroupLimit,
         groupStyle: isModern ? "modern" : "colon",
         selectedPcaId: isModern ? state.modernPcaId : null,
+        closestPcaId,
         modernPcas: scanModernPcas ? modernPcas.map((pca) => ({
           id: pca.id, title: pca.title, references: allowedPcaReferences(pca),
         })) : null });

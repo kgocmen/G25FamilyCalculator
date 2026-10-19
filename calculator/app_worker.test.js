@@ -18,7 +18,7 @@ test("mixed PCA is offered only below 75% of the best PCA fit at two or three gr
   ];
   const candidate = { references: [7, 8, 9] };
 
-  function calculate(groupLimit, mixedDistance) {
+  function calculate(groupLimit, mixedDistance, closestPcaId = null) {
     let result;
     const calls = [];
     let mixedBuilds = 0;
@@ -36,7 +36,8 @@ test("mixed PCA is offered only below 75% of the best PCA fit at two or three gr
     };
     vm.runInNewContext(workerSource, { self });
     self.onmessage({ data: { requestId: 1, target: {}, references: [],
-      groupLimit, groupStyle: "modern", selectedPcaId: "auto", modernPcas: pcas } });
+      groupLimit, groupStyle: "modern", selectedPcaId: "auto", closestPcaId,
+      modernPcas: pcas } });
     assert.equal(result.error, undefined);
     assert.equal(result.pcaFitDistances.length, 2);
     assert.equal(result.pcaFitDistances.find(({ id }) => id === "first").distance, 2);
@@ -53,6 +54,9 @@ test("mixed PCA is offered only below 75% of the best PCA fit at two or three gr
   assert.equal(oneGroup.availableMixed, null);
   assert.equal(oneGroup.mixed, null);
   assert.equal(oneGroup.pca.id, "first");
+  const nearestOverridesFit = calculate(1, 0, "second");
+  assert.equal(nearestOverridesFit.pca.id, "second");
+  assert.equal(nearestOverridesFit.fit.distance, 3);
 
   for (const limit of [2, 3]) {
     const rejected = calculate(limit, 1.5);

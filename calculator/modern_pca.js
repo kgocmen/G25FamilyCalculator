@@ -1,9 +1,15 @@
 function G25ModernPcaModule(root) {
   "use strict";
 
+  function isIstanbulReference(row) {
+    return row[1].split(":", 1)[0] === "Türk_İstanbul";
+  }
+
   function selectModernPca(target, modernReferences, pcas, nearestMatches, selectedId = "auto",
     referencesForPca = (pca) => pca.references, rankedPcas = null) {
-    const closest = nearestMatches(target, modernReferences, 1)[0] || null;
+    const eligibleReferences = modernReferences.filter((row) => !isIstanbulReference(row));
+    const nearest = nearestMatches(target, eligibleReferences, 1)[0] || null;
+    const closest = nearest ? { ...nearest, id: modernReferences.indexOf(eligibleReferences[nearest.id]) } : null;
     const automatic = (rankedPcas || rankModernPcas(target, pcas, nearestMatches, referencesForPca))
       .find((entry) => Number.isFinite(entry.distance))?.pca || null;
     const pca = selectedId === "auto" ? automatic : pcas.find((entry) => entry.id === selectedId) || automatic;
@@ -12,15 +18,12 @@ function G25ModernPcaModule(root) {
 
   function rankModernPcas(target, pcas, nearestMatches, referencesForPca = (pca) => pca.references) {
     const ranked = pcas.map((pca, index) => {
-      const references = referencesForPca(pca).filter((row) => row[1].split(":", 1)[0] !== "Türk_İstanbul");
-      const distances = nearestMatches(target, references, references.length).map((match) => match.distance);
-      return { pca, number: index + 1, distances, distance: distances[0] ?? Infinity };
+      const references = referencesForPca(pca).filter((row) => !isIstanbulReference(row));
+      const distance = nearestMatches(target, references, 1)[0]?.distance ?? Infinity;
+      return { pca, number: index + 1, distance };
     });
     ranked.sort((first, second) => {
-      for (let index = 0; index < Math.max(first.distances.length, second.distances.length); index += 1) {
-        const difference = (first.distances[index] ?? Infinity) - (second.distances[index] ?? Infinity);
-        if (!Number.isNaN(difference) && difference !== 0) return difference;
-      }
+      if (first.distance !== second.distance) return first.distance - second.distance;
       return first.number - second.number;
     });
     return ranked.map(({ pca, number, distance }) => ({ pca, number, distance }));

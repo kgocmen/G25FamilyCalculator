@@ -53,13 +53,13 @@ test("PCA options sort by genetic distance while retaining their original number
   assert.ok(ranked[0].distance < ranked[1].distance);
 });
 
-test("shared nearest references are ordered by the next nearest population", () => {
+test("PCA order uses only the closest distance, preserving original order on ties", () => {
   const pcas = [
     { id: "west", references: [row("Shared", 0), row("West", 0.5)] },
     { id: "east", references: [row("Shared", 0), row("East", 0.2)] },
   ];
   assert.deepEqual(rankModernPcas(target(0), pcas, nearestMatches).map(({ pca }) => pca.id),
-    ["east", "west"]);
+    ["west", "east"]);
 });
 
 test("Istanbul informs admixture but never ranks the closest PCA", () => {
@@ -73,8 +73,10 @@ test("Istanbul informs admixture but never ranks the closest PCA", () => {
   assert.deepEqual(ranked.map(({ pca }) => pca.id), ["near", "far", "only-istanbul"]);
   assert.ok(Number.isFinite(ranked[0].distance));
   assert.equal(ranked[2].distance, Infinity);
-  assert.equal(selectModernPca(target(0), [istanbul], pcas, nearestMatches).closest.label, istanbul[1]);
-  assert.equal(selectModernPca(target(0), [istanbul], pcas, nearestMatches).pca.id, "near");
+  const selected = selectModernPca(target(0), [istanbul, row("Türk_B:Near", 0.2)], pcas, nearestMatches);
+  assert.equal(selected.closest.label, "Türk_B:Near");
+  assert.equal(selected.closest.id, 1);
+  assert.equal(selected.pca.id, "near");
   assert.ok(pcas.every((pca) => pca.references.includes(istanbul)));
 });
 
