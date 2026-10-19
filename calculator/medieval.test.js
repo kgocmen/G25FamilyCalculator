@@ -1,5 +1,8 @@
 const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
 const test = require("node:test");
+const { nearestMatches } = require("./core.js");
 const { fitAdmixture } = require("./medieval.js");
 
 function reference(label, first, second = 0) {
@@ -53,13 +56,31 @@ test("group caps refit and normalize the selected groups instead of hiding compo
   assert.throws(() => fitAdmixture(target, references, 2), /3, 4 or 5/);
 });
 
-test("several samples in one ancestry group do not consume extra group slots", () => {
+test("medieval PCA refits at most three samples from one ancestry group", () => {
   const references = Array.from({ length: 4 }, (_, sample) => ["medieval", `Rum:Sample${sample}`,
     ...Array.from({ length: 25 }, (_, k) => k === sample ? 1 : 0)]);
   const fit = fitAdmixture({ values: Array.from({ length: 25 }, (_, k) => k < 4 ? 0.25 : 0) }, references, 3);
   assert.equal(fit.groups.length, 1);
-  assert.equal(fit.components.length, 4);
-  assert.ok(fit.distance < 1e-5);
+  assert.equal(fit.components.length, 3);
+  assert.equal(fit.groups[0].samples.length, 3);
+  assert.ok(Math.abs(fit.distance - 100 / Math.sqrt(12)) < 1e-5);
+  assert.ok(fit.components.every((component) =>
+    references[component.referenceIndex][1] === component.label));
+});
+
+test("modern PCA limits each group to three samples at every group count", () => {
+  const references = Array.from({ length: 8 }, (_, index) => ["modern",
+    `Group_${Math.floor(index / 4)}:Sample${index}`,
+    ...Array.from({ length: 25 }, (_, coordinate) => coordinate === index ? 1 : 0)]);
+  const target = { values: Array.from({ length: 25 }, (_, index) => index < 8 ? 1 / 8 : 0) };
+  for (const limit of [1, 2, 3]) {
+    const fit = fitAdmixture(target, references, limit, "modern");
+    assert.ok(fit.groups.length <= limit);
+    assert.ok(fit.groups.every((group) => group.samples.length <= 3));
+    assert.ok(fit.components.every((component) =>
+      references[component.referenceIndex][1] === component.label));
+    assert.ok(Math.abs(fit.components.reduce((sum, component) => sum + component.weight, 0) - 1) < 1e-12);
+  }
 });
 
 test("modern groups use the prefix before the colon and tolerate one ungrouped label", () => {
@@ -87,4 +108,32 @@ test("modern group limit refits selected groups", () => {
     assert.ok(Math.abs(fit.groups.reduce((sum, group) => sum + group.weight, 0) - 1) < 1e-12);
   }
   assert.throws(() => fitAdmixture(target, references, 4, "modern"), /1, 2 or 3/);
+});
+
+test("modern group cap can use a nearby Kayseri reference even when an Istanbul-only refit is worse", () => {
+  const lines = fs.readFileSync(path.join(__dirname, "../data/pca/turkish_modern_pca7_g25.txt"), "utf8")
+    .trim().split(/\r?\n/);
+  const references = lines.map((line) => {
+    const [label, ...values] = line.split(",");
+    return ["modern", label, ...values.map(Number)];
+  });
+  const target = { values: [
+    0.10621584672971009, 0.09934483736544361, -0.03291658267864724, -0.039769705644961906,
+    -0.0175526041383392, -0.006309499666359866, 0.012830702500288844, 0.004449936211094262,
+    -0.022396095969441043, 0.005164945108520909, 0.0016179440069558806, -0.0013112783104991296,
+    -0.010769485270681462, 0.001887963082314531, -0.0027368650637525, 0.0002636846838486348,
+    0.0005694489936761001, 0.00361306159529566, -0.004044535424191946, -0.0032080453218116833,
+    0.004108002539511114, 0.002100420583153855, -0.008578813259379422, 0.00032514928429953275,
+    0.0074868480063518495,
+  ] };
+  const nearest = nearestMatches(target, references, 1)[0];
+  assert.match(references[nearest.id][1], /Türk_Kayseri_\(n=35\)/);
+  const oneGroup = fitAdmixture(target, references, 1, "modern");
+  assert.equal(oneGroup.groups[0].ethnicity, "Türk_Doğu_İç_Anadolu");
+  assert.ok(Math.abs(oneGroup.distance - nearest.distance) < 1e-9);
+  const twoGroups = fitAdmixture(target, references, 2, "modern");
+  assert.ok(twoGroups.distance < nearest.distance - 0.05);
+  assert.ok(twoGroups.groups.length <= 2);
+  assert.ok(twoGroups.components.every((component) =>
+    references[component.referenceIndex][1] === component.label));
 });

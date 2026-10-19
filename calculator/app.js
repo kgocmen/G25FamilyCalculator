@@ -53,6 +53,7 @@
   let medievalRequest = 0;
   let pcaTooltip = null;
   let modernMixedPca = null;
+  let modernMixedDirty = true;
   let relaxedFits = { modern: [], ancient: [] };
   let relaxedReady = { modern: false, ancient: false };
   let strictFits = { parents: [], grandparents: [] };
@@ -121,6 +122,7 @@
 
   function refreshBlacklist() {
     modernMixedPca = null;
+    modernMixedDirty = true;
     if (state.modernPcaId === "mixed") state.modernPcaId = "auto";
     try { sessionStorage.setItem(blacklistStorageKey, JSON.stringify([...blacklist.values()])); } catch (_) {}
     try { sessionStorage.setItem(whitelistStorageKey, JSON.stringify([...whitelist.values()])); } catch (_) {}
@@ -350,30 +352,38 @@
         let fit = null;
         let mixed = null;
         let pca = null;
+        let availableMixed = null;
         if (data.modernPcas) {
           const pcaFits = data.modernPcas.filter((pca) => pca.references.length >= 3)
             .map((pca) => ({ pca, fit: self.G25Medieval.fitAdmixture(
               data.target, pca.references, data.groupLimit, "modern") }));
           const best = pcaFits.reduce((current, entry) =>
             !current || entry.fit.distance < current.fit.distance ? entry : current, null);
-          if (best) {
-            fit = best.fit;
-            pca = best.pca;
+          const selected = data.selectedPcaId === "auto" ? best
+            : pcaFits.find((entry) => entry.pca.id === data.selectedPcaId);
+          if (selected) {
+            fit = selected.fit;
+            pca = selected.pca;
           }
-          const candidate = self.G25ModernPca.buildMixedPca(pcaFits);
+          const candidate = data.groupLimit > 1
+            ? self.G25ModernPca.buildMixedPca(pcaFits) : null;
           if (candidate) {
             const mixedFit = self.G25Medieval.fitAdmixture(
               data.target, candidate.references, data.groupLimit, "modern");
-            if (self.G25ModernPca.mixedFitIsBetter(mixedFit, pcaFits)) {
-              fit = mixedFit;
-              mixed = candidate;
-              pca = null;
+            const better = self.G25ModernPca.mixedFitIsBetter(mixedFit, pcaFits);
+            if (better) {
+              availableMixed = { references: candidate.references, fit: mixedFit };
+              if (data.selectedPcaId === "auto") {
+                fit = mixedFit;
+                mixed = candidate;
+                pca = null;
+              }
             }
           }
         }
         if (!fit) fit = self.G25Medieval.fitAdmixture(
           data.target, data.references, data.groupLimit, data.groupStyle);
-        self.postMessage({ requestId: data.requestId, fit, mixed, pca });
+        self.postMessage({ requestId: data.requestId, fit, mixed, pca, availableMixed });
       } catch (error) {
         self.postMessage({ requestId: data.requestId, error: error.message });
       }
@@ -422,6 +432,7 @@
       state.single = item;
       state.modernPcaId = "auto";
       modernMixedPca = null;
+      modernMixedDirty = true;
     }
     else if (state.pickerTarget.type === "compare") state.compare[state.pickerTarget.index] = item;
     else if (state.pickerTarget.type === "offspring") state.offspring = item;
@@ -533,6 +544,7 @@
           state.single = null;
           state.modernPcaId = "auto";
           modernMixedPca = null;
+          modernMixedDirty = true;
         }
         else if (target.type === "compare") state.compare[target.index] = null;
         else if (target.type === "offspring") state.offspring = null;
@@ -815,11 +827,14 @@
 
   function populateModernPcaSelect() {
     const pcaSelect = $("#modern-pca-select");
+    const mixedActive = state.modernPcaId === "mixed" ||
+      (state.modernPcaId === "auto" && Boolean(modernMixedPca));
+    $("#modern-group-limit option[value='1']").disabled = mixedActive;
     const autoOption = document.createElement("option");
     autoOption.value = "auto";
     autoOption.textContent = "Closest population";
     pcaSelect.replaceChildren(autoOption);
-    const choices = modernMixedPca
+    const choices = modernMixedPca && state.modernGroupLimit > 1
       ? [...modernPcas, { id: "mixed", title: "Mixed PCA",
         references: modernMixedPca.componentRows, referenceAnchors: [] }]
       : modernPcas;
@@ -871,7 +886,7 @@
         allowedReferences(turkishReferences.filter((row) => row[0] === "modern")),
         modernPcas, core.nearestMatches, state.modernPcaId, allowedPcaReferences, rankedPcas);
       closestModern = closest;
-      const selectedMixed = state.modernPcaId === "mixed" && modernMixedPca;
+      const selectedMixed = state.modernGroupLimit > 1 && state.modernPcaId === "mixed" && modernMixedPca;
       displayedPcaId = selectedMixed ? "mixed" : pca?.id || null;
       periodReferences = selectedMixed ? modernMixedPca.componentRows : pca ? allowedPcaReferences(pca) : [];
       const hasPlot = periodReferences.length >= (selectedMixed ? 1 : 3);
@@ -907,6 +922,7 @@
       renderMedievalPca(periodReferences, period, false);
     }
     const requestId = medievalRequest;
+    const scanModernPcas = isModern && (state.modernPcaId === "auto" || modernMixedDirty);
     try {
       const source = `(${window.G25MedievalModule.toString()})(self);\n(${window.G25ModernPcaModule.toString()})(self);\n(${medievalWorkerMain.toString()})();`;
       const url = URL.createObjectURL(new Blob([source], { type: "text/javascript" }));
@@ -929,14 +945,22 @@
           status.textContent = data.error;
           return;
         }
+        if (scanModernPcas) {
+          modernMixedDirty = false;
+          modernMixedPca = null;
+          if (data.availableMixed) {
+            const componentIndices = new Set(data.availableMixed.fit.components
+              .map((component) => component.referenceIndex));
+            const componentRows = data.availableMixed.references
+              .filter((_, index) => componentIndices.has(index));
+            modernMixedPca = { componentRows, fit: data.availableMixed.fit };
+          }
+          populateModernPcaSelect();
+        }
         if (data.mixed) {
           $("#medieval-breakdown-title").textContent = "Modern · Mixed PCA";
           $("#pca-heading-title").textContent = "Mixed PCA";
-          const componentIndices = new Set(data.fit.components.map((component) => component.referenceIndex));
-          const componentRows = data.mixed.references.filter((_, index) => componentIndices.has(index));
-          modernMixedPca = { componentRows, fit: data.fit };
-          populateModernPcaSelect();
-          renderMedievalPca(componentRows, "Mixed", true, closestModern, true);
+          renderMedievalPca(modernMixedPca.componentRows, "Mixed", true, closestModern, true);
         } else if (data.pca && data.pca.id !== displayedPcaId) {
           $("#medieval-breakdown-title").textContent = `Modern · ${data.pca.title}`;
           $("#pca-heading-title").textContent = `${data.pca.title} PCA`;
@@ -952,7 +976,8 @@
       worker.postMessage({ requestId, target: state.single, references: periodReferences,
         groupLimit: isModern ? state.modernGroupLimit : state.medievalGroupLimit,
         groupStyle: isModern ? "modern" : "colon",
-        modernPcas: isModern && state.modernPcaId === "auto" ? modernPcas.map((pca) => ({
+        selectedPcaId: isModern ? state.modernPcaId : null,
+        modernPcas: scanModernPcas ? modernPcas.map((pca) => ({
           id: pca.id, title: pca.title, references: allowedPcaReferences(pca),
         })) : null });
     } catch (error) {
@@ -1806,6 +1831,7 @@
     state.modernGroupLimit = 2;
     state.modernPcaId = "auto";
     modernMixedPca = null;
+    modernMixedDirty = true;
     familyMessage = "";
     render();
   });
@@ -1843,8 +1869,16 @@
     renderSingle();
   });
   $("#modern-group-limit").addEventListener("change", (event) => {
-    state.modernGroupLimit = Number(event.currentTarget.value);
+    const limit = Number(event.currentTarget.value);
+    const mixedActive = state.modernPcaId === "mixed" ||
+      (state.modernPcaId === "auto" && Boolean(modernMixedPca));
+    if (limit === 1 && mixedActive) {
+      event.currentTarget.value = String(state.modernGroupLimit);
+      return;
+    }
+    state.modernGroupLimit = limit;
     modernMixedPca = null;
+    modernMixedDirty = true;
     if (state.modernPcaId === "mixed") state.modernPcaId = "auto";
     renderSingle();
   });
@@ -1856,6 +1890,7 @@
   $("#turkish-toggle").addEventListener("change", (event) => {
     state.turkish = event.currentTarget.checked;
     modernMixedPca = null;
+    modernMixedDirty = true;
     if (state.modernPcaId === "mixed") state.modernPcaId = "auto";
     if (!state.turkish) state.analysisView = "results";
     updateSelectedReferences(state.turkish ? turkishReferences : globalReferences);

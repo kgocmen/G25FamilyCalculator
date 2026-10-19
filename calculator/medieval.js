@@ -2,6 +2,7 @@ function G25MedievalModule(root) {
   "use strict";
 
   const DIMENSIONS = 25;
+  const MAX_SAMPLES_PER_GROUP = 3;
 
   function groupName(label, groupStyle) {
     if (groupStyle === "modern") {
@@ -135,6 +136,28 @@ function G25MedievalModule(root) {
     return { distance, components, groups };
   }
 
+  function fitWithSampleCap(target, references, groupStyle) {
+    let fit = fitUnrestricted(target, references, groupStyle);
+    let selectedIndices = fit.components.map(({ referenceIndex }) => referenceIndex);
+    while (true) {
+      const overfull = new Set(fit.groups.filter((group) =>
+        group.samples.length > MAX_SAMPLES_PER_GROUP).map((group) => group.ethnicity));
+      if (!overfull.size) return fit;
+
+      let best = null;
+      const removable = fit.components.filter((component) => overfull.has(component.ethnicity))
+        .sort((first, second) => first.weight - second.weight);
+      for (const component of removable) {
+        const indices = selectedIndices.filter((index) => index !== component.referenceIndex);
+        const trial = fitUnrestricted(target, indices.map((index) => references[index]), groupStyle);
+        trial.components.forEach((part) => { part.referenceIndex = indices[part.referenceIndex]; });
+        if (!best || trial.distance < best.fit.distance) best = { fit: trial, indices };
+      }
+      fit = best.fit;
+      selectedIndices = best.indices;
+    }
+  }
+
   function fitAdmixture(target, references, groupLimit = 5, groupStyle = "colon") {
     if (groupStyle !== "colon" && groupStyle !== "modern") throw new Error("Unknown ancestry grouping.");
     const allowedLimits = groupStyle === "modern" ? [1, 2, 3] : [3, 4, 5];
@@ -143,35 +166,30 @@ function G25MedievalModule(root) {
         ? "Choose a limit of 1, 2 or 3 groups."
         : "Choose a limit of 3, 4 or 5 groups.");
     }
-    const unrestricted = fitUnrestricted(target, references, groupStyle);
+    const unrestricted = fitWithSampleCap(target, references, groupStyle);
     if (unrestricted.groups.length <= groupLimit) return unrestricted;
     const referenceGroup = (row) => groupName(Array.isArray(row) ? row[1] : row.label, groupStyle);
-    if (groupStyle === "modern") {
-      const selected = new Set(unrestricted.groups.slice(0, groupLimit).map((group) => group.ethnicity));
-      const subset = references.map((row, index) => ({ row, index }))
-        .filter(({ row }) => selected.has(referenceGroup(row)));
-      const fit = fitUnrestricted(target, subset.map(({ row }) => row), groupStyle);
-      fit.components.forEach((component) => {
-        component.referenceIndex = subset[component.referenceIndex].index;
-      });
-      return fit;
-    }
     const names = [...new Set(references.map(referenceGroup))].sort();
     let best = null;
     // Evaluate every allowed group subset, refitting all samples within it.
     // The cap applies to ancestry groups, not individual reference samples.
+    function evaluate(selected) {
+      const subset = references.map((row, index) => ({ row, index }))
+        .filter(({ row }) => selected.includes(referenceGroup(row)));
+      const fit = fitWithSampleCap(target, subset.map(({ row }) => row), groupStyle);
+      fit.components.forEach((component) => {
+        component.referenceIndex = subset[component.referenceIndex].index;
+      });
+      if (!best || fit.distance < best.distance) best = fit;
+    }
     function search(start, selected) {
+      if (selected.length && groupStyle === "modern") evaluate(selected);
       if (selected.length === groupLimit) {
-        const subset = references.map((row, index) => ({ row, index }))
-          .filter(({ row }) => selected.includes(referenceGroup(row)));
-        const fit = fitUnrestricted(target, subset.map(({ row }) => row), groupStyle);
-        fit.components.forEach((component) => {
-          component.referenceIndex = subset[component.referenceIndex].index;
-        });
-        if (!best || fit.distance < best.distance) best = fit;
+        if (groupStyle !== "modern") evaluate(selected);
         return;
       }
-      for (let i = start; i <= names.length - (groupLimit - selected.length); i += 1) {
+      const remaining = groupStyle === "modern" ? 1 : groupLimit - selected.length;
+      for (let i = start; i <= names.length - remaining; i += 1) {
         search(i + 1, [...selected, names[i]]);
       }
     }
