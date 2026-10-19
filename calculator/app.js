@@ -52,6 +52,7 @@
   let medievalWorkerUrl = null;
   let medievalRequest = 0;
   let pcaTooltip = null;
+  let modernMixedPca = null;
   let relaxedFits = { modern: [], ancient: [] };
   let relaxedReady = { modern: false, ancient: false };
   let strictFits = { parents: [], grandparents: [] };
@@ -119,6 +120,8 @@
   }
 
   function refreshBlacklist() {
+    modernMixedPca = null;
+    if (state.modernPcaId === "mixed") state.modernPcaId = "auto";
     try { sessionStorage.setItem(blacklistStorageKey, JSON.stringify([...blacklist.values()])); } catch (_) {}
     try { sessionStorage.setItem(whitelistStorageKey, JSON.stringify([...whitelist.values()])); } catch (_) {}
     familyMessage = "";
@@ -344,8 +347,33 @@
   function medievalWorkerMain() {
     self.onmessage = ({ data }) => {
       try {
-        const fit = self.G25Medieval.fitAdmixture(data.target, data.references, data.groupLimit, data.groupStyle);
-        self.postMessage({ requestId: data.requestId, fit });
+        let fit = null;
+        let mixed = null;
+        let pca = null;
+        if (data.modernPcas) {
+          const pcaFits = data.modernPcas.filter((pca) => pca.references.length >= 3)
+            .map((pca) => ({ pca, fit: self.G25Medieval.fitAdmixture(
+              data.target, pca.references, data.groupLimit, "modern") }));
+          const best = pcaFits.reduce((current, entry) =>
+            !current || entry.fit.distance < current.fit.distance ? entry : current, null);
+          if (best) {
+            fit = best.fit;
+            pca = best.pca;
+          }
+          const candidate = self.G25ModernPca.buildMixedPca(pcaFits);
+          if (candidate) {
+            const mixedFit = self.G25Medieval.fitAdmixture(
+              data.target, candidate.references, data.groupLimit, "modern");
+            if (self.G25ModernPca.mixedFitIsBetter(mixedFit, pcaFits)) {
+              fit = mixedFit;
+              mixed = candidate;
+              pca = null;
+            }
+          }
+        }
+        if (!fit) fit = self.G25Medieval.fitAdmixture(
+          data.target, data.references, data.groupLimit, data.groupStyle);
+        self.postMessage({ requestId: data.requestId, fit, mixed, pca });
       } catch (error) {
         self.postMessage({ requestId: data.requestId, error: error.message });
       }
@@ -390,7 +418,11 @@
   }
 
   function setTarget(item) {
-    if (state.pickerTarget.type === "single") state.single = item;
+    if (state.pickerTarget.type === "single") {
+      state.single = item;
+      state.modernPcaId = "auto";
+      modernMixedPca = null;
+    }
     else if (state.pickerTarget.type === "compare") state.compare[state.pickerTarget.index] = item;
     else if (state.pickerTarget.type === "offspring") state.offspring = item;
     else state.slots[state.mode][state.pickerTarget.index] = item;
@@ -497,7 +529,11 @@
     }
     if (item) {
       actions.append(makeButton("Clear", () => {
-        if (target.type === "single") state.single = null;
+        if (target.type === "single") {
+          state.single = null;
+          state.modernPcaId = "auto";
+          modernMixedPca = null;
+        }
         else if (target.type === "compare") state.compare[target.index] = null;
         else if (target.type === "offspring") state.offspring = null;
         else state.slots[state.mode][target.index] = null;
@@ -777,6 +813,38 @@
     return `hsl(${hue} 68% ${lightness}%)`;
   }
 
+  function populateModernPcaSelect() {
+    const pcaSelect = $("#modern-pca-select");
+    const autoOption = document.createElement("option");
+    autoOption.value = "auto";
+    autoOption.textContent = "Closest population";
+    pcaSelect.replaceChildren(autoOption);
+    const choices = modernMixedPca
+      ? [...modernPcas, { id: "mixed", title: "Mixed PCA",
+        references: modernMixedPca.componentRows, referenceAnchors: [] }]
+      : modernPcas;
+    const rankedPcas = window.G25ModernPca.rankModernPcas(
+      state.single, choices, core.nearestMatches, allowedPcaReferences);
+    const distances = [...new Set(rankedPcas.map((entry) => entry.distance).filter(Number.isFinite))];
+    autoOption.style.color = distances.length ? modernPcaColor(0) : "#687585";
+    for (const { pca, distance: geneticDistance } of rankedPcas) {
+      const option = document.createElement("option");
+      option.value = pca.id;
+      const available = Number.isFinite(geneticDistance);
+      const position = distances.length > 1 ? distances.indexOf(geneticDistance) / (distances.length - 1) : 0;
+      option.textContent = pca.title;
+      option.style.color = available ? modernPcaColor(position) : "#687585";
+      option.setAttribute("aria-label", available
+        ? `${pca.title}, genetic distance ${geneticDistance.toFixed(3)}`
+        : `${pca.title}, no included references`);
+      pcaSelect.append(option);
+    }
+    pcaSelect.value = state.modernPcaId;
+    pcaSelect.style.backgroundColor = "";
+    pcaSelect.style.color = pcaSelect.selectedOptions[0]?.style.color || "";
+    return rankedPcas;
+  }
+
   function renderMedievalBreakdown() {
     const status = $("#medieval-breakdown-status");
     const distance = $("#medieval-breakdown-distance");
@@ -795,54 +863,41 @@
     $("#modern-group-limit").value = String(state.modernGroupLimit);
     let period = state.analysisView === "early" ? "Early Medieval" : "Late Medieval";
     let periodReferences;
+    let closestModern = null;
+    let displayedPcaId = null;
     if (isModern) {
-      const pcaSelect = $("#modern-pca-select");
-      const autoOption = document.createElement("option");
-      autoOption.value = "auto";
-      autoOption.textContent = "Closest population";
-      pcaSelect.replaceChildren(autoOption);
-      const rankedPcas = window.G25ModernPca.rankModernPcas(
-        state.single, modernPcas, core.nearestMatches, allowedPcaReferences);
-      const distances = [...new Set(rankedPcas.map((entry) => entry.distance).filter(Number.isFinite))];
-      autoOption.style.color = distances.length ? modernPcaColor(0) : "#687585";
-      for (const { pca, distance: geneticDistance } of rankedPcas) {
-        const option = document.createElement("option");
-        option.value = pca.id;
-        const available = Number.isFinite(geneticDistance);
-        const position = distances.length > 1 ? distances.indexOf(geneticDistance) / (distances.length - 1) : 0;
-        option.textContent = pca.title;
-        option.style.color = available ? modernPcaColor(position) : "#687585";
-        option.setAttribute("aria-label", available
-          ? `${pca.title}, genetic distance ${geneticDistance.toFixed(3)}`
-          : `${pca.title}, no included references`);
-        pcaSelect.append(option);
-      }
-      pcaSelect.value = state.modernPcaId;
-      pcaSelect.style.backgroundColor = "";
-      pcaSelect.style.color = pcaSelect.selectedOptions[0]?.style.color || "";
+      const rankedPcas = populateModernPcaSelect().filter(({ pca }) => pca.id !== "mixed");
       const { closest, pca } = window.G25ModernPca.selectModernPca(state.single,
         allowedReferences(turkishReferences.filter((row) => row[0] === "modern")),
         modernPcas, core.nearestMatches, state.modernPcaId, allowedPcaReferences, rankedPcas);
-      periodReferences = pca ? allowedPcaReferences(pca) : [];
-      const hasPlot = periodReferences.length >= 3;
-      period = pca ? pca.title : "Modern";
-      $("#medieval-breakdown-title").textContent = pca ? `Modern · ${pca.title}` : "Modern";
-      $("#pca-heading-title").textContent = pca ? `${pca.title} PCA` : "Custom PCA";
+      closestModern = closest;
+      const selectedMixed = state.modernPcaId === "mixed" && modernMixedPca;
+      displayedPcaId = selectedMixed ? "mixed" : pca?.id || null;
+      periodReferences = selectedMixed ? modernMixedPca.componentRows : pca ? allowedPcaReferences(pca) : [];
+      const hasPlot = periodReferences.length >= (selectedMixed ? 1 : 3);
+      period = selectedMixed ? "Mixed" : pca ? pca.title : "Modern";
+      $("#medieval-breakdown-title").textContent = displayedPcaId ? `Modern · ${period}${selectedMixed ? " PCA" : ""}` : "Modern";
+      $("#pca-heading-title").textContent = selectedMixed ? "Mixed PCA" : pca ? `${pca.title} PCA` : "Custom PCA";
       const label = closest ? closest.label.replaceAll("_", " ") : null;
       const closestNote = $("#modern-closest-population");
       closestNote.textContent = closest ? `Closest population: ${label} · Distance ${closest.distance.toFixed(3)}` : "";
-      if (pca && !hasPlot) status.textContent = "At least three included references are needed for ancestry composition and PCA.";
+      if (displayedPcaId && !hasPlot) status.textContent = "At least three included references are needed for ancestry composition and PCA.";
+      else if (selectedMixed) status.textContent = "";
       else if (pca) status.textContent = "Calculating ancestry composition…";
       else if (label) status.textContent = "No custom analysis is available for this population yet.";
       else status.textContent = "No modern references are available.";
       $("#pca-section").hidden = !hasPlot;
       $("#ancestry-composition-title").hidden = !hasPlot;
-      if (hasPlot) renderMedievalPca(periodReferences, pca.title, true, closest);
+      if (hasPlot) renderMedievalPca(periodReferences, period, true, closest, Boolean(selectedMixed));
       else {
         $("#medieval-pca-plot").replaceChildren();
         $("#medieval-pca-legend").replaceChildren();
         for (const selector of ["#pca-zoom-in", "#pca-zoom-out", "#pca-zoom-reset"]) $(selector).disabled = true;
         $("#pca-zoom-level").textContent = "100%";
+        return;
+      }
+      if (selectedMixed) {
+        renderMedievalFit(modernMixedPca.fit, true);
         return;
       }
     } else {
@@ -853,7 +908,7 @@
     }
     const requestId = medievalRequest;
     try {
-      const source = `(${window.G25MedievalModule.toString()})(self);\n(${medievalWorkerMain.toString()})();`;
+      const source = `(${window.G25MedievalModule.toString()})(self);\n(${window.G25ModernPcaModule.toString()})(self);\n(${medievalWorkerMain.toString()})();`;
       const url = URL.createObjectURL(new Blob([source], { type: "text/javascript" }));
       medievalWorkerUrl = url;
       const worker = new Worker(url);
@@ -874,6 +929,19 @@
           status.textContent = data.error;
           return;
         }
+        if (data.mixed) {
+          $("#medieval-breakdown-title").textContent = "Modern · Mixed PCA";
+          $("#pca-heading-title").textContent = "Mixed PCA";
+          const componentIndices = new Set(data.fit.components.map((component) => component.referenceIndex));
+          const componentRows = data.mixed.references.filter((_, index) => componentIndices.has(index));
+          modernMixedPca = { componentRows, fit: data.fit };
+          populateModernPcaSelect();
+          renderMedievalPca(componentRows, "Mixed", true, closestModern, true);
+        } else if (data.pca && data.pca.id !== displayedPcaId) {
+          $("#medieval-breakdown-title").textContent = `Modern · ${data.pca.title}`;
+          $("#pca-heading-title").textContent = `${data.pca.title} PCA`;
+          renderMedievalPca(data.pca.references, data.pca.title, true, closestModern);
+        }
         renderMedievalFit(data.fit, isModern);
       };
       worker.onerror = () => {
@@ -883,16 +951,21 @@
       };
       worker.postMessage({ requestId, target: state.single, references: periodReferences,
         groupLimit: isModern ? state.modernGroupLimit : state.medievalGroupLimit,
-        groupStyle: isModern ? "modern" : "colon" });
+        groupStyle: isModern ? "modern" : "colon",
+        modernPcas: isModern && state.modernPcaId === "auto" ? modernPcas.map((pca) => ({
+          id: pca.id, title: pca.title, references: allowedPcaReferences(pca),
+        })) : null });
     } catch (error) {
       cancelMedieval();
       status.textContent = `Analysis could not start: ${error.message}`;
     }
   }
 
-  function renderMedievalPca(periodReferences, period, isModern, closest = null) {
+  function renderMedievalPca(periodReferences, period, isModern, closest = null, mixed = false) {
     const container = $("#medieval-pca-plot");
     const legend = $("#medieval-pca-legend");
+    if (pcaTooltip) pcaTooltip.remove();
+    pcaTooltip = null;
     container.replaceChildren();
     legend.replaceChildren();
     for (const selector of ["#pca-zoom-in", "#pca-zoom-out", "#pca-zoom-reset"]) $(selector).disabled = true;
@@ -911,7 +984,7 @@
     try {
       projection = window.G25Pca.projectPca(state.single, periodReferences,
         isModern && highlightedIndex >= 0 ? [] : closestRows,
-        isModern ? "modern" : "colon");
+        isModern ? "modern" : "colon", mixed);
     } catch (error) {
       container.textContent = error.message;
       return;
@@ -987,7 +1060,9 @@
       parent.append(element);
       return element;
     };
-    const formatTick = (value) => value.toFixed(3);
+    const formatTick = (value, precision = 3) => value.toFixed(precision);
+    const xTicks = [];
+    const yTicks = [];
     for (let i = 0; i <= 4; i += 1) {
       const xValue = xMin + (xMax - xMin) * i / 4;
       const yValue = yMin + (yMax - yMin) * i / 4;
@@ -995,8 +1070,8 @@
       const y = plotY(yValue);
       add(svg, "line", { x1: x, y1: bounds.top, x2: x, y2: bounds.bottom, class: "pca-grid" });
       add(svg, "line", { x1: bounds.left, y1: y, x2: bounds.right, y2: y, class: "pca-grid" });
-      add(svg, "text", { x, y: bounds.bottom + 19, "text-anchor": "middle", class: "pca-tick" }, formatTick(xValue));
-      add(svg, "text", { x: bounds.left - 9, y: y + 4, "text-anchor": "end", class: "pca-tick" }, formatTick(yValue));
+      xTicks.push(add(svg, "text", { x, y: bounds.bottom + 19, "text-anchor": "middle", class: "pca-tick" }, formatTick(xValue)));
+      yTicks.push(add(svg, "text", { x: bounds.left - 9, y: y + 4, "text-anchor": "end", class: "pca-tick" }, formatTick(yValue)));
     }
     add(svg, "rect", { x: bounds.left, y: bounds.top, width: bounds.right - bounds.left,
       height: bounds.bottom - bounds.top, class: "pca-frame" });
@@ -1024,23 +1099,30 @@
     const groupColor = (group) => colors[group] || (isModern
       ? `hsl(${Math.round(groups.indexOf(group) * 137.5) % 360} 52% 42%)`
       : fallback[groups.indexOf(group) % fallback.length]);
+    const groupPositions = new Map();
+    const clusterPaths = [];
     for (const group of groups) {
       const positions = projection.points.filter((point) => point.ethnicity === group)
         .map((point) => ({ x: plotX(point.x), y: plotY(point.y) }));
+      groupPositions.set(group, positions);
       if (positions.length < 2) continue;
       const hull = window.G25PcaLayout.convexHull(positions);
       const path = hull.length === 2
         ? `M ${hull[0].x} ${hull[0].y} L ${hull[1].x} ${hull[1].y}`
         : `M ${hull.map((point) => `${point.x} ${point.y}`).join(" L ")} Z`;
-      add(plotLayer, "path", { d: path, fill: hull.length === 2 ? "none" : groupColor(group),
+      const node = add(plotLayer, "path", { d: path, fill: hull.length === 2 ? "none" : groupColor(group),
         stroke: groupColor(group), class: hull.length === 2 ? "pca-cluster-line" : "pca-cluster" });
+      clusterPaths.push({ node, positions });
     }
+    const referenceMarkers = [];
     projection.points.forEach((point, index) => {
       if (isModern && index === highlightedIndex) return;
       const circle = add(plotLayer, "circle", { cx: plotX(point.x), cy: plotY(point.y), r: 6,
         fill: groupColor(point.ethnicity), class: "pca-reference" });
+      referenceMarkers.push({ node: circle, x: plotX(point.x), y: plotY(point.y) });
       bindTooltip(circle, point.label);
     });
+    const modernMarkers = [];
     closestModern.forEach((match, index) => {
       const point = isModern && highlightedIndex >= 0
         ? projection.points[highlightedIndex] : projection.overlays[index];
@@ -1050,6 +1132,7 @@
         d: `M ${x} ${y - 10} L ${x + 10} ${y + 8} L ${x - 10} ${y + 8} Z`,
         class: "pca-modern",
       });
+      modernMarkers.push({ node: triangle, x, y });
       bindTooltip(triangle, isModern
         ? `Closest population: ${point.label} · Distance ${match.distance.toFixed(3)}`
         : `#${index + 1} modern: ${point.label} · Distance ${match.distance.toFixed(3)}`);
@@ -1059,6 +1142,11 @@
     const marker = add(plotLayer, "path", { d: `M ${targetX} ${targetY - 10} L ${targetX + 10} ${targetY} L ${targetX} ${targetY + 10} L ${targetX - 10} ${targetY} Z`,
       class: "pca-target" });
     bindTooltip(marker, `Input: ${projection.target.label}`);
+    const groupLabels = new Map(groups.map((group) => [group,
+      add(plotLayer, "text", { "text-anchor": "middle", fill: groupColor(group),
+        class: "pca-group-label", "aria-hidden": "true" }, group.replaceAll("_", " "))]));
+    const youLabel = add(plotLayer, "text", { class: "pca-you-label",
+      "aria-hidden": "true" }, "YOU");
     container.append(svg);
     const zoomIn = $("#pca-zoom-in");
     const zoomOut = $("#pca-zoom-out");
@@ -1076,7 +1164,86 @@
       const maxY = bounds.top * (1 - scale);
       panX = Math.max(minX, Math.min(maxX, panX));
       panY = Math.max(minY, Math.min(maxY, panY));
-      plotLayer.setAttribute("transform", `matrix(${scale} 0 0 ${scale} ${panX} ${panY})`);
+      const screen = (point) => ({ x: point.x * scale + panX, y: point.y * scale + panY });
+      const visible = (point) => point.x >= bounds.left && point.x <= bounds.right &&
+        point.y >= bounds.top && point.y <= bounds.bottom;
+      const tickPrecision = scale >= 8 ? 5 : scale >= 2 ? 4 : 3;
+      for (let i = 0; i <= 4; i += 1) {
+        const x = bounds.left + (bounds.right - bounds.left) * i / 4;
+        const y = bounds.bottom - (bounds.bottom - bounds.top) * i / 4;
+        const baseX = (x - panX) / scale;
+        const baseY = (y - panY) / scale;
+        xTicks[i].textContent = formatTick(xMin + (baseX - bounds.left) /
+          (bounds.right - bounds.left) * (xMax - xMin), tickPrecision);
+        yTicks[i].textContent = formatTick(yMax - (baseY - bounds.top) /
+          (bounds.bottom - bounds.top) * (yMax - yMin), tickPrecision);
+      }
+      for (const { node, positions } of clusterPaths) {
+        const hull = window.G25PcaLayout.convexHull(positions.map(screen));
+        node.setAttribute("d", hull.length === 2
+          ? `M ${hull[0].x} ${hull[0].y} L ${hull[1].x} ${hull[1].y}`
+          : `M ${hull.map((point) => `${point.x} ${point.y}`).join(" L ")} Z`);
+      }
+      for (const { node, x, y } of referenceMarkers) {
+        const point = screen({ x, y });
+        node.setAttribute("cx", point.x);
+        node.setAttribute("cy", point.y);
+      }
+      for (const { node, x, y } of modernMarkers) {
+        const point = screen({ x, y });
+        node.setAttribute("d", `M ${point.x} ${point.y - 10} L ${point.x + 10} ${point.y + 8} L ${point.x - 10} ${point.y + 8} Z`);
+      }
+      const target = screen({ x: targetX, y: targetY });
+      marker.setAttribute("d", `M ${target.x} ${target.y - 10} L ${target.x + 10} ${target.y} L ${target.x} ${target.y + 10} L ${target.x - 10} ${target.y} Z`);
+      const youRight = target.x < bounds.right - 70;
+      const youX = target.x + (youRight ? 14 : -14);
+      const youY = target.y < bounds.top + 32 ? target.y + 23 : target.y - 13;
+      youLabel.setAttribute("x", youX);
+      youLabel.setAttribute("y", youY);
+      youLabel.setAttribute("text-anchor", youRight ? "start" : "end");
+      youLabel.style.display = visible(target) ? "" : "none";
+      const occupiedLabels = [];
+      if (visible(target)) {
+        occupiedLabels.push({ left: target.x - 15, right: target.x + 15,
+          top: target.y - 15, bottom: target.y + 15 });
+        occupiedLabels.push({ left: youRight ? youX : youX - 32,
+          right: youRight ? youX + 32 : youX, top: youY - 13, bottom: youY + 4 });
+      }
+      for (const { x, y } of modernMarkers) {
+        const point = screen({ x, y });
+        if (visible(point)) occupiedLabels.push({ left: point.x - 13, right: point.x + 13,
+          top: point.y - 13, bottom: point.y + 11 });
+      }
+      for (const group of groups) {
+        const node = groupLabels.get(group);
+        const positions = groupPositions.get(group).map(screen).filter(visible);
+        if (!positions.length) {
+          node.style.display = "none";
+          continue;
+        }
+        node.style.display = "";
+        const anchorX = positions.reduce((sum, point) => sum + point.x, 0) / positions.length;
+        const anchorY = positions.reduce((sum, point) => sum + point.y, 0) / positions.length;
+        const labelWidth = Math.min(260, Math.max(45, node.textContent.length * 7 + 12));
+        let best = null;
+        for (const dy of [-15, 17, -33, 35, -51, 53]) {
+          for (const dx of [0, -45, 45, -90, 90]) {
+            const x = Math.max(bounds.left + labelWidth / 2 + 4,
+              Math.min(bounds.right - labelWidth / 2 - 4, anchorX + dx));
+            const y = Math.max(bounds.top + 16, Math.min(bounds.bottom - 5, anchorY + dy));
+            const box = { left: x - labelWidth / 2, right: x + labelWidth / 2,
+              top: y - 13, bottom: y + 4 };
+            const overlap = occupiedLabels.reduce((sum, other) => sum +
+              Math.max(0, Math.min(box.right, other.right) - Math.max(box.left, other.left)) *
+              Math.max(0, Math.min(box.bottom, other.bottom) - Math.max(box.top, other.top)), 0);
+            const score = overlap * 10 + Math.hypot(x - anchorX, y - anchorY);
+            if (!best || score < best.score) best = { x, y, box, score };
+          }
+        }
+        occupiedLabels.push(best.box);
+        node.setAttribute("x", best.x);
+        node.setAttribute("y", best.y);
+      }
       svg.classList.toggle("is-zoomed", scale > 1);
       zoomLevel.textContent = `${Math.round(scale * 100)}%`;
       zoomIn.disabled = scale >= 12;
@@ -1096,8 +1263,20 @@
       return { x: (event.clientX - rect.left) * width / rect.width,
         y: (event.clientY - rect.top) * height / rect.height };
     };
-    zoomIn.onclick = () => zoomAt(1.25, center.x, center.y);
-    zoomOut.onclick = () => zoomAt(1 / 1.25, center.x, center.y);
+    const zoomButtonAnchor = () => {
+      const x = targetX * scale + panX;
+      const y = targetY * scale + panY;
+      return x >= bounds.left && x <= bounds.right && y >= bounds.top && y <= bounds.bottom
+        ? { x, y } : center;
+    };
+    zoomIn.onclick = () => {
+      const { x, y } = zoomButtonAnchor();
+      zoomAt(1.25, x, y);
+    };
+    zoomOut.onclick = () => {
+      const { x, y } = zoomButtonAnchor();
+      zoomAt(1 / 1.25, x, y);
+    };
     zoomReset.onclick = () => { scale = 1; panX = 0; panY = 0; updateZoom(); };
     svg.addEventListener("wheel", (event) => {
       const { x, y } = svgPosition(event);
@@ -1626,6 +1805,7 @@
     state.medievalGroupLimit = 5;
     state.modernGroupLimit = 2;
     state.modernPcaId = "auto";
+    modernMixedPca = null;
     familyMessage = "";
     render();
   });
@@ -1664,6 +1844,8 @@
   });
   $("#modern-group-limit").addEventListener("change", (event) => {
     state.modernGroupLimit = Number(event.currentTarget.value);
+    modernMixedPca = null;
+    if (state.modernPcaId === "mixed") state.modernPcaId = "auto";
     renderSingle();
   });
   const modernPcaSelect = $("#modern-pca-select");
@@ -1673,6 +1855,8 @@
   });
   $("#turkish-toggle").addEventListener("change", (event) => {
     state.turkish = event.currentTarget.checked;
+    modernMixedPca = null;
+    if (state.modernPcaId === "mixed") state.modernPcaId = "auto";
     if (!state.turkish) state.analysisView = "results";
     updateSelectedReferences(state.turkish ? turkishReferences : globalReferences);
     render();

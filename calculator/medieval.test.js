@@ -43,6 +43,7 @@ test("group caps refit and normalize the selected groups instead of hiding compo
   for (const limit of [3, 4, 5]) {
     const fit = fitAdmixture(target, references, limit);
     assert.equal(fit.groups.length, limit);
+    assert.ok(fit.components.every((part) => references[part.referenceIndex][1] === part.label));
     assert.ok(Math.abs(fit.components.reduce((sum, part) => sum + part.weight, 0) - 1) < 1e-12);
     assert.ok(Math.abs(fit.distance - Math.sqrt((6 - limit) / (6 * limit)) * 100) < 1e-5);
     assert.ok(fit.distance < previousDistance);
@@ -82,6 +83,7 @@ test("modern group limit refits selected groups", () => {
   for (const limit of [1, 2, 3]) {
     const fit = fitAdmixture(target, references, limit, "modern");
     assert.equal(fit.groups.length, limit);
+    assert.ok(fit.components.every((part) => references[part.referenceIndex][1] === part.label));
     assert.ok(Math.abs(fit.groups.reduce((sum, group) => sum + group.weight, 0) - 1) < 1e-12);
   }
   assert.throws(() => fitAdmixture(target, references, 4, "modern"), /1, 2 or 3/);

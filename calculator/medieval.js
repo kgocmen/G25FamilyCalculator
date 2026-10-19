@@ -110,6 +110,7 @@ function G25MedievalModule(root) {
       const colon = label.indexOf(":");
       return {
         label,
+        referenceIndex: index,
         ethnicity: groupName(label, groupStyle),
         sample: colon < 0 ? label : label.slice(colon + 1),
         weight: weight / total,
@@ -147,7 +148,13 @@ function G25MedievalModule(root) {
     const referenceGroup = (row) => groupName(Array.isArray(row) ? row[1] : row.label, groupStyle);
     if (groupStyle === "modern") {
       const selected = new Set(unrestricted.groups.slice(0, groupLimit).map((group) => group.ethnicity));
-      return fitUnrestricted(target, references.filter((row) => selected.has(referenceGroup(row))), groupStyle);
+      const subset = references.map((row, index) => ({ row, index }))
+        .filter(({ row }) => selected.has(referenceGroup(row)));
+      const fit = fitUnrestricted(target, subset.map(({ row }) => row), groupStyle);
+      fit.components.forEach((component) => {
+        component.referenceIndex = subset[component.referenceIndex].index;
+      });
+      return fit;
     }
     const names = [...new Set(references.map(referenceGroup))].sort();
     let best = null;
@@ -155,8 +162,12 @@ function G25MedievalModule(root) {
     // The cap applies to ancestry groups, not individual reference samples.
     function search(start, selected) {
       if (selected.length === groupLimit) {
-        const subset = references.filter((row) => selected.includes(referenceGroup(row)));
-        const fit = fitUnrestricted(target, subset, groupStyle);
+        const subset = references.map((row, index) => ({ row, index }))
+          .filter(({ row }) => selected.includes(referenceGroup(row)));
+        const fit = fitUnrestricted(target, subset.map(({ row }) => row), groupStyle);
+        fit.components.forEach((component) => {
+          component.referenceIndex = subset[component.referenceIndex].index;
+        });
         if (!best || fit.distance < best.distance) best = fit;
         return;
       }

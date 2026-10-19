@@ -57,6 +57,20 @@ test("modern PCA uses prepared group names", () => {
     ["Türk_Anadolu", "Rum_Helen", "Ermeni"]);
 });
 
+test("mixed PCA can project only its fitted components and one closest overlay", () => {
+  const target = { values: [0.5, 0.5, ...Array(23).fill(0)] };
+  const components = [reference("Türk_A:First", 0, 0), reference("Türk_B:Second", 1, 0)];
+  const closest = reference("Türk_İstanbul:Closest", 0, 1);
+  const projected = projectPca(target, components, [closest], "modern", true);
+  assert.deepEqual(projected.points.map((point) => point.label),
+    ["Türk_A:First", "Türk_B:Second"]);
+  assert.deepEqual(projected.overlays.map((point) => point.label), ["Türk_İstanbul:Closest"]);
+  const single = projectPca(target, components.slice(0, 1), [closest], "modern", true);
+  assert.equal(single.points.length, 1);
+  assert.ok([...single.points, single.target, ...single.overlays]
+    .every((point) => Number.isFinite(point.x) && Number.isFinite(point.y)));
+});
+
 test("invalid coordinates are rejected", () => {
   const references = [reference("A:1", 0, 0), reference("B:2", 1, 0), reference("C:3", 0, 1)];
   assert.throws(() => projectPca({ values: [0] }, references), /25 finite/);

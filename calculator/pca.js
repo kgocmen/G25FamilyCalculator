@@ -45,13 +45,14 @@ function G25PcaModule(root) {
     return { vector, variance };
   }
 
-  function projectPca(target, references, overlays = [], groupStyle = "colon") {
+  function projectPca(target, references, overlays = [], groupStyle = "colon", sparse = false) {
     if (!target || !Array.isArray(target.values) || target.values.length !== DIMENSIONS ||
         !target.values.every(Number.isFinite)) {
       throw new Error("The input needs 25 finite G25 coordinates.");
     }
-    if (!Array.isArray(references) || references.length < 3) {
-      throw new Error("At least three references are needed for PCA.");
+    if (!Array.isArray(references) || references.length < (sparse ? 1 : 3)) {
+      throw new Error(sparse ? "At least one reference is needed for PCA."
+        : "At least three references are needed for PCA.");
     }
     const readRow = (reference, description) => {
       const values = Array.isArray(reference) ? reference.slice(2) : reference.values;

@@ -26,8 +26,38 @@ function G25ModernPcaModule(root) {
     return ranked.map(({ pca, number, distance }) => ({ pca, number, distance }));
   }
 
-  const api = { selectModernPca, rankModernPcas };
+  function buildMixedPca(pcaFits) {
+    const candidates = [...pcaFits].sort((first, second) => first.fit.distance - second.fit.distance);
+    const istanbulCount = candidates.filter(({ fit }) =>
+      fit.groups.some((group) => group.ethnicity === "Türk_İstanbul" && group.weight > 0)).length;
+    if (istanbulCount < 2) return null;
+    const references = [];
+    const seen = new Set();
+    for (const { pca, fit } of candidates) {
+      const activeLabels = new Set(fit.components.filter((component) =>
+        component.ethnicity !== "Türk_İstanbul").map((component) => component.label));
+      for (const row of pca.references) {
+        if (!activeLabels.has(row[1])) continue;
+        const key = JSON.stringify(row.slice(2));
+        if (seen.has(key)) continue;
+        seen.add(key);
+        references.push(row);
+      }
+    }
+    return references.length >= 3 ? { references, sourceIds: candidates.map(({ pca }) => pca.id) } : null;
+  }
+
+  function mixedFitIsBetter(mixedFit, pcaFits) {
+    const bestDistance = Math.min(...pcaFits.map(({ fit }) => fit.distance).filter(Number.isFinite));
+    return Number.isFinite(mixedFit?.distance) && Number.isFinite(bestDistance) &&
+      mixedFit.distance < bestDistance * 0.75;
+  }
+
+  const api = { selectModernPca, rankModernPcas, buildMixedPca, mixedFitIsBetter };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
-  else root.G25ModernPca = api;
+  else {
+    root.G25ModernPca = api;
+    root.G25ModernPcaModule = G25ModernPcaModule;
+  }
 }
 G25ModernPcaModule(typeof window !== "undefined" ? window : globalThis);

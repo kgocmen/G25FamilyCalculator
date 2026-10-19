@@ -1,7 +1,7 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
 const { nearestMatches } = require("./core.js");
-const { selectModernPca, rankModernPcas } = require("./modern_pca.js");
+const { selectModernPca, rankModernPcas, buildMixedPca, mixedFitIsBetter } = require("./modern_pca.js");
 
 const row = (label, first) => ["modern", label, first, ...Array(24).fill(0)];
 const target = (first) => ({ label: "Input", values: [first, ...Array(24).fill(0)] });
@@ -60,4 +60,39 @@ test("shared nearest references are ordered by the next nearest population", () 
   ];
   assert.deepEqual(rankModernPcas(target(0), pcas, nearestMatches).map(({ pca }) => pca.id),
     ["east", "west"]);
+});
+
+test("mixed PCA uses non-Istanbul fitted components from all maps without duplicate samples", () => {
+  const istanbul = row("Türk_İstanbul:Shared", 0);
+  const shared = row("Türk_A:Shared", 1);
+  const fits = [
+    { pca: { id: "first", references: [istanbul, shared, row("Türk_A:Other", 2)] },
+      fit: { distance: 1, groups: [{ ethnicity: "Türk_İstanbul", weight: 0.4 },
+        { ethnicity: "Türk_A", weight: 0.6 }],
+      components: [{ label: "Türk_İstanbul:Shared", ethnicity: "Türk_İstanbul" },
+        { label: "Türk_A:Shared", ethnicity: "Türk_A" },
+        { label: "Türk_A:Other", ethnicity: "Türk_A" }] } },
+    { pca: { id: "second", references: [istanbul, shared, row("Türk_B:Sample", 3)] },
+      fit: { distance: 2, groups: [{ ethnicity: "Türk_İstanbul", weight: 0.5 },
+        { ethnicity: "Türk_A", weight: 0.25 }, { ethnicity: "Türk_B", weight: 0.25 }],
+      components: [{ label: "Türk_İstanbul:Shared", ethnicity: "Türk_İstanbul" },
+        { label: "Türk_A:Shared", ethnicity: "Türk_A" },
+        { label: "Türk_B:Sample", ethnicity: "Türk_B" }] } },
+    { pca: { id: "third", references: [row("Türk_C:Sample", 4)] },
+      fit: { distance: 3, groups: [{ ethnicity: "Türk_C", weight: 1 }],
+        components: [{ label: "Türk_C:Sample", ethnicity: "Türk_C" }] } },
+  ];
+  const mixed = buildMixedPca(fits);
+  assert.deepEqual(mixed.sourceIds, ["first", "second", "third"]);
+  assert.deepEqual(mixed.references.map((reference) => reference[1]),
+    ["Türk_A:Shared", "Türk_A:Other", "Türk_B:Sample", "Türk_C:Sample"]);
+  assert.equal(buildMixedPca(fits.slice(0, 1)), null);
+});
+
+test("mixed PCA needs more than a 25% distance improvement over the best single fit", () => {
+  const fits = [{ fit: { distance: 2 } }, { fit: { distance: 4 } }];
+  assert.equal(mixedFitIsBetter({ distance: 1.49 }, fits), true);
+  assert.equal(mixedFitIsBetter({ distance: 1.5 }, fits), false);
+  assert.equal(mixedFitIsBetter({ distance: 1.8 }, fits), false);
+  assert.equal(mixedFitIsBetter({ distance: 0 }, [{ fit: { distance: 0 } }]), false);
 });
