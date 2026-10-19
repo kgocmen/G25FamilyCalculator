@@ -2,7 +2,7 @@ function G25MedievalModule(root) {
   "use strict";
 
   const DIMENSIONS = 25;
-  const MAX_SAMPLES_PER_GROUP = 3;
+  const MAX_SAMPLES_PER_GROUP = 4;
 
   function groupName(label, groupStyle) {
     if (groupStyle === "modern") {

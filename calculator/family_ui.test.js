@@ -6,7 +6,7 @@ const test = require('node:test');
 
 test('family controls enforce locks, restore inputs and discard stale optimisation', async () => {
 class Element {
-  constructor() { this.children=[]; this.listeners={}; this.value='modern'; this.dataset={}; this.classList={toggle(){},add(){},remove(){}}; }
+  constructor() { this.children=[]; this.listeners={}; this.value='modern'; this.dataset={}; this.style={}; this.classList={toggle(){},add(){},remove(){}}; }
   append(...items) { this.children.push(...items); }
   replaceChildren(...items) { this.children=items; }
   addEventListener(name, fn) { this.listeners[name]=fn; }
@@ -24,6 +24,15 @@ const refs=[['modern','Low',...Array(25).fill(0)],['modern','High',...Array(25).
 let lastWorker;
 class Worker { constructor(url){this.url=url; lastWorker=this;} postMessage(data){this.data=data;} terminate(){this.terminated=true;} }
 const window={G25Core:core,G25_REFERENCES:refs};
+const pcaRow = (label, value, category = 'modern') => [category, label, ...Array(25).fill(value)];
+window.G25_MODERN_PCAS = [
+  { id: 'first', references: [pcaRow('Group_A:Fitted', 2), pcaRow('Group_A:Unused', 3), pcaRow('Group_B:Other', 4)], referenceAnchors: [] },
+  { id: 'second', references: [pcaRow('Other_Group:Alias', 3), pcaRow('Group_B:Other', 4)], referenceAnchors: [] },
+];
+window.G25_MEDIEVAL_REFERENCES = {
+  early: [pcaRow('Rum:Early', 5, 'medieval')],
+  late: [pcaRow('Rum:Late', 6, 'medieval'), pcaRow('Türk:Late', 7, 'medieval')],
+};
 vm.runInNewContext(fs.readFileSync(require('node:path').join(__dirname, 'core.js'), 'utf8'), { window });
 let workerBlob;
 const revoked = [];
@@ -34,7 +43,7 @@ const sessionStorage = { getItem(key) { return storage.get(key) || null; }, setI
 vm.runInNewContext(fs.readFileSync(require('node:path').join(__dirname, 'mixture.js'), 'utf8'), { window });
 const context={window,document,Worker,URL:workerURLs,Blob,console,sessionStorage};
 let source=fs.readFileSync(require('node:path').join(__dirname, 'app.js'),'utf8');
-source=source.replace('  render();\n})();','  window.testApi = {state, familyLocks, familyReverts, render, optimiseFamily, setTarget, changeBlacklist, changeWhitelist, allowedReferences};\n  render();\n})();');
+source=source.replace('  render();\n})();','  window.testApi = {state, familyLocks, familyReverts, render, optimiseFamily, setTarget, changeBlacklist, changeWhitelist, allowedReferences, allowedPcaReferences, renderMedievalFit};\n  render();\n})();');
 vm.runInNewContext(source,context);
 const api=window.testApi;
 const button=()=>document.querySelector('#family-optimise');
@@ -162,4 +171,38 @@ api.state.mode = 4;
 api.state.offspring = null;
 api.render();
 assert.ok(!document.querySelector('#family-optimise-status').textContent.includes('Fill the child'));
+
+// The group control excludes unfitted members and aliases across PCAs as one restorable rule.
+const list = document.querySelector('#medieval-breakdown-list');
+list.replaceChildren();
+api.renderMedievalFit({ distance: 0, groups: [{ ethnicity: 'Group_A', weight: 1,
+  samples: [{ label: 'Group_A:Fitted', sample: 'Fitted', weight: 1 }] }] }, true);
+const groupSummary = list.children[0].children[0];
+const groupButton = groupSummary.children[2];
+assert.equal(groupSummary.children[1].textContent, '100.0%');
+assert.equal(groupButton['aria-label'], 'Blacklist entire Group A group');
+let prevented = false;
+let stopped = false;
+groupButton.listeners.click({ preventDefault() { prevented = true; }, stopPropagation() { stopped = true; } });
+assert.ok(prevented && stopped);
+assert.equal(document.querySelector('#blacklist-count').textContent, '1');
+assert.equal(JSON.parse(storage.get('g25-temporary-blacklist'))[0].group, true);
+assert.equal(api.allowedPcaReferences(window.G25_MODERN_PCAS[0]).map((row) => row[1]).join(','), 'Group_B:Other');
+assert.equal(api.allowedPcaReferences(window.G25_MODERN_PCAS[1]).map((row) => row[1]).join(','), 'Group_B:Other');
+assert.equal(api.allowedReferences([pcaRow('Group_A:New', 8)]).length, 0);
+assert.equal(api.allowedReferences([pcaRow('Main_Dataset_Alias', 3)]).length, 0);
+const groupRule = document.querySelector('#blacklist-list').children[0];
+assert.equal(groupRule.children[0].children[1].textContent, 'modern · entire group');
+groupRule.children[2].listeners.click();
+assert.equal(api.allowedPcaReferences(window.G25_MODERN_PCAS[0]).length, 3);
+assert.equal(api.allowedPcaReferences(window.G25_MODERN_PCAS[1]).length, 2);
+
+// Medieval rules cover both periods and remain scoped to their reference category.
+api.changeBlacklist({ category: 'medieval', label: 'Rum', group: true }, true);
+assert.equal(api.allowedReferences(window.G25_MEDIEVAL_REFERENCES.early).length, 0);
+assert.equal(api.allowedReferences(window.G25_MEDIEVAL_REFERENCES.late).map((row) => row[1]).join(','), 'Türk:Late');
+assert.equal(api.allowedReferences([pcaRow('Rum:Modern', 5)]).length, 1);
+document.querySelector('#blacklist-clear').listeners.click();
+assert.equal(api.allowedReferences(window.G25_MEDIEVAL_REFERENCES.early).length, 1);
+assert.equal(api.allowedReferences(window.G25_MEDIEVAL_REFERENCES.late).length, 2);
 });

@@ -63,6 +63,8 @@
 
   const blacklistStorageKey = "g25-temporary-blacklist";
   const blacklist = new Map();
+  let excludedGroupKeys = new Set();
+  let excludedGroupCoordinates = new Set();
   const whitelist = new Map();
   const whitelistStorageKey = "g25-temporary-whitelist";
   let populationListMode = "exclude";
@@ -85,11 +87,39 @@
   } catch (_) {}
 
   function populationKey(row) {
+    if (!Array.isArray(row) && row.group) return JSON.stringify([row.category, row.label, "group"]);
     return JSON.stringify(Array.isArray(row) ? [row[0], row[1]] : [row.category, row.label]);
   }
 
+  function ancestryGroupKey(row) {
+    const colon = row[1].indexOf(":");
+    const label = colon >= 0 ? row[1].slice(0, colon)
+      : row[0] === "modern" ? row[1].split("_", 1)[0] : row[1];
+    return populationKey({ category: row[0], label, group: true });
+  }
+
+  function groupCoordinateKey(row) {
+    return JSON.stringify([row[0], row.slice(2)]);
+  }
+
+  function rebuildGroupExclusions() {
+    excludedGroupKeys = new Set([...blacklist.values()].filter((item) => item.group).map(populationKey));
+    excludedGroupCoordinates = new Set();
+    if (!excludedGroupKeys.size) return;
+    const rows = [...globalReferences, ...turkishReferences, ...modernPcas.flatMap((pca) => pca.references),
+      ...(medievalReferences.early || []), ...(medievalReferences.late || [])];
+    for (const row of rows) {
+      if (excludedGroupKeys.has(ancestryGroupKey(row))) excludedGroupCoordinates.add(groupCoordinateKey(row));
+    }
+  }
+
+  function isGroupExcluded(row) {
+    return excludedGroupKeys.size > 0 && (excludedGroupKeys.has(ancestryGroupKey(row)) ||
+      excludedGroupCoordinates.has(groupCoordinateKey(row)));
+  }
+
   function allowedReferences(rows) {
-    return rows.filter((row) => !blacklist.has(populationKey(row)) &&
+    return rows.filter((row) => !blacklist.has(populationKey(row)) && !isGroupExcluded(row) &&
       (!whitelist.size || whitelist.has(populationKey(row))));
   }
 
@@ -99,7 +129,7 @@
       if (pca.referenceAnchors[index]) {
         keys.push(populationKey({ category: "modern", label: pca.referenceAnchors[index] }));
       }
-      return !keys.some((key) => blacklist.has(key)) &&
+      return !isGroupExcluded(row) && !keys.some((key) => blacklist.has(key)) &&
         (!whitelist.size || keys.some((key) => whitelist.has(key)));
     });
   }
@@ -112,7 +142,8 @@
   function changeBlacklist(item, excluded) {
     if (excluded) {
       whitelist.delete(populationKey(item));
-      blacklist.set(populationKey(item), { category: item.category, label: item.label });
+      blacklist.set(populationKey(item), { category: item.category, label: item.label,
+        ...(item.group ? { group: true } : {}) });
     }
     else blacklist.delete(populationKey(item));
     refreshBlacklist();
@@ -127,6 +158,7 @@
   }
 
   function refreshBlacklist() {
+    rebuildGroupExclusions();
     modernMixedPca = null;
     modernMixedDirty = true;
     if (state.modernPcaId === "mixed") state.modernPcaId = "auto";
@@ -172,7 +204,7 @@
       const label = document.createElement("span");
       label.textContent = item.label;
       const category = document.createElement("small");
-      category.textContent = item.category;
+      category.textContent = `${item.category}${item.group ? " · entire group" : ""}`;
       name.append(label, category);
       const badge = document.createElement("span");
       badge.className = `population-rule-badge ${only ? "only" : "excluded"}`;
@@ -200,7 +232,7 @@
     let shown = 0;
     for (const row of pool) {
       const key = populationKey(row);
-      if (seen.has(key) || (populationListMode === "only" ? whitelist : blacklist).has(key) || !words.every((word) => normalizeSearch(row[1]).includes(word))) continue;
+      if (seen.has(key) || isGroupExcluded(row) || (populationListMode === "only" ? whitelist : blacklist).has(key) || !words.every((word) => normalizeSearch(row[1]).includes(word))) continue;
       seen.add(key);
       const entry = document.createElement("li");
       const name = makeButton(`${row[1]} · ${row[0]}`, () => {
@@ -374,26 +406,14 @@
             fit = selected.fit;
             pca = selected.pca;
           }
-          const mixedSourceFits = data.groupLimit > 1
-            ? data.modernPcas.filter((entry) => (entry.mixedReferences || entry.references).length >= 3)
-              .map((entry) => {
-                const source = { ...entry, references: entry.mixedReferences || entry.references };
-                return { pca: source, fit: self.G25Medieval.fitAdmixture(
-                  data.target, source.references, data.groupLimit, "modern") };
-              }) : [];
-          const candidate = data.groupLimit > 1
-            ? self.G25ModernPca.buildMixedPca(mixedSourceFits) : null;
+          const candidate = self.G25ModernPca.findMixedPca(
+            data.target, pcaFits, data.groupLimit, self.G25Medieval.fitAdmixture);
           if (candidate) {
-            const mixedFit = self.G25Medieval.fitAdmixture(
-              data.target, candidate.references, data.groupLimit, "modern");
-            const better = self.G25ModernPca.mixedFitIsBetter(mixedFit, pcaFits);
-            if (better) {
-              availableMixed = { references: candidate.references, fit: mixedFit };
-              if (data.selectedPcaId === "auto") {
-                fit = mixedFit;
-                mixed = candidate;
-                pca = null;
-              }
+            availableMixed = candidate;
+            if (data.selectedPcaId === "auto") {
+              fit = candidate.fit;
+              mixed = candidate;
+              pca = null;
             }
           }
         }
@@ -849,8 +869,8 @@
     $("#modern-group-limit option[value='1']").disabled = mixedActive;
     options.replaceChildren();
     const choices = modernMixedPca && state.modernGroupLimit > 1
-      ? [...modernPcas, { id: "mixed", title: "Mixed PCA",
-        references: modernMixedPca.componentRows, referenceAnchors: [] }]
+      ? [...modernPcas, { id: "mixed", title: `Mixed · ${modernMixedPca.sourceTitles.join(" + ")}`,
+        references: modernMixedPca.references, referenceAnchors: [] }]
       : modernPcas;
     const rankedPcas = window.G25ModernPca.rankModernPcas(
       state.single, choices, core.nearestMatches, allowedPcaReferences);
@@ -940,11 +960,11 @@
       closestModern = closest;
       const selectedMixed = state.modernGroupLimit > 1 && state.modernPcaId === "mixed" && modernMixedPca;
       displayedPcaId = selectedMixed ? "mixed" : pca?.id || null;
-      periodReferences = selectedMixed ? modernMixedPca.componentRows : pca ? regularPcaReferences(pca) : [];
+      periodReferences = selectedMixed ? modernMixedPca.references : pca ? regularPcaReferences(pca) : [];
       const hasPlot = periodReferences.length >= (selectedMixed ? 1 : 3);
-      period = selectedMixed ? "Mixed" : pca ? pca.title : "Modern";
+      period = selectedMixed ? `Mixed · ${modernMixedPca.sourceTitles.join(" + ")}` : pca ? pca.title : "Modern";
       $("#medieval-breakdown-title").textContent = displayedPcaId ? `Modern · ${period}${selectedMixed ? " PCA" : ""}` : "Modern";
-      $("#pca-heading-title").textContent = selectedMixed ? "Mixed PCA" : pca ? `${pca.title} PCA` : "Custom PCA";
+      $("#pca-heading-title").textContent = selectedMixed ? `${period} PCA` : pca ? `${pca.title} PCA` : "Custom PCA";
       const label = closest ? closest.label.replaceAll("_", " ") : null;
       const closestNote = $("#modern-closest-population");
       closestNote.textContent = closest ? `Closest population: ${label} · Distance ${closest.distance.toFixed(3)}` : "";
@@ -1003,18 +1023,15 @@
             .map(({ id, distance }) => [id, distance]));
           modernMixedPca = null;
           if (data.availableMixed) {
-            const componentIndices = new Set(data.availableMixed.fit.components
-              .map((component) => component.referenceIndex));
-            const componentRows = data.availableMixed.references
-              .filter((_, index) => componentIndices.has(index));
-            modernMixedPca = { componentRows, fit: data.availableMixed.fit };
+            modernMixedPca = data.availableMixed;
           }
           populateModernPcaSelect();
         }
         if (data.mixed) {
-          $("#medieval-breakdown-title").textContent = "Modern · Mixed PCA";
-          $("#pca-heading-title").textContent = "Mixed PCA";
-          renderMedievalPca(modernMixedPca.componentRows, "Mixed", true, closestModern, true);
+          const mixedTitle = `Mixed · ${modernMixedPca.sourceTitles.join(" + ")}`;
+          $("#medieval-breakdown-title").textContent = `Modern · ${mixedTitle} PCA`;
+          $("#pca-heading-title").textContent = `${mixedTitle} PCA`;
+          renderMedievalPca(modernMixedPca.references, mixedTitle, true, closestModern, true);
         } else if (data.pca && data.pca.id !== displayedPcaId) {
           $("#medieval-breakdown-title").textContent = `Modern · ${data.pca.title}`;
           $("#pca-heading-title").textContent = `${data.pca.title} PCA`;
@@ -1034,7 +1051,6 @@
         closestPcaId,
         modernPcas: scanModernPcas ? modernPcas.map((pca) => ({
           id: pca.id, title: pca.title, references: regularPcaReferences(pca),
-          mixedReferences: allowedPcaReferences(pca),
         })) : null });
     } catch (error) {
       cancelMedieval();
@@ -1435,7 +1451,15 @@
       name.textContent = group.ethnicity.replaceAll("_", " ");
       const share = document.createElement("strong");
       share.textContent = formatPercent(groupUnits[groupIndex]);
-      summary.append(name, share);
+      const excludeGroup = makeButton("−", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        changeBlacklist({ label: group.ethnicity, category: isModern ? "modern" : "medieval", group: true }, true);
+      });
+      excludeGroup.className = "exclude-population exclude-group";
+      excludeGroup.setAttribute("aria-label", `Blacklist entire ${group.ethnicity.replaceAll("_", " ")} group`);
+      excludeGroup.title = "Blacklist every sample in this group";
+      summary.append(name, share, excludeGroup);
       const bar = document.createElement("div");
       bar.className = "breakdown-bar";
       const fill = document.createElement("span");
@@ -2034,5 +2058,6 @@
     }
   });
   $("#copy-result").addEventListener("click", (event) => copyText(state.output, event.currentTarget));
+  rebuildGroupExclusions();
   render();
 })();

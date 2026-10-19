@@ -3,113 +3,75 @@ const fs = require("node:fs");
 const path = require("node:path");
 const test = require("node:test");
 const vm = require("node:vm");
-const { fitAdmixture } = require("./medieval.js");
-const { buildMixedPca, mixedFitIsBetter, isIstanbulReference } = require("./modern_pca.js");
 
-test("mixed PCA is offered only below 75% of the best PCA fit at two or three groups", () => {
-  const app = fs.readFileSync(path.join(__dirname, "app.js"), "utf8");
-  const start = app.indexOf("  function medievalWorkerMain() {");
-  const end = app.indexOf("  function mixtureWorkerMain() {", start);
-  assert.ok(start >= 0 && end > start);
-  const workerSource = `(${app.slice(start, end).trim()})()`;
-  const pcas = [
-    { id: "first", references: [1, 2, 3], mixedReferences: [1, 2, 3, 10] },
-    { id: "second", references: [4, 5, 6], mixedReferences: [4, 5, 6, 10] },
-  ];
-  const candidate = { references: [7, 8, 9] };
+const app = fs.readFileSync(path.join(__dirname, "app.js"), "utf8");
+const start = app.indexOf("  function medievalWorkerMain() {");
+const end = app.indexOf("  function mixtureWorkerMain() {", start);
+assert.ok(start >= 0 && end > start);
+const workerSource = `(${app.slice(start, end).trim()})()`;
+const moduleSource = ["medieval.js", "modern_pca.js"].map((file) =>
+  fs.readFileSync(path.join(__dirname, file), "utf8")).join("\n");
+const row = (label, coordinate) => ["modern", label,
+  ...Array.from({ length: 25 }, (_, index) => index === coordinate ? 1 : 0)];
+const pcas = [
+  { id: "first", title: "First", references: [row("A:One", 0), row("A:Two", 1), row("A:Three", 2)] },
+  { id: "second", title: "Second", references: [row("B:One", 3), row("B:Two", 4), row("B:Three", 5)] },
+];
+const input = { values: Array.from({ length: 25 }, (_, index) => index === 0 || index === 3 ? 0.5 : 0) };
 
-  function calculate(groupLimit, mixedDistance, closestPcaId = null) {
-    let result;
-    const calls = [];
-    let mixedBuilds = 0;
-    const self = {
-      G25Medieval: {
-        fitAdmixture(_target, references, limit) {
-          calls.push({ references, limit });
-          return { distance: references === pcas[0].references ? 2
-            : references === pcas[1].references ? 3
-              : references === pcas[0].mixedReferences ? 0.5
-                : references === pcas[1].mixedReferences ? 0.75 : mixedDistance };
-        },
-      },
-      G25ModernPca: { buildMixedPca: (fits) => {
-        mixedBuilds += 1;
-        assert.equal(fits[0].pca.references, pcas[0].mixedReferences);
-        assert.equal(fits[1].pca.references, pcas[1].mixedReferences);
-        return candidate;
-      },
-        mixedFitIsBetter },
-      postMessage(message) { result = message; },
-    };
-    vm.runInNewContext(workerSource, { self });
-    self.onmessage({ data: { requestId: 1, target: {}, references: [],
-      groupLimit, groupStyle: "modern", selectedPcaId: "auto", closestPcaId,
-      modernPcas: pcas } });
-    assert.equal(result.error, undefined);
+function calculate(overrides = {}) {
+  let result;
+  const self = { postMessage(message) { result = message; } };
+  vm.runInNewContext(`${moduleSource}\n${workerSource}`, { self, globalThis: self });
+  self.onmessage({ data: { requestId: 1, target: input, references: pcas[0].references,
+    groupLimit: 2, groupStyle: "modern", selectedPcaId: "auto", closestPcaId: "first",
+    modernPcas: pcas, ...overrides } });
+  assert.equal(result.error, undefined);
+  return result;
+}
+
+test("worker detects a pair without Istanbul and returns full references for a new PCA plot", () => {
+  for (const groupLimit of [2, 3]) {
+    const result = calculate({ groupLimit });
     assert.equal(result.pcaFitDistances.length, 2);
-    assert.equal(result.pcaFitDistances.find(({ id }) => id === "first").distance, 2);
-    assert.equal(result.pcaFitDistances.find(({ id }) => id === "second").distance, 3);
-    if (groupLimit === 1) {
-      assert.equal(mixedBuilds, 0);
-      assert.ok(!calls.some(({ references }) => references === candidate.references));
-      assert.ok(!calls.some(({ references }) => pcas.some((pca) => references === pca.mixedReferences)));
-    } else assert.ok(calls.some(({ references, limit }) =>
-      references === candidate.references && limit === groupLimit));
-    return result;
-  }
-
-  const oneGroup = calculate(1, 0);
-  assert.equal(oneGroup.availableMixed, null);
-  assert.equal(oneGroup.mixed, null);
-  assert.equal(oneGroup.pca.id, "first");
-  const nearestOverridesFit = calculate(1, 0, "second");
-  assert.equal(nearestOverridesFit.pca.id, "second");
-  assert.equal(nearestOverridesFit.fit.distance, 3);
-
-  for (const limit of [2, 3]) {
-    const rejected = calculate(limit, 1.5);
-    assert.equal(rejected.availableMixed, null);
-    assert.equal(rejected.mixed, null);
-    assert.equal(rejected.pca.id, "first");
-
-    const accepted = calculate(limit, 1.49);
-    assert.ok(accepted.availableMixed);
-    assert.ok(accepted.mixed);
-    assert.equal(accepted.fit.distance, 1.49);
+    assert.ok(result.mixed);
+    assert.equal(result.pca, null);
+    assert.ok(result.fit.distance < 1e-6);
+    assert.equal(result.availableMixed.references.length, 6);
+    assert.equal(result.availableMixed.fit.components.length, 2);
+    assert.equal(result.availableMixed.sourceIds.join(","), "first,second");
+    assert.equal(result.availableMixed.sourceTitles.join(" + "), "First + Second");
   }
 });
 
-test("one group stays on a regular PCA even when a mixed fit could improve it", () => {
-  const app = fs.readFileSync(path.join(__dirname, "app.js"), "utf8");
-  const source = app.slice(app.indexOf("  function medievalWorkerMain() {"),
-    app.indexOf("  function mixtureWorkerMain() {")).trim();
-  const row = (label, first, second) => ["modern", label, first, second, ...Array(23).fill(0)];
-  const pcas = [-1, 1, 2].map((coordinate, index) => {
-    const mixedReferences = [
-      row("Türk_İstanbul:Shared", 0, 1),
-      row(`Türk_A:Sample${index}`, coordinate, 0),
-      row(`Türk_B:Far${index}`, 5, 5),
-      row(`Türk_C:Far${index}`, -5, 5),
-    ];
-    return { id: `pca${index}`, references: mixedReferences.filter((entry) =>
-      !isIstanbulReference(entry)), mixedReferences };
-  });
-  let result;
-  const self = {
-    G25Medieval: { fitAdmixture },
-    G25ModernPca: { buildMixedPca, mixedFitIsBetter },
-    postMessage(message) { result = message; },
-  };
-  vm.runInNewContext(`(${source})()`, { self });
-  self.onmessage({ data: { requestId: 1, target: { values: Array(25).fill(0) },
-    references: [], groupLimit: 1, groupStyle: "modern",
-    selectedPcaId: "auto", modernPcas: pcas } });
-
-  assert.equal(result.error, undefined);
+test("one-group mode stays on the closest regular PCA", () => {
+  const result = calculate({ groupLimit: 1, closestPcaId: "second" });
   assert.equal(result.availableMixed, null);
   assert.equal(result.mixed, null);
-  assert.ok(result.pca);
+  assert.equal(result.pca.id, "second");
   assert.equal(result.fit.groups.length, 1);
-  assert.ok(!result.pca.references.some(isIstanbulReference));
-  assert.ok(result.fit.distance >= 75);
+});
+
+test("manual PCA selection is preserved while a better paired fit remains available", () => {
+  const result = calculate({ selectedPcaId: "second" });
+  assert.ok(result.availableMixed);
+  assert.equal(result.mixed, null);
+  assert.equal(result.pca.id, "second");
+  assert.ok(result.availableMixed.fit.distance < result.fit.distance);
+});
+
+test("an exact single-source mixture does not become mixed", () => {
+  const target = { values: Array.from({ length: 25 }, (_, index) => index < 3 ? 1 / 3 : 0) };
+  const result = calculate({ target });
+  assert.equal(result.availableMixed, null);
+  assert.equal(result.mixed, null);
+  assert.equal(result.pca.id, "first");
+  assert.equal(result.fit.components.length, 3);
+});
+
+test("pair search respects the references remaining after population exclusions", () => {
+  const result = calculate({ modernPcas: [pcas[0], { ...pcas[1], references: [] }] });
+  assert.equal(result.pcaFitDistances.length, 1);
+  assert.equal(result.availableMixed, null);
+  assert.equal(result.mixed, null);
 });

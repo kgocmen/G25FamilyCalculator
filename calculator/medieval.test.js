@@ -56,30 +56,51 @@ test("group caps refit and normalize the selected groups instead of hiding compo
   assert.throws(() => fitAdmixture(target, references, 2), /3, 4 or 5/);
 });
 
-test("medieval PCA refits at most three samples from one ancestry group", () => {
-  const references = Array.from({ length: 4 }, (_, sample) => ["medieval", `Rum:Sample${sample}`,
+test("medieval PCA refits at most four samples from one ancestry group", () => {
+  const references = Array.from({ length: 5 }, (_, sample) => ["medieval", `Rum:Sample${sample}`,
     ...Array.from({ length: 25 }, (_, k) => k === sample ? 1 : 0)]);
-  const fit = fitAdmixture({ values: Array.from({ length: 25 }, (_, k) => k < 4 ? 0.25 : 0) }, references, 3);
+  const fit = fitAdmixture({ values: Array.from({ length: 25 }, (_, k) => k < 5 ? 0.2 : 0) }, references, 3);
   assert.equal(fit.groups.length, 1);
-  assert.equal(fit.components.length, 3);
-  assert.equal(fit.groups[0].samples.length, 3);
-  assert.ok(Math.abs(fit.distance - 100 / Math.sqrt(12)) < 1e-5);
+  assert.equal(fit.components.length, 4);
+  assert.equal(fit.groups[0].samples.length, 4);
+  assert.ok(Math.abs(fit.distance - 100 / Math.sqrt(20)) < 1e-5);
   assert.ok(fit.components.every((component) =>
     references[component.referenceIndex][1] === component.label));
 });
 
-test("modern PCA limits each group to three samples at every group count", () => {
-  const references = Array.from({ length: 8 }, (_, index) => ["modern",
-    `Group_${Math.floor(index / 4)}:Sample${index}`,
+test("modern PCA limits each group to four samples at every group count", () => {
+  const references = Array.from({ length: 10 }, (_, index) => ["modern",
+    `Group_${Math.floor(index / 5)}:Sample${index}`,
     ...Array.from({ length: 25 }, (_, coordinate) => coordinate === index ? 1 : 0)]);
-  const target = { values: Array.from({ length: 25 }, (_, index) => index < 8 ? 1 / 8 : 0) };
+  const target = { values: Array.from({ length: 25 }, (_, index) => index < 10 ? 1 / 10 : 0) };
   for (const limit of [1, 2, 3]) {
     const fit = fitAdmixture(target, references, limit, "modern");
     assert.ok(fit.groups.length <= limit);
-    assert.ok(fit.groups.every((group) => group.samples.length <= 3));
+    assert.ok(fit.groups.every((group) => group.samples.length === 4));
     assert.ok(fit.components.every((component) =>
       references[component.referenceIndex][1] === component.label));
     assert.ok(Math.abs(fit.components.reduce((sum, component) => sum + component.weight, 0) - 1) < 1e-12);
+  }
+});
+
+test("modern PCA recovers the four-sample eastern Mediterranean mixture", () => {
+  const bundle = fs.readFileSync(path.join(__dirname, "modern_pca_references.js"), "utf8");
+  const pcas = JSON.parse(bundle.slice(bundle.indexOf("=") + 1).trim().replace(/;$/, ""));
+  const references = pcas.find((pca) => pca.id === "guney-anadolu").references;
+  const target = { values: [
+    0.09637333225, 0.06672886375, -0.02578890875, -0.03954812975, -0.027518719,
+    -0.01451822925, 0.0029430794, 0.000953666827, -0.0171818185, -0.002563099637,
+    -0.003444578, -0.000684475097, 0.001376235427, -0.00316876975, 0.00035611372,
+    0.0029880456, -0.001011978853, -0.000330336468, -0.000287897557, -0.001086716163,
+    -0.00102764708, -0.00260781345, 0.00020757331, -0.001336821427, 0.001493352925,
+  ] };
+  const expectedLabels = ["Türk_Adana_(n=28)", "Türk_Mersin_(n=19)",
+    "Türk_Osmaniye_(n=2)", "Türk_Gaziantep_(n=19)"].sort();
+  for (const limit of [1, 2, 3]) {
+    const fit = fitAdmixture(target, references, limit, "modern");
+    assert.deepEqual(fit.components.map((part) => part.sample).sort(), expectedLabels);
+    assert.ok(fit.components.every((part) => Math.abs(part.weight - 0.25) < 1e-6));
+    assert.ok(fit.distance < 1e-6);
   }
 });
 
