@@ -38,6 +38,9 @@ test("mixed PCA is offered only below 75% of the best PCA fit at two or three gr
     self.onmessage({ data: { requestId: 1, target: {}, references: [],
       groupLimit, groupStyle: "modern", selectedPcaId: "auto", modernPcas: pcas } });
     assert.equal(result.error, undefined);
+    assert.equal(result.pcaFitDistances.length, 2);
+    assert.equal(result.pcaFitDistances.find(({ id }) => id === "first").distance, 2);
+    assert.equal(result.pcaFitDistances.find(({ id }) => id === "second").distance, 3);
     if (groupLimit === 1) {
       assert.equal(mixedBuilds, 0);
       assert.ok(!calls.some(({ references }) => references === candidate.references));

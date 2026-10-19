@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#14243b">
   <title>G25 Family Calculator</title>
-  <link rel="stylesheet" href="style.css?v=20261019-4">
+  <link rel="stylesheet" href="style.css?v=20261019-5">
   <script defer src="references.js?v=20261017-19"></script>
   <script defer src="turkish_references.js?v=20261019-4"></script>
   <script defer src="modern_pca_references.js?v=20261019-19"></script>
@@ -16,7 +16,7 @@
   <script defer src="pca.js?v=20261019-2"></script>
   <script defer src="modern_pca.js?v=20261019-9"></script>
   <script defer src="pca_layout.js?v=20261016-2"></script>
-  <script defer src="app.js?v=20261019-25"></script>
+  <script defer src="app.js?v=20261019-26"></script>
 </head>
 <body>
   <main class="shell">
@@ -178,11 +178,16 @@
           <p id="modern-closest-population" hidden></p>
         </div>
         <div class="period-controls">
-          <label id="modern-pca-filter" class="match-filter modern-pca-filter" hidden>PCA
-            <select id="modern-pca-select" aria-label="Modern PCA">
-              <option value="auto">Closest population</option>
-            </select>
-          </label>
+          <div id="modern-pca-filter" class="match-filter modern-pca-filter" hidden>
+            <span id="modern-pca-label">PCA</span>
+            <details id="modern-pca-chooser" class="modern-pca-chooser">
+              <summary id="modern-pca-current" aria-labelledby="modern-pca-label modern-pca-current-name modern-pca-current-fit">
+                <span id="modern-pca-current-name">Closest population</span>
+                <span id="modern-pca-current-fit" class="modern-pca-fit">Genetic fit —</span>
+              </summary>
+              <div id="modern-pca-options" class="modern-pca-options" role="listbox" aria-label="Modern PCA"></div>
+            </details>
+          </div>
           <label id="medieval-group-filter" class="match-filter medieval-group-filter">Max groups
             <select id="medieval-group-limit" aria-label="Maximum ancestry groups">
               <option value="3">3 groups</option>

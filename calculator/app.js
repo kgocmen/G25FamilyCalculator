@@ -54,6 +54,7 @@
   let pcaTooltip = null;
   let modernMixedPca = null;
   let modernMixedDirty = true;
+  let modernPcaFitDistances = new Map();
   let relaxedFits = { modern: [], ancient: [] };
   let relaxedReady = { modern: false, ancient: false };
   let strictFits = { parents: [], grandparents: [] };
@@ -353,10 +354,12 @@
         let mixed = null;
         let pca = null;
         let availableMixed = null;
+        let pcaFitDistances = null;
         if (data.modernPcas) {
           const pcaFits = data.modernPcas.filter((pca) => pca.references.length >= 3)
             .map((pca) => ({ pca, fit: self.G25Medieval.fitAdmixture(
               data.target, pca.references, data.groupLimit, "modern") }));
+          pcaFitDistances = pcaFits.map(({ pca, fit }) => ({ id: pca.id, distance: fit.distance }));
           const best = pcaFits.reduce((current, entry) =>
             !current || entry.fit.distance < current.fit.distance ? entry : current, null);
           const selected = data.selectedPcaId === "auto" ? best
@@ -383,7 +386,7 @@
         }
         if (!fit) fit = self.G25Medieval.fitAdmixture(
           data.target, data.references, data.groupLimit, data.groupStyle);
-        self.postMessage({ requestId: data.requestId, fit, mixed, pca, availableMixed });
+        self.postMessage({ requestId: data.requestId, fit, mixed, pca, availableMixed, pcaFitDistances });
       } catch (error) {
         self.postMessage({ requestId: data.requestId, error: error.message });
       }
@@ -826,14 +829,12 @@
   }
 
   function populateModernPcaSelect() {
-    const pcaSelect = $("#modern-pca-select");
+    const chooser = $("#modern-pca-chooser");
+    const options = $("#modern-pca-options");
     const mixedActive = state.modernPcaId === "mixed" ||
       (state.modernPcaId === "auto" && Boolean(modernMixedPca));
     $("#modern-group-limit option[value='1']").disabled = mixedActive;
-    const autoOption = document.createElement("option");
-    autoOption.value = "auto";
-    autoOption.textContent = "Closest population";
-    pcaSelect.replaceChildren(autoOption);
+    options.replaceChildren();
     const choices = modernMixedPca && state.modernGroupLimit > 1
       ? [...modernPcas, { id: "mixed", title: "Mixed PCA",
         references: modernMixedPca.componentRows, referenceAnchors: [] }]
@@ -841,22 +842,48 @@
     const rankedPcas = window.G25ModernPca.rankModernPcas(
       state.single, choices, core.nearestMatches, allowedPcaReferences);
     const distances = [...new Set(rankedPcas.map((entry) => entry.distance).filter(Number.isFinite))];
-    autoOption.style.color = distances.length ? modernPcaColor(0) : "#687585";
+    const knownFits = modernMixedDirty ? [] : [...modernPcaFitDistances.values()];
+    if (modernMixedPca && state.modernGroupLimit > 1) knownFits.push(modernMixedPca.fit.distance);
+    const autoFit = Math.min(...knownFits.filter(Number.isFinite));
+    const entries = new Map();
+    const addOption = (id, title, color, fitDistance) => {
+      const fitText = Number.isFinite(fitDistance)
+        ? `Genetic fit ${fitDistance.toFixed(3)}` : "Genetic fit —";
+      const option = document.createElement("button");
+      option.type = "button";
+      option.className = "modern-pca-option";
+      option.setAttribute("role", "option");
+      option.setAttribute("aria-selected", String(state.modernPcaId === id));
+      const name = document.createElement("span");
+      name.className = "modern-pca-option-name";
+      name.textContent = title;
+      name.style.color = color;
+      const fit = document.createElement("span");
+      fit.className = "modern-pca-fit";
+      fit.textContent = fitText;
+      option.append(name, fit);
+      option.addEventListener("click", () => {
+        chooser.open = false;
+        state.modernPcaId = id;
+        renderSingle();
+        $("#modern-pca-current").focus();
+      });
+      options.append(option);
+      entries.set(id, { title, color, fitText });
+    };
+    addOption("auto", "Closest population", distances.length ? modernPcaColor(0) : "#687585", autoFit);
     for (const { pca, distance: geneticDistance } of rankedPcas) {
-      const option = document.createElement("option");
-      option.value = pca.id;
       const available = Number.isFinite(geneticDistance);
       const position = distances.length > 1 ? distances.indexOf(geneticDistance) / (distances.length - 1) : 0;
-      option.textContent = pca.title;
-      option.style.color = available ? modernPcaColor(position) : "#687585";
-      option.setAttribute("aria-label", available
-        ? `${pca.title}, genetic distance ${geneticDistance.toFixed(3)}`
-        : `${pca.title}, no included references`);
-      pcaSelect.append(option);
+      const fitDistance = pca.id === "mixed" ? modernMixedPca?.fit.distance
+        : modernMixedDirty ? null : modernPcaFitDistances.get(pca.id);
+      addOption(pca.id, pca.title, available ? modernPcaColor(position) : "#687585", fitDistance);
     }
-    pcaSelect.value = state.modernPcaId;
-    pcaSelect.style.backgroundColor = "";
-    pcaSelect.style.color = pcaSelect.selectedOptions[0]?.style.color || "";
+    const selected = entries.get(state.modernPcaId) || entries.get("auto");
+    const currentName = $("#modern-pca-current-name");
+    currentName.textContent = selected.title;
+    currentName.style.color = selected.color;
+    $("#modern-pca-current-fit").textContent = selected.fitText;
     return rankedPcas;
   }
 
@@ -947,6 +974,8 @@
         }
         if (scanModernPcas) {
           modernMixedDirty = false;
+          modernPcaFitDistances = new Map((data.pcaFitDistances || [])
+            .map(({ id, distance }) => [id, distance]));
           modernMixedPca = null;
           if (data.availableMixed) {
             const componentIndices = new Set(data.availableMixed.fit.components
@@ -1882,11 +1911,30 @@
     if (state.modernPcaId === "mixed") state.modernPcaId = "auto";
     renderSingle();
   });
-  const modernPcaSelect = $("#modern-pca-select");
-  modernPcaSelect.addEventListener("change", (event) => {
-    state.modernPcaId = event.currentTarget.value;
-    renderSingle();
+  const modernPcaChooser = $("#modern-pca-chooser");
+  modernPcaChooser.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      modernPcaChooser.open = false;
+      $("#modern-pca-current").focus();
+      event.preventDefault();
+      return;
+    }
+    if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) return;
+    modernPcaChooser.open = true;
+    const options = [...$("#modern-pca-options").children];
+    if (!options.length) return;
+    const current = options.indexOf(document.activeElement);
+    const next = event.key === "Home" ? 0 : event.key === "End" ? options.length - 1
+      : event.key === "ArrowUp" ? (current < 0 ? options.length - 1 : Math.max(0, current - 1))
+        : Math.min(options.length - 1, current + 1);
+    options[next].focus();
+    event.preventDefault();
   });
+  if (typeof document.addEventListener === "function") {
+    document.addEventListener("pointerdown", (event) => {
+      if (!modernPcaChooser.contains(event.target)) modernPcaChooser.open = false;
+    });
+  }
   $("#turkish-toggle").addEventListener("change", (event) => {
     state.turkish = event.currentTarget.checked;
     modernMixedPca = null;
