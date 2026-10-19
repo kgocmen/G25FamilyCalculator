@@ -12,7 +12,7 @@ function G25ModernPcaModule(root) {
 
   function rankModernPcas(target, pcas, nearestMatches, referencesForPca = (pca) => pca.references) {
     const ranked = pcas.map((pca, index) => {
-      const references = referencesForPca(pca);
+      const references = referencesForPca(pca).filter((row) => row[1].split(":", 1)[0] !== "Türk_İstanbul");
       const distances = nearestMatches(target, references, references.length).map((match) => match.distance);
       return { pca, number: index + 1, distances, distance: distances[0] ?? Infinity };
     });

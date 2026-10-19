@@ -62,6 +62,22 @@ test("shared nearest references are ordered by the next nearest population", () 
     ["east", "west"]);
 });
 
+test("Istanbul informs admixture but never ranks the closest PCA", () => {
+  const istanbul = row("Türk_İstanbul:Türk_İstanbul_(Anadolu_Türkü_Profili)", 0);
+  const pcas = [
+    { id: "far", references: [istanbul, row("Türk_A:Far", 0.5)] },
+    { id: "near", references: [istanbul, row("Türk_B:Near", 0.2)] },
+    { id: "only-istanbul", references: [istanbul] },
+  ];
+  const ranked = rankModernPcas(target(0), pcas, nearestMatches);
+  assert.deepEqual(ranked.map(({ pca }) => pca.id), ["near", "far", "only-istanbul"]);
+  assert.ok(Number.isFinite(ranked[0].distance));
+  assert.equal(ranked[2].distance, Infinity);
+  assert.equal(selectModernPca(target(0), [istanbul], pcas, nearestMatches).closest.label, istanbul[1]);
+  assert.equal(selectModernPca(target(0), [istanbul], pcas, nearestMatches).pca.id, "near");
+  assert.ok(pcas.every((pca) => pca.references.includes(istanbul)));
+});
+
 test("mixed PCA uses non-Istanbul fitted components from all maps without duplicate samples", () => {
   const istanbul = row("Türk_İstanbul:Shared", 0);
   const shared = row("Türk_A:Shared", 1);
