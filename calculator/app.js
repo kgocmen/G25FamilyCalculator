@@ -57,6 +57,7 @@
   let modernMixedPca = null;
   let modernMixedDirty = true;
   let modernPcaFitDistances = new Map();
+  const visualiseLocks = new Set();
   let admixedOutput = "";
   let relaxedFits = { modern: [], ancient: [] };
   let relaxedReady = { modern: false, ancient: false };
@@ -222,21 +223,50 @@
     renderBlacklistSearch();
   }
 
-  function renderBlacklistSearch() {
-    const results = $("#blacklist-search-results");
-    results.replaceChildren();
+  function matchingPopulationRows() {
     const query = normalizeSearch($("#blacklist-search").value);
-    if (!query) return;
+    if (!query) return [];
     const words = query.split(/\s+/);
     const pool = [...(state.turkish ? turkishReferences : globalReferences),
       ...(state.turkish ? modernPcas.flatMap((pca) => pca.references) : []),
       ...(medievalReferences.early || []), ...(medievalReferences.late || [])];
     const seen = new Set();
-    let shown = 0;
+    const matches = [];
     for (const row of pool) {
       const key = populationKey(row);
       if (seen.has(key) || isGroupExcluded(row) || (populationListMode === "only" ? whitelist : blacklist).has(key) || !words.every((word) => normalizeSearch(row[1]).includes(word))) continue;
       seen.add(key);
+      matches.push(row);
+    }
+    return matches;
+  }
+
+  function addMatchingPopulations() {
+    const matches = matchingPopulationRows();
+    if (!matches.length) return;
+    for (const row of matches) {
+      const item = { category: row[0], label: row[1] };
+      const key = populationKey(item);
+      if (populationListMode === "only") {
+        blacklist.delete(key);
+        whitelist.set(key, item);
+      } else {
+        whitelist.delete(key);
+        blacklist.set(key, item);
+      }
+    }
+    refreshBlacklist();
+  }
+
+  function renderBlacklistSearch() {
+    const results = $("#blacklist-search-results");
+    results.replaceChildren();
+    const matches = matchingPopulationRows();
+    const action = $("#population-add-matches");
+    action.hidden = !matches.length;
+    if (matches.length) action.textContent = `${populationListMode === "only" ? "Only use" : "Blacklist"} all ${matches.length} ${matches.length === 1 ? "match" : "matches"}`;
+    if (!normalizeSearch($("#blacklist-search").value)) return;
+    for (const row of matches.slice(0, 20)) {
       const entry = document.createElement("li");
       const name = makeButton(`${row[1]} · ${row[0]}`, () => {
         const item = { category: row[0], label: row[1] };
@@ -246,10 +276,8 @@
       name.className = "blacklist-search-population";
       entry.append(name);
       results.append(entry);
-      shown += 1;
-      if (shown === 20) break;
     }
-    if (!shown) {
+    if (!matches.length) {
       const empty = document.createElement("li");
       empty.textContent = "No available populations match this search.";
       results.append(empty);
@@ -479,6 +507,7 @@
   function setTarget(item) {
     if (state.pickerTarget.type === "single") {
       state.single = item;
+      visualiseLocks.clear();
       state.modernPcaId = "auto";
       modernMixedPca = null;
       modernMixedDirty = true;
@@ -591,6 +620,7 @@
       actions.append(makeButton("Clear", () => {
         if (target.type === "single") {
           state.single = null;
+          visualiseLocks.clear();
           state.modernPcaId = "auto";
           modernMixedPca = null;
           modernMixedDirty = true;
@@ -635,7 +665,9 @@
     $("#match-filter").hidden = mode === 1;
     $("#analyse-match-filter").hidden = mode !== 1;
     $("#inputs-title").textContent = mode === 9 ? "Visualise" : mode === 1 ? "Analyse" : mode === 0 ? "Compare" : "Family inputs";
-    for (const selector of ["#visualise-category-filter", "#visualise-limit-filter"]) $(selector).hidden = mode !== 9;
+    for (const selector of ["#visualise-category-filter", "#visualise-limit-filter", "#visualise-lock-controls"]) {
+      $(selector).hidden = mode !== 9;
+    }
     $("#copy-admixed").hidden = mode !== 9 && !(mode === 1 && state.turkish && isPeriodView());
     $("#medieval-breakdown-list").classList.toggle("visualise-breakdown", mode === 9);
     if (mode === 9) {
@@ -859,12 +891,71 @@
   function visualiseWorkerMain() {
     self.onmessage = ({ data }) => {
       try {
-        const fit = self.G25Visualise.fitAncestry(data.target, data.references, data.limit);
+        const fit = self.G25Visualise.fitAncestry(
+          data.target, data.references, data.limit, data.lockedIndices);
         self.postMessage({ requestId: data.requestId, fit });
       } catch (error) {
         self.postMessage({ requestId: data.requestId, error: error.message });
       }
     };
+  }
+
+  function toggleVisualiseLock(row) {
+    const key = populationKey(row);
+    if (visualiseLocks.has(key)) visualiseLocks.delete(key);
+    else {
+      visualiseLocks.add(key);
+      if (state.visualiseLimit !== null && visualiseLocks.size > state.visualiseLimit) {
+        state.visualiseLimit = [2, 3, 4, 5].find((limit) => limit >= visualiseLocks.size) ?? null;
+      }
+    }
+    renderVisualise();
+  }
+
+  function renderVisualiseLockSearch(candidates) {
+    const results = $("#visualise-lock-results");
+    const lockedList = $("#visualise-locked-list");
+    lockedList.replaceChildren();
+    for (const row of candidates) {
+      if (!visualiseLocks.has(populationKey(row))) continue;
+      const name = row[1].replaceAll("_", " ");
+      const button = makeButton(`${name} ×`, () => toggleVisualiseLock(row));
+      button.setAttribute("aria-label", `Unlock ${name}`);
+      lockedList.append(button);
+    }
+    lockedList.hidden = !lockedList.children.length;
+    results.replaceChildren();
+    const query = normalizeSearch($("#visualise-lock-search").value);
+    results.hidden = !query;
+    if (!query) return;
+    const words = query.split(/\s+/);
+    let shown = 0;
+    for (const row of candidates) {
+      if (!words.every((word) => normalizeSearch(row[1]).includes(word))) continue;
+      const name = row[1].replaceAll("_", " ");
+      const locked = visualiseLocks.has(populationKey(row));
+      const button = makeButton("", () => {
+        toggleVisualiseLock(row);
+        $("#visualise-lock-search").focus();
+      });
+      button.className = "visualise-lock-result";
+      button.setAttribute("aria-pressed", String(locked));
+      button.setAttribute("aria-label", `${locked ? "Unlock" : "Lock"} ${name}`);
+      const label = document.createElement("span");
+      label.textContent = name;
+      const action = document.createElement("span");
+      action.textContent = locked ? "Locked" : "Lock";
+      button.append(label, action);
+      results.append(button);
+      shown += 1;
+      if (shown === 20) break;
+    }
+    if (!shown) {
+      const empty = document.createElement("div");
+      empty.className = "reference-empty";
+      empty.textContent = "No matching populations in this reference set.";
+      results.append(empty);
+    }
   }
 
   function renderVisualise() {
@@ -882,6 +973,13 @@
     $("#ancestry-composition-title").hidden = true;
     $("#pca-heading-title").textContent = "PCA";
     for (const selector of ["#medieval-group-filter", "#modern-group-filter", "#modern-pca-filter"]) $(selector).hidden = true;
+    const candidates = references.filter((row) => row[0] === state.visualiseCategory);
+    const activeKeys = new Set(candidates.map(populationKey));
+    for (const key of visualiseLocks) if (!activeKeys.has(key)) visualiseLocks.delete(key);
+    renderVisualiseLockSearch(candidates);
+    for (const option of $("#visualise-limit").options) {
+      option.disabled = option.value !== "unlimited" && Number(option.value) < visualiseLocks.size;
+    }
     $("#visualise-category").value = state.visualiseCategory;
     $("#visualise-limit").value = state.visualiseLimit === null ? "unlimited" : String(state.visualiseLimit);
     const list = $("#medieval-breakdown-list");
@@ -896,7 +994,6 @@
       status.textContent = "Choose or paste a sample to visualise its ancestry and PCA.";
       return;
     }
-    const candidates = references.filter((row) => row[0] === state.visualiseCategory);
     if (!candidates.length) {
       status.textContent = "No references match this dataset and your population lists.";
       return;
@@ -942,7 +1039,16 @@
           name.textContent = part.label.replaceAll("_", " ");
           const weight = document.createElement("strong");
           weight.textContent = formatPercent(units[index]);
-          row.append(name, weight, excludeButton({ label: part.label, category: state.visualiseCategory }));
+          const reference = candidates[part.referenceIndex];
+          const key = populationKey(reference);
+          const locked = visualiseLocks.has(key);
+          const lock = makeButton(locked ? "Locked" : "Lock", () => toggleVisualiseLock(reference));
+          lock.className = "visualise-lock";
+          lock.setAttribute("aria-pressed", String(locked));
+          lock.setAttribute("aria-label", `${locked ? "Unlock" : "Lock"} ${part.label.replaceAll("_", " ")}`);
+          lock.title = locked ? "Allow this population to leave the next fit" :
+            "Keep this population in the next fit";
+          row.append(name, weight, lock, excludeButton({ label: part.label, category: state.visualiseCategory }));
           list.append(row);
         });
         const fittedRows = fit.components.map((part) => candidates[part.referenceIndex]);
@@ -957,7 +1063,10 @@
         finish();
         status.textContent = "Ancestry analysis could not start in this browser.";
       };
-      worker.postMessage({ requestId, target: state.single, references: candidates, limit: state.visualiseLimit });
+      const lockedIndices = candidates.flatMap((row, index) =>
+        visualiseLocks.has(populationKey(row)) ? [index] : []);
+      worker.postMessage({ requestId, target: state.single, references: candidates,
+        limit: state.visualiseLimit, lockedIndices });
     } catch (error) {
       cancelMedieval();
       status.textContent = `Ancestry analysis could not start: ${error.message}`;
@@ -2048,6 +2157,7 @@
   });
   $("#clear-all").addEventListener("click", () => {
     state.single = null;
+    visualiseLocks.clear();
     state.compare = [null, null];
     state.offspring = null;
     for (const mode of [2, 4, 8]) {
@@ -2091,6 +2201,7 @@
     });
   }
   $("#blacklist-search").addEventListener("input", renderBlacklistSearch);
+  $("#population-add-matches").addEventListener("click", addMatchingPopulations);
   $("#blacklist-clear").addEventListener("click", () => {
     blacklist.clear();
     whitelist.clear();
@@ -2107,10 +2218,20 @@
   });
   $("#visualise-category").addEventListener("change", (event) => {
     state.visualiseCategory = event.currentTarget.value;
+    visualiseLocks.clear();
+    $("#visualise-lock-search").value = "";
     render();
   });
+  $("#visualise-lock-search").addEventListener("input", () => {
+    renderVisualiseLockSearch(references.filter((row) => row[0] === state.visualiseCategory));
+  });
   $("#visualise-limit").addEventListener("change", (event) => {
-    state.visualiseLimit = event.currentTarget.value === "unlimited" ? null : Number(event.currentTarget.value);
+    const limit = event.currentTarget.value === "unlimited" ? null : Number(event.currentTarget.value);
+    if (limit !== null && limit < visualiseLocks.size) {
+      event.currentTarget.value = state.visualiseLimit === null ? "unlimited" : String(state.visualiseLimit);
+      return;
+    }
+    state.visualiseLimit = limit;
     render();
   });
   $("#modern-group-limit").addEventListener("change", (event) => {
@@ -2153,6 +2274,7 @@
   }
   $("#turkish-toggle").addEventListener("change", (event) => {
     state.turkish = event.currentTarget.checked;
+    visualiseLocks.clear();
     modernMixedPca = null;
     modernMixedDirty = true;
     if (state.modernPcaId === "mixed") state.modernPcaId = "auto";

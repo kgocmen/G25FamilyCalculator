@@ -3,18 +3,41 @@ function G25VisualiseModule(root) {
 
   const DIMENSIONS = 25;
   const WEIGHT_EPSILON = 1e-12;
+  // Reserve a visible minimum share for each lock, then optimize all remaining weight.
+  const MIN_LOCK_WEIGHT = 0.001;
 
-  function fitAncestry(target, references, limit = null) {
-    if (limit !== null && ![3, 4, 5].includes(limit)) throw new Error("Choose Unlimited, 3, 4 or 5 populations.");
+  function fitAncestry(target, references, limit = null, lockedIndices = []) {
+    if (limit !== null && ![2, 3, 4, 5].includes(limit)) throw new Error("Choose Unlimited, 2, 3, 4 or 5 populations.");
     if (!target || !Array.isArray(target.values) || target.values.length !== DIMENSIONS ||
         !target.values.every(Number.isFinite)) throw new Error("The input needs 25 finite G25 coordinates.");
     if (!Array.isArray(references) || !references.length) throw new Error("References are unavailable.");
+    if (!Array.isArray(lockedIndices) || lockedIndices.some((index) =>
+      !Number.isInteger(index) || index < 0 || index >= references.length)) {
+      throw new Error("A locked population is unavailable in this reference set.");
+    }
+    const locked = [...new Set(lockedIndices)];
+    if (limit !== null && locked.length > limit) {
+      throw new Error(`Unlock ${locked.length - limit} population(s) to use the ${limit}-population limit.`);
+    }
+    const lockedSet = new Set(locked);
+    const freeMass = 1 - locked.length * MIN_LOCK_WEIGHT;
+    if (freeMass <= 0) throw new Error("Too many populations are locked.");
+    const baseline = Array(DIMENSIONS).fill(0);
+    for (const index of locked) {
+      const row = references[index];
+      const values = Array.isArray(row) ? row.slice(2) : row.values;
+      if (!Array.isArray(values) || values.length !== DIMENSIONS || !values.every(Number.isFinite)) {
+        throw new Error("A locked reference has invalid G25 coordinates.");
+      }
+      for (let i = 0; i < DIMENSIONS; i += 1) baseline[i] += MIN_LOCK_WEIGHT * values[i];
+    }
+    const adjustedTarget = target.values.map((value, index) => (value - baseline[index]) / freeMass);
     const points = references.map((row) => {
       const values = Array.isArray(row) ? row.slice(2) : row.values;
       if (!Array.isArray(values) || values.length !== DIMENSIONS || !values.every(Number.isFinite)) {
         throw new Error("A reference has invalid G25 coordinates.");
       }
-      return values.map((value, index) => value - target.values[index]);
+      return values.map((value, index) => value - adjustedTarget[index]);
     });
     const dot = (first, second) => {
       let sum = 0;
@@ -25,6 +48,9 @@ function G25VisualiseModule(root) {
     for (const point of points) for (let i = 0; i < DIMENSIONS; i += 1) point[i] /= scale;
     const norms = points.map((point) => dot(point, point));
     const all = points.map((_, index) => index);
+    const optional = all.filter((index) => !lockedSet.has(index));
+    const supportCount = (fit) => locked.length + fit.indices.filter((index) => !lockedSet.has(index)).length;
+    const withLocks = (indices) => [...new Set([...locked, ...indices])];
     const tolerance = (score) => Math.max(1e-18, score * 1e-12);
 
     function mixture(indices, weights) {
@@ -169,72 +195,100 @@ function G25VisualiseModule(root) {
     }
 
     let fit = convex(all);
-    if (limit !== null && fit.indices.length > limit) {
-      // Small pools can be solved exhaustively, including solutions using fewer
-      // than the limit. Large datasets use deterministic multi-start exchanges.
-      let combinations = 1;
-      for (let i = 0; i < limit; i += 1) combinations *= (all.length - i) / (i + 1);
-      let best = null;
-      if (combinations <= 30000) {
-        const search = (start, selected) => {
-          if (selected.length === limit) {
-            const trial = convex(selected);
-            if (!best || trial.score < best.score) best = trial;
-            return;
+    if (limit !== null && supportCount(fit) > limit) {
+      if (limit === 2 && !locked.length) {
+        // Every pair can be projected analytically; this is fast enough even for
+        // the complete reference sets and guarantees the best two-source fit.
+        let bestPair = null;
+        for (let first = 0; first < all.length; first += 1) {
+          for (let second = first + 1; second < all.length; second += 1) {
+            const cross = dot(points[first], points[second]);
+            const length = norms[first] + norms[second] - 2 * cross;
+            const weight = length > 1e-26
+              ? Math.max(0, Math.min(1, (norms[second] - cross) / length))
+              : norms[first] <= norms[second] ? 1 : 0;
+            const other = 1 - weight;
+            const score = weight * weight * norms[first] + other * other * norms[second] +
+              2 * weight * other * cross;
+            if (!bestPair || score < bestPair.score) bestPair = { first, second, weight, score };
           }
-          for (let i = start; i <= all.length - (limit - selected.length); i += 1) search(i + 1, [...selected, i]);
-        };
-        search(0, []);
+        }
+        fit = mixture([bestPair.first, bestPair.second], [bestPair.weight, 1 - bestPair.weight]);
       } else {
-        const nearest = [...all].sort((first, second) => norms[first] - norms[second] || first - second);
-        const strongest = fit.indices.map((index, i) => ({ index, weight: fit.weights[i] }))
-          .sort((first, second) => second.weight - first.weight).map((part) => part.index);
-        const seeds = [...new Set([...nearest.slice(0, 8), ...strongest.slice(0, 8)])];
-        const starts = seeds.map((index) => mixture([index], [1]));
-        // Also start from the unrestricted mixture reduced by refitted removals.
-        let reduced = fit;
-        while (reduced.indices.length > limit) {
-          let next = null;
-          for (const removed of reduced.indices) {
-            const trial = convex(reduced.indices.filter((index) => index !== removed));
-            if (!next || trial.score < next.score) next = trial;
-          }
-          reduced = next;
-        }
-        starts.unshift(reduced);
-        const visited = new Set();
-        for (let current of starts) {
-          for (let sweep = 0; sweep < 50; sweep += 1) {
-            const key = [...current.indices].sort((a, b) => a - b).join(",");
-            if (visited.has(key)) break;
-            visited.add(key);
-            const previous = current;
-            if (current.indices.length < limit) current = exchange(current.indices, current);
-            else {
-              for (const removed of previous.indices) {
-                const trial = exchange(previous.indices.filter((index) => index !== removed), current);
-                if (trial.score < current.score) current = trial;
-              }
+        // Small pools can be solved exhaustively, including solutions using fewer
+        // than the limit. Large datasets use deterministic multi-start exchanges.
+        const optionalLimit = limit - locked.length;
+        let combinations = 1;
+        for (let i = 0; i < optionalLimit; i += 1) combinations *= (optional.length - i) / (i + 1);
+        let best = null;
+        if (combinations <= 30000) {
+          const search = (start, selected) => {
+            if (selected.length === optionalLimit) {
+              const trial = convex(withLocks(selected));
+              if (!best || trial.score < best.score) best = trial;
+              return;
             }
-            if (current.score >= previous.score - tolerance(previous.score)) break;
+            for (let i = start; i <= optional.length - (optionalLimit - selected.length); i += 1) {
+              search(i + 1, [...selected, optional[i]]);
+            }
+          };
+          search(0, []);
+        } else {
+          const nearest = [...all].sort((first, second) => norms[first] - norms[second] || first - second);
+          const strongest = fit.indices.map((index, i) => ({ index, weight: fit.weights[i] }))
+            .sort((first, second) => second.weight - first.weight).map((part) => part.index);
+          const seeds = [...new Set([...nearest.slice(0, 8), ...strongest.slice(0, 8)])]
+            .filter((index) => !lockedSet.has(index));
+          const starts = seeds.map((index) => convex(withLocks([index])));
+          // Also start from the unrestricted mixture reduced by refitted removals.
+          let reduced = fit;
+          while (supportCount(reduced) > limit) {
+            let next = null;
+            for (const removed of reduced.indices.filter((index) => !lockedSet.has(index))) {
+              const trial = convex(withLocks(reduced.indices.filter((index) => index !== removed)));
+              if (!next || trial.score < next.score) next = trial;
+            }
+            reduced = next;
           }
-          if (!best || current.score < best.score) best = current;
+          starts.unshift(reduced);
+          const visited = new Set();
+          for (let current of starts) {
+            for (let sweep = 0; sweep < 50; sweep += 1) {
+              const key = [...current.indices].sort((a, b) => a - b).join(",");
+              if (visited.has(key)) break;
+              visited.add(key);
+              const previous = current;
+              if (supportCount(current) < limit) current = exchange(withLocks(current.indices), current);
+              else {
+                for (const removed of previous.indices.filter((index) => !lockedSet.has(index))) {
+                  const trial = exchange(withLocks(previous.indices.filter((index) => index !== removed)), current);
+                  if (trial.score < current.score) current = trial;
+                }
+              }
+              if (current.score >= previous.score - tolerance(previous.score)) break;
+            }
+            if (!best || current.score < best.score) best = current;
+          }
         }
+        fit = best;
       }
-      fit = best;
     }
 
-    const components = fit.indices.map((index, i) => {
+    const finalWeights = new Map(locked.map((index) => [index, MIN_LOCK_WEIGHT]));
+    fit.indices.forEach((index, i) => {
+      finalWeights.set(index, (finalWeights.get(index) || 0) + freeMass * fit.weights[i]);
+    });
+    const components = [...finalWeights].map(([index, weight]) => {
       const row = references[index];
       const label = Array.isArray(row) ? row[1] : row.label;
-      return { label, sample: label, ethnicity: label, referenceIndex: index, weight: fit.weights[i] };
+      return { label, sample: label, ethnicity: label, referenceIndex: index, weight };
     }).sort((first, second) => second.weight - first.weight || first.label.localeCompare(second.label));
     const groups = components.map((part) => ({ ethnicity: part.label, weight: part.weight, samples: [part] }));
     const values = Array.from({ length: DIMENSIONS }, (_, coordinate) => components.reduce((sum, part) => {
       const row = references[part.referenceIndex];
       return sum + part.weight * (Array.isArray(row) ? row[coordinate + 2] : row.values[coordinate]);
     }, 0));
-    return { distance: Math.sqrt(fit.score) * scale * 100, components, groups, values,
+    return { distance: Math.sqrt(fit.score) * scale * freeMass * 100, components, groups, values,
       converged: limit === null ? fit.converged : undefined };
   }
 

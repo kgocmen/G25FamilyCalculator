@@ -205,4 +205,30 @@ assert.equal(api.allowedReferences([pcaRow('Rum:Modern', 5)]).length, 1);
 document.querySelector('#blacklist-clear').listeners.click();
 assert.equal(api.allowedReferences(window.G25_MEDIEVAL_REFERENCES.early).length, 1);
 assert.equal(api.allowedReferences(window.G25_MEDIEVAL_REFERENCES.late).length, 2);
+
+// Bulk actions apply the full search, including rows beyond the visible first 20.
+const bulkRows = Array.from({length: 25}, (_, index) => pcaRow(`Bulk_Phrase_${index}`, index));
+refs.push(...bulkRows, bulkRows[0]);
+const search = document.querySelector('#blacklist-search');
+const bulk = document.querySelector('#population-add-matches');
+search.value = 'Bulk Phrase';
+search.listeners.input();
+assert.equal(document.querySelector('#blacklist-search-results').children.length, 20);
+assert.equal(bulk.textContent, 'Blacklist all 25 matches');
+bulk.listeners.click();
+assert.equal(document.querySelector('#blacklist-count').textContent, '25');
+assert.equal(JSON.parse(storage.get('g25-temporary-blacklist')).length, 25);
+assert.equal(api.allowedReferences(bulkRows).length, 0);
+assert.equal(bulk.hidden, true);
+
+document.querySelector('#population-mode-only').listeners.click();
+assert.equal(bulk.textContent, 'Only use all 25 matches');
+bulk.listeners.click();
+assert.equal(document.querySelector('#blacklist-count').textContent, '0');
+assert.equal(document.querySelector('#whitelist-count').textContent, '25');
+assert.equal(api.allowedReferences(refs).length, 26);
+search.value = '';
+search.listeners.input();
+assert.equal(bulk.hidden, true);
+document.querySelector('#blacklist-clear').listeners.click();
 });

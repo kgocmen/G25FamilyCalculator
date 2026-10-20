@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#14243b">
   <title>G25 Family Calculator</title>
-  <link rel="stylesheet" href="style.css?v=20261020-2">
+  <link rel="stylesheet" href="style.css?v=20261020-5">
   <script defer src="references.js?v=20261020-1"></script>
   <script defer src="turkish_references.js?v=20261020-1"></script>
   <script defer src="modern_pca_references.js?v=20261020-3"></script>
@@ -13,11 +13,11 @@
   <script defer src="core.js?v=20261017-21"></script>
   <script defer src="mixture.js?v=20261015-5"></script>
   <script defer src="medieval.js?v=20261020-1"></script>
-  <script defer src="visualise.js?v=20261020-4"></script>
+  <script defer src="visualise.js?v=20261020-6"></script>
   <script defer src="pca.js?v=20261020-1"></script>
   <script defer src="modern_pca.js?v=20261020-1"></script>
   <script defer src="pca_layout.js?v=20261016-2"></script>
-  <script defer src="app.js?v=20261020-6"></script>
+  <script defer src="app.js?v=20261020-10"></script>
 </head>
 <body>
   <main class="shell">
@@ -190,6 +190,7 @@
           <label id="visualise-limit-filter" class="match-filter" hidden>Max populations
             <select id="visualise-limit" aria-label="Maximum Visualise populations">
               <option value="unlimited" selected>Unlimited</option>
+              <option value="2">2</option>
               <option value="3">3</option>
               <option value="4">4</option>
               <option value="5">5</option>
@@ -221,6 +222,12 @@
           </label>
         </div>
         <output id="medieval-breakdown-distance" class="breakdown-distance" hidden></output>
+      </div>
+      <div id="visualise-lock-controls" class="visualise-lock-controls" hidden>
+        <label for="visualise-lock-search">Lock populations</label>
+        <input id="visualise-lock-search" type="search" placeholder="Search reference populations…" autocomplete="off">
+        <div id="visualise-lock-results" class="visualise-lock-results" hidden></div>
+        <div id="visualise-locked-list" class="visualise-locked-list" aria-label="Locked populations" hidden></div>
       </div>
       <h3 id="ancestry-composition-title" class="breakdown-heading" hidden>Ancestry composition</h3>
       <div id="medieval-breakdown-list" class="breakdown-list"></div>
@@ -401,6 +408,7 @@
       </div>
       <div class="population-search-wrap">
         <input id="blacklist-search" type="search" placeholder="Search populations to exclude…" aria-label="Search populations to manage" autocomplete="off">
+        <button id="population-add-matches" class="population-add-matches" type="button" hidden></button>
       </div>
       <ul id="blacklist-search-results" class="blacklist-list population-search-results" aria-label="Population search results"></ul>
       <div class="population-managed-heading">

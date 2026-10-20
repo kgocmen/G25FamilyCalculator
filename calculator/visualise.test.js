@@ -40,8 +40,8 @@ test("plots ten nearby non-contributors for each of at most five fitted populati
   assert.ok(neighbors.slice(10).every(({ contributorLabel }) => contributorLabel === "Source_B"));
 });
 
-test("3/4/5 source limits refit and normalize the complete reported mixture", () => {
-  for (const limit of [3, 4, 5]) {
+test("2/3/4/5 source limits refit and normalize the complete reported mixture", () => {
+  for (const limit of [2, 3, 4, 5]) {
     const fit = fitAncestry(target, references, limit);
     assert.equal(fit.components.length, limit);
     assert.ok(Math.abs(fit.components.reduce((sum, part) => sum + part.weight, 0) - 1) < 1e-12);
@@ -52,6 +52,42 @@ test("3/4/5 source limits refit and normalize the complete reported mixture", ()
     assert.equal(fit.values.length, 25);
     assert.ok(fit.values.every((value, coordinate) => Math.abs(value - (target.values[coordinate] - residual[coordinate])) < 1e-12));
   }
+});
+
+test("locked populations stay in unrestricted and capped fits with reoptimized weights", () => {
+  const input = { values: Array.from({ length: 25 }, (_, index) => index < 5 ? 0.2 : 0) };
+  for (const [limit, locked] of [[null, [5]], [2, [5]], [2, [4, 5]],
+    [3, [5]], [4, [4, 5]], [5, [2, 3, 4, 5]]]) {
+    const fit = fitAncestry(input, references, limit, locked);
+    assert.ok(limit === null || fit.components.length <= limit);
+    assert.ok(locked.every((index) => fit.components.some((part) =>
+      part.referenceIndex === index && part.weight >= 0.001 - 1e-12)));
+    assert.ok(Math.abs(fit.components.reduce((sum, part) => sum + part.weight, 0) - 1) < 1e-12);
+    const residual = input.values.map((value, coordinate) => value - fit.components.reduce((sum, part) =>
+      sum + part.weight * references[part.referenceIndex][coordinate + 2], 0));
+    assert.ok(Math.abs(fit.distance - Math.hypot(...residual) * 100) < 1e-9);
+  }
+  assert.throws(() => fitAncestry(input, references, 3, [0, 1, 2, 3]), /Unlock 1 population/);
+  assert.throws(() => fitAncestry(input, references, 2, [0, 1, 2]), /Unlock 1 population/);
+  assert.throws(() => fitAncestry(input, references, 3, [99]), /locked population is unavailable/);
+});
+
+test("a locked population can receive more than its reserved minimum share", () => {
+  const input = { values: [0.7, 0.3, ...Array(23).fill(0)] };
+  const fit = fitAncestry(input, references, 3, [0]);
+  assert.ok(fit.distance < 1e-8);
+  assert.ok(Math.abs(fit.components.find((part) => part.referenceIndex === 0).weight - 0.7) < 1e-8);
+  assert.ok(Math.abs(fit.components.find((part) => part.referenceIndex === 1).weight - 0.3) < 1e-8);
+});
+
+test("large-pool capped search retains locks", () => {
+  const pool = Array.from({ length: 260 }, (_, index) => ["modern", `R${index}`,
+    index / 260, Math.sin(index) * 0.01, ...Array(23).fill(0)]);
+  const input = { values: [0.37, 0.004, ...Array(23).fill(0)] };
+  const fit = fitAncestry(input, pool, 3, [259]);
+  assert.ok(fit.components.length <= 3);
+  assert.ok(fit.components.some((part) => part.referenceIndex === 259 && part.weight >= 0.001));
+  assert.ok(fit.distance < 1e-8);
 });
 
 test("searches the complete dataset and returns original reference indices", () => {
@@ -65,26 +101,30 @@ test("searches the complete dataset and returns original reference indices", () 
 test("invalid inputs fail with useful messages", () => {
   assert.throws(() => fitAncestry(target, [], null), /unavailable/);
   assert.throws(() => fitAncestry({ values: [1] }, references, null), /25 finite/);
-  assert.throws(() => fitAncestry(target, references, 2), /Unlimited, 3, 4 or 5/);
+  assert.throws(() => fitAncestry(target, references, 1), /Unlimited, 2, 3, 4 or 5/);
   assert.throws(() => fitAncestry(target, [references[0], ["modern", "Invalid", NaN]], null), /invalid G25/);
 });
 
 test("worker serializes the solver and produces unrestricted and capped fits", () => {
   const app = fs.readFileSync(path.join(__dirname, "app.js"), "utf8");
   const start = app.indexOf("  function visualiseWorkerMain() {");
-  const end = app.indexOf("  function renderVisualise() {", start);
+  const end = app.indexOf("  function toggleVisualiseLock(row) {", start);
   const modules = ["visualise.js"].map((file) =>
     fs.readFileSync(path.join(__dirname, file), "utf8")).join("\n");
   let result;
   const self = { postMessage(message) { result = message; } };
   vm.runInNewContext(`${modules}\n(${app.slice(start, end).trim()})()`, { self, globalThis: self });
-  for (const limit of [null, 3, 4, 5]) {
+  for (const limit of [null, 2, 3, 4, 5]) {
     self.onmessage({ data: { target, references, limit, requestId: 7 } });
     assert.equal(result.error, undefined);
     assert.equal(result.requestId, 7);
     assert.equal(result.fit.components.length, limit || 6);
     assert.equal(result.fit.values.length, 25);
   }
+  self.onmessage({ data: { target, references, limit: 3, lockedIndices: [5], requestId: 8 } });
+  assert.equal(result.error, undefined);
+  assert.equal(result.requestId, 8);
+  assert.ok(result.fit.components.some((part) => part.referenceIndex === 5));
 });
 
 test("population PCA supports a single fitted source and preserves complete labels", () => {
