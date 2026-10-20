@@ -75,6 +75,25 @@ test("overlapping nearby references belong to one closest contributor until its 
   assert.equal(neighbors.find(({ row }) => row[1] === "Shared_1").contributorLabel, "Source_A");
 });
 
+test("the next closest points change colour only after a contributor reaches its limit", () => {
+  const row = (label, coordinate) => ["modern", label, coordinate, ...Array(24).fill(0)];
+  const pool = [row("Source_A", 0), row("Source_B", 1),
+    ...Array.from({ length: 10 }, (_, index) => row(`Near_${index + 1}`, (index + 1) / 100))];
+  const fit = { components: [
+    { label: "Source_A", referenceIndex: 0 },
+    { label: "Source_B", referenceIndex: 1 },
+  ] };
+  const neighbors = closestContributorReferences(fit, pool, nearestMatches, 5);
+  assert.deepEqual(neighbors.slice(0, 5).map(({ row }) => row[1]),
+    ["Near_1", "Near_2", "Near_3", "Near_4", "Near_5"]);
+  assert.deepEqual(neighbors.slice(5).map(({ row }) => row[1]),
+    ["Near_10", "Near_9", "Near_8", "Near_7", "Near_6"]);
+  assert.ok(neighbors.slice(0, 5).every(({ contributorLabel }) => contributorLabel === "Source_A"));
+  assert.ok(neighbors.slice(5).every(({ contributorLabel }) => contributorLabel === "Source_B"));
+  assert.equal(neighbors[0].contributorDistance, 1);
+  assert.equal(neighbors[5].contributorDistance, 90);
+});
+
 test("2/3/4/5 source limits refit and normalize the complete reported mixture", () => {
   for (const limit of [2, 3, 4, 5]) {
     const fit = fitAncestry(target, references, limit);

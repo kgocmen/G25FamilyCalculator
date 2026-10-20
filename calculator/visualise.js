@@ -315,7 +315,7 @@ function G25VisualiseModule(root) {
       byContributor[candidate.contributorIndex].push({
         row: available[candidate.referenceIndex].row,
         contributorLabel: fit.components[candidate.contributorIndex].label,
-        distance: candidate.distance,
+        contributorDistance: candidate.distance,
       });
       if (assigned.size === Math.min(pool.length, count * fit.components.length)) break;
     }

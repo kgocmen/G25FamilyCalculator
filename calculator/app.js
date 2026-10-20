@@ -1334,6 +1334,10 @@
         row.slice(2).every((value, index) => value === closestRows[0][index + 2]))
       : -1;
     const neighborRows = options.neighbors || [];
+    const visualise = options.groupStyle === "population";
+    const distanceToInput = (row) => core.distance(state.single.values,
+      Array.isArray(row) ? row.slice(2) : row.values);
+    const populationTooltip = (label, row) => `${label} · Distance to input ${distanceToInput(row).toFixed(3)}`;
     const closestOverlayRows = isModern && highlightedIndex >= 0 ? [] : closestRows;
     try {
       projection = window.G25Pca.projectPca(state.single, periodReferences,
@@ -1476,14 +1480,14 @@
       const circle = add(plotLayer, "circle", { cx: x, cy: y, r: 4.5,
         fill: groupColor(neighbor.contributorLabel), class: "pca-neighbor" });
       referenceMarkers.push({ node: circle, x, y });
-      bindTooltip(circle, `${point.label} · Distance ${neighbor.distance.toFixed(3)}`);
+      bindTooltip(circle, populationTooltip(point.label, neighbor.row));
     });
     projection.points.forEach((point, index) => {
       if (isModern && index === highlightedIndex) return;
       const circle = add(plotLayer, "circle", { cx: plotX(point.x), cy: plotY(point.y), r: 6,
         fill: groupColor(point.ethnicity), class: "pca-reference" });
       referenceMarkers.push({ node: circle, x: plotX(point.x), y: plotY(point.y) });
-      bindTooltip(circle, point.label);
+      bindTooltip(circle, visualise ? populationTooltip(point.label, periodReferences[index]) : point.label);
     });
     const modernMarkers = [];
     closestModern.forEach((match, index) => {
@@ -1500,7 +1504,7 @@
       }
       modernMarkers.push({ node: triangle, x, y });
       bindTooltip(triangle, isModern
-        ? `Closest population: ${point.label} · Distance ${match.distance.toFixed(3)}`
+        ? `Closest population: ${point.label} · ${visualise ? "Distance to input" : "Distance"} ${match.distance.toFixed(3)}`
         : `#${index + 1} modern: ${point.label} · Distance ${match.distance.toFixed(3)}`);
     });
     const targetX = plotX(projection.target.x);
