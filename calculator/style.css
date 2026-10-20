@@ -261,7 +261,8 @@ dialog::backdrop { background: rgba(13, 35, 54, .55); }
 .population-search-wrap { margin-top: 20px; }
 #blacklist-search { width: 100%; padding: 13px 14px; border: 1px solid #d9e4ec; border-radius: 10px; background: #fbfcfd; color: #203f57; font-size: 13px; }
 #blacklist-search::placeholder { color: #8a9eae; }
-.population-add-matches { display: block; margin: 9px 0 0 auto; padding: 8px 11px; border: 1px solid #cbd8e2; border-radius: 8px; background: #f2f7fa; color: #176e8d; font-size: 12px; font-weight: 700; }
+.population-add-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; margin-top: 9px; }
+.population-add-matches { padding: 8px 11px; border: 1px solid #cbd8e2; border-radius: 8px; background: #f2f7fa; color: #176e8d; font-size: 12px; font-weight: 700; }
 .population-add-matches:hover, .population-add-matches:focus-visible { background: #e5f2f7; }
 .population-add-matches[hidden] { display: none; }
 .blacklist-list { list-style: none; padding: 0; margin: 0; }

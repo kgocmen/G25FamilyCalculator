@@ -357,8 +357,8 @@
     return matches;
   }
 
-  function addMatchingPopulations() {
-    const matches = matchingPopulationRows();
+  function addMatchingPopulations(category = null) {
+    const matches = matchingPopulationRows().filter((row) => !category || row[0] === category);
     if (!matches.length) return;
     for (const row of matches) {
       const item = { category: row[0], label: row[1] };
@@ -378,9 +378,14 @@
     const results = $("#blacklist-search-results");
     results.replaceChildren();
     const matches = matchingPopulationRows();
-    const action = $("#population-add-matches");
-    action.hidden = !matches.length;
-    if (matches.length) action.textContent = `${populationListMode === "only" ? "Only use" : "Blacklist"} all ${matches.length} ${matches.length === 1 ? "match" : "matches"}`;
+    const verb = populationListMode === "only" ? "Only use" : "Blacklist";
+    for (const [selector, category] of [["#population-add-matches", null],
+      ["#population-add-modern-matches", "modern"], ["#population-add-ancient-matches", "ancient"]]) {
+      const action = $(selector);
+      const count = category ? matches.filter((row) => row[0] === category).length : matches.length;
+      action.hidden = !count;
+      action.textContent = `${verb} all ${count} ${category ? `${category} ` : ""}${count === 1 ? "match" : "matches"}`;
+    }
     if (!normalizeSearch($("#blacklist-search").value)) return;
     for (const row of matches.slice(0, 20)) {
       const entry = document.createElement("li");
@@ -2574,7 +2579,10 @@
     });
   }
   $("#blacklist-search").addEventListener("input", renderBlacklistSearch);
-  $("#population-add-matches").addEventListener("click", addMatchingPopulations);
+  for (const [selector, category] of [["#population-add-matches", null],
+    ["#population-add-modern-matches", "modern"], ["#population-add-ancient-matches", "ancient"]]) {
+    $(selector).addEventListener("click", () => addMatchingPopulations(category));
+  }
   $("#custom-add").addEventListener("click", addCustomReferences);
   $("#custom-toggle").addEventListener("change", (event) => {
     customEnabled = event.currentTarget.checked;

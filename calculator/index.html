@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#14243b">
   <title>G25 Family Calculator</title>
-  <link rel="stylesheet" href="style.css?v=20261020-8">
+  <link rel="stylesheet" href="style.css?v=20261020-9">
   <script defer src="references.js?v=20261020-1"></script>
   <script defer src="turkish_references.js?v=20261020-1"></script>
   <script defer src="modern_pca_references.js?v=20261020-3"></script>
@@ -18,7 +18,7 @@
   <script defer src="pca.js?v=20261020-3"></script>
   <script defer src="modern_pca.js?v=20261020-1"></script>
   <script defer src="pca_layout.js?v=20261016-2"></script>
-  <script defer src="app.js?v=20261020-14"></script>
+  <script defer src="app.js?v=20261020-15"></script>
 </head>
 <body>
   <main class="shell">
@@ -427,7 +427,11 @@
       <div id="population-rules-panel">
         <div class="population-search-wrap">
           <input id="blacklist-search" type="search" placeholder="Search populations to exclude…" aria-label="Search populations to manage" autocomplete="off">
-          <button id="population-add-matches" class="population-add-matches" type="button" hidden></button>
+          <div class="population-add-actions">
+            <button id="population-add-matches" class="population-add-matches" type="button" hidden></button>
+            <button id="population-add-modern-matches" class="population-add-matches" type="button" hidden></button>
+            <button id="population-add-ancient-matches" class="population-add-matches" type="button" hidden></button>
+          </div>
         </div>
         <ul id="blacklist-search-results" class="blacklist-list population-search-results" aria-label="Population search results"></ul>
         <div class="population-managed-heading">
