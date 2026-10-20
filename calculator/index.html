@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#14243b">
   <title>G25 Family Calculator</title>
-  <link rel="stylesheet" href="style.css?v=20261020-6">
+  <link rel="stylesheet" href="style.css?v=20261020-7">
   <script defer src="references.js?v=20261020-1"></script>
   <script defer src="turkish_references.js?v=20261020-1"></script>
   <script defer src="modern_pca_references.js?v=20261020-3"></script>
@@ -14,10 +14,11 @@
   <script defer src="mixture.js?v=20261015-5"></script>
   <script defer src="medieval.js?v=20261020-1"></script>
   <script defer src="visualise.js?v=20261020-9"></script>
-  <script defer src="pca.js?v=20261020-1"></script>
+  <script defer src="clusters.js?v=20261020-1"></script>
+  <script defer src="pca.js?v=20261020-2"></script>
   <script defer src="modern_pca.js?v=20261020-1"></script>
   <script defer src="pca_layout.js?v=20261016-2"></script>
-  <script defer src="app.js?v=20261020-12"></script>
+  <script defer src="app.js?v=20261020-13"></script>
 </head>
 <body>
   <main class="shell">
@@ -246,6 +247,12 @@
           <input id="visualise-neighbor-count" type="range" min="5" max="100" step="1" value="10">
           <output id="visualise-neighbor-value" for="visualise-neighbor-count">10</output>
         </div>
+        <div id="visualise-cluster-control" class="visualise-neighbor-control" hidden>
+          <label for="visualise-cluster-count">Clusters</label>
+          <input id="visualise-cluster-count" type="range" min="1" max="10" step="1" value="1">
+          <output id="visualise-cluster-value" for="visualise-cluster-count">1</output>
+          <span id="visualise-cluster-auto" class="cluster-auto-note"></span>
+        </div>
         <div id="medieval-pca-plot" class="pca-scroll" role="region" tabindex="0" aria-label="PCA plot"></div>
         <div id="medieval-pca-legend" class="pca-legend"></div>
       </div>
@@ -407,25 +414,46 @@
         <input id="turkish-toggle" class="switch-input" type="checkbox" role="switch" aria-label="Turkish references">
         <span class="switch-track" aria-hidden="true"></span>
       </label>
+      <label class="reference-switch-option switch-label">
+        <span class="reference-switch-label">Use custom references</span>
+        <input id="custom-toggle" class="switch-input" type="checkbox" role="switch" aria-label="Use custom references" checked>
+        <span class="switch-track" aria-hidden="true"></span>
+      </label>
       <div class="population-list-modes" role="group" aria-label="List to add populations to">
         <button id="population-mode-exclude" type="button" aria-pressed="true"><span class="population-mode-dot exclude-dot"></span>Blacklist <span id="blacklist-count">0</span></button>
         <button id="population-mode-only" type="button" aria-pressed="false"><span class="population-mode-dot only-dot"></span>Only use <span id="whitelist-count">0</span></button>
+        <button id="population-mode-custom" type="button" aria-pressed="false"><span class="population-mode-dot custom-dot"></span>Custom <span id="custom-count">0</span></button>
       </div>
-      <div class="population-search-wrap">
-        <input id="blacklist-search" type="search" placeholder="Search populations to exclude…" aria-label="Search populations to manage" autocomplete="off">
-        <button id="population-add-matches" class="population-add-matches" type="button" hidden></button>
+      <div id="population-rules-panel">
+        <div class="population-search-wrap">
+          <input id="blacklist-search" type="search" placeholder="Search populations to exclude…" aria-label="Search populations to manage" autocomplete="off">
+          <button id="population-add-matches" class="population-add-matches" type="button" hidden></button>
+        </div>
+        <ul id="blacklist-search-results" class="blacklist-list population-search-results" aria-label="Population search results"></ul>
+        <div class="population-managed-heading">
+          <h3>Managed populations</h3>
+          <button id="blacklist-clear" type="button" class="text-button" disabled>Clear all</button>
+        </div>
+        <div id="blacklist-empty" class="population-empty">
+          <span class="population-empty-icon" aria-hidden="true">≡</span>
+          <p>No population rules yet</p>
+          <span>Search above to build either list.</span>
+        </div>
+        <ul id="blacklist-list" class="blacklist-list population-managed-list" tabindex="0" aria-label="Blacklisted and only-use populations"></ul>
       </div>
-      <ul id="blacklist-search-results" class="blacklist-list population-search-results" aria-label="Population search results"></ul>
-      <div class="population-managed-heading">
-        <h3>Managed populations</h3>
-        <button id="blacklist-clear" type="button" class="text-button" disabled>Clear all</button>
+      <div id="population-custom-panel" hidden>
+        <label for="custom-category">Reference set</label>
+        <select id="custom-category" aria-label="Custom reference set">
+          <option value="modern">Modern</option>
+          <option value="ancient">Ancient</option>
+        </select>
+        <label for="custom-paste">Paste one or more G25 rows</label>
+        <textarea id="custom-paste" rows="5" placeholder="Name,0.123456,0.234567,…" spellcheck="false"></textarea>
+        <button id="custom-add" type="button" class="primary-button">Add references</button>
+        <p id="custom-status" class="method-note" role="status"></p>
+        <div class="population-managed-heading"><h3>Custom populations</h3></div>
+        <ul id="custom-list" class="blacklist-list population-managed-list" aria-label="Custom populations"></ul>
       </div>
-      <div id="blacklist-empty" class="population-empty">
-        <span class="population-empty-icon" aria-hidden="true">≡</span>
-        <p>No population rules yet</p>
-        <span>Search above to build either list.</span>
-      </div>
-      <ul id="blacklist-list" class="blacklist-list population-managed-list" tabindex="0" aria-label="Blacklisted and only-use populations"></ul>
     </div>
     <div class="population-panel-footer">
       <span class="population-status-dot" aria-hidden="true"></span>

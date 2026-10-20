@@ -29,6 +29,7 @@
     visualiseCategory: "modern",
     visualiseLimit: null,
     visualiseNeighborCount: 10,
+    visualiseClusterK: null,
     single: null,
     compare: [null, null],
     offspring: null,
@@ -60,6 +61,10 @@
   let modernPcaFitDistances = new Map();
   const visualiseLocks = new Set();
   let visualisePcaContext = null;
+  let visualiseClusterContext = null;
+  let clusterWorker = null;
+  let clusterWorkerUrl = null;
+  let clusterRequest = 0;
   let admixedOutput = "";
   let relaxedFits = { modern: [], ancient: [] };
   let relaxedReady = { modern: false, ancient: false };
@@ -73,6 +78,10 @@
   let excludedGroupCoordinates = new Set();
   const whitelist = new Map();
   const whitelistStorageKey = "g25-temporary-whitelist";
+  const customStorageKey = "g25-temporary-custom-references";
+  const customToggleStorageKey = "g25-custom-references-enabled";
+  const customReferences = new Map();
+  let customEnabled = true;
   let populationListMode = "exclude";
   try {
     const saved = JSON.parse(sessionStorage.getItem(blacklistStorageKey) || "[]");
@@ -91,6 +100,44 @@
       }
     });
   } catch (_) {}
+
+  try {
+    customEnabled = sessionStorage.getItem(customToggleStorageKey) !== "false";
+    const saved = JSON.parse(sessionStorage.getItem(customStorageKey) || "[]");
+    if (Array.isArray(saved)) for (const row of saved) {
+      if (Array.isArray(row) && ["modern", "ancient"].includes(row[0]) &&
+          typeof row[1] === "string" && row[1].trim() && row.length === 27 &&
+          row.slice(2).every((value) => Number.isFinite(value))) {
+        customReferences.set(populationKey(row), row);
+      }
+    }
+  } catch (_) {}
+
+  function activeReferenceRows() {
+    return [...(state.turkish ? turkishReferences : globalReferences),
+      ...(customEnabled ? customReferences.values() : [])];
+  }
+
+  function onlyUseReferenceRows() {
+    if (!whitelist.size) return [];
+    const pool = [...activeReferenceRows(),
+      ...(state.turkish ? modernPcas.flatMap((pca) => pca.references) : []),
+      ...(medievalReferences.early || []), ...(medievalReferences.late || [])];
+    const seen = new Set();
+    return allowedReferences(pool).filter((row) => {
+      const key = populationKey(row);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }
+
+  function persistCustomReferences() {
+    try {
+      sessionStorage.setItem(customStorageKey, JSON.stringify([...customReferences.values()]));
+      sessionStorage.setItem(customToggleStorageKey, String(customEnabled));
+    } catch (_) { /* The current page can still use the references. */ }
+  }
 
   function populationKey(row) {
     if (!Array.isArray(row) && row.group) return JSON.stringify([row.category, row.label, "group"]);
@@ -112,7 +159,8 @@
     excludedGroupKeys = new Set([...blacklist.values()].filter((item) => item.group).map(populationKey));
     excludedGroupCoordinates = new Set();
     if (!excludedGroupKeys.size) return;
-    const rows = [...globalReferences, ...turkishReferences, ...modernPcas.flatMap((pca) => pca.references),
+    const rows = [...globalReferences, ...turkishReferences, ...customReferences.values(),
+      ...modernPcas.flatMap((pca) => pca.references),
       ...(medievalReferences.early || []), ...(medievalReferences.late || [])];
     for (const row of rows) {
       if (excludedGroupKeys.has(ancestryGroupKey(row))) excludedGroupCoordinates.add(groupCoordinateKey(row));
@@ -185,12 +233,17 @@
   function renderBlacklist() {
     $("#blacklist-count").textContent = String(blacklist.size);
     $("#whitelist-count").textContent = String(whitelist.size);
+    $("#custom-count").textContent = String(customReferences.size);
+    $("#custom-toggle").checked = customEnabled;
     const total = blacklist.size + whitelist.size;
     $("#blacklist-clear").disabled = !total;
-    $("#population-rule-count").textContent = String(total);
-    $("#population-rule-count").hidden = !total;
+    $("#population-rule-count").textContent = String(total + customReferences.size);
+    $("#population-rule-count").hidden = !total && !customReferences.size;
     $("#population-mode-exclude").setAttribute("aria-pressed", String(populationListMode === "exclude"));
     $("#population-mode-only").setAttribute("aria-pressed", String(populationListMode === "only"));
+    $("#population-mode-custom").setAttribute("aria-pressed", String(populationListMode === "custom"));
+    $("#population-rules-panel").hidden = populationListMode === "custom";
+    $("#population-custom-panel").hidden = populationListMode !== "custom";
     $("#blacklist-search").placeholder = populationListMode === "only"
       ? "Search populations to use exclusively…" : "Search populations to exclude…";
     $("#population-filter-status").textContent = whitelist.size
@@ -223,13 +276,74 @@
     }
     $("#blacklist-empty").hidden = total > 0;
     renderBlacklistSearch();
+    renderCustomReferences();
+  }
+
+  function renderCustomReferences() {
+    const list = $("#custom-list");
+    list.replaceChildren();
+    for (const row of customReferences.values()) {
+      const item = document.createElement("li");
+      const name = document.createElement("span");
+      name.className = "population-entry-name";
+      const label = document.createElement("span");
+      label.textContent = row[1];
+      const category = document.createElement("small");
+      category.textContent = row[0];
+      name.append(label, category);
+      const remove = makeButton("−", () => {
+        const key = populationKey(row);
+        customReferences.delete(key);
+        blacklist.delete(key);
+        whitelist.delete(key);
+        persistCustomReferences();
+        updateSelectedReferences(activeReferenceRows());
+        refreshBlacklist();
+      });
+      remove.className = "exclude-population restore-population";
+      remove.setAttribute("aria-label", `Remove custom reference ${row[1]}`);
+      item.append(name, remove);
+      list.append(item);
+    }
+  }
+
+  function addCustomReferences() {
+    const category = $("#custom-category").value;
+    const lines = $("#custom-paste").value.split(/\r?\n/).filter((line) => line.trim());
+    const status = $("#custom-status");
+    if (!lines.length) {
+      status.textContent = "Paste at least one named G25 row.";
+      return;
+    }
+    const existing = new Set([...globalReferences, ...turkishReferences,
+      ...customReferences.values()].map(populationKey));
+    const added = [];
+    try {
+      for (const line of lines) {
+        const parsed = core.parseLine(line);
+        if (parsed.label === "Pasted_sample") throw new Error("Give every custom reference a name.");
+        const row = [category, parsed.label, ...parsed.values];
+        const key = populationKey(row);
+        if (existing.has(key)) throw new Error(`${parsed.label} already exists in ${category}.`);
+        existing.add(key);
+        added.push(row);
+      }
+    } catch (error) {
+      status.textContent = `No references added: ${error.message}`;
+      return;
+    }
+    for (const row of added) customReferences.set(populationKey(row), row);
+    persistCustomReferences();
+    $("#custom-paste").value = "";
+    status.textContent = `Added ${added.length} custom ${added.length === 1 ? "reference" : "references"}.`;
+    refreshBlacklist();
   }
 
   function matchingPopulationRows() {
     const query = normalizeSearch($("#blacklist-search").value);
     if (!query) return [];
     const words = query.split(/\s+/);
-    const pool = [...(state.turkish ? turkishReferences : globalReferences),
+    const pool = [...activeReferenceRows(),
       ...(state.turkish ? modernPcas.flatMap((pca) => pca.references) : []),
       ...(medievalReferences.early || []), ...(medievalReferences.late || [])];
     const seen = new Set();
@@ -309,7 +423,8 @@
 
   function familyFingerprint(mode) {
     return JSON.stringify([state.offspring, state.slots[mode], familyLocks[mode],
-      mode !== 8 && state.male, state.turkish, [...blacklist.keys()].sort(), [...whitelist.keys()].sort()]);
+      mode !== 8 && state.male, state.turkish, customEnabled, [...customReferences.values()],
+      [...blacklist.keys()].sort(), [...whitelist.keys()].sort()]);
   }
 
   function renderFamilyOptimise() {
@@ -639,15 +754,17 @@
 
   function render() {
     const mode = state.mode;
+    if (mode !== 9) cancelVisualiseClusters();
     renderFamilyOptimise();
     renderFamilyAccordions();
     if (mode !== 1) cancelMedieval();
-    references = allowedReferences(state.turkish ? turkishReferences : globalReferences);
+    references = allowedReferences(activeReferenceRows());
     renderBlacklist();
     $("#turkish-toggle").checked = state.turkish;
     $("#analysis-tabs").hidden = mode !== 1 || !state.turkish || !state.single;
     $("#medieval-breakdown-panel").hidden = true;
     $("#visualise-neighbor-control").hidden = true;
+    $("#visualise-cluster-control").hidden = true;
     $("#closest-count").value = String(state.closestCount);
     $("#closest-count-value").textContent = String(state.closestCount);
     $("#suggestion-count").value = String(state.closestCount);
@@ -971,10 +1088,98 @@
       { references: candidates, groupStyle: "population", neighbors });
   }
 
+  const clusterColor = (index) => `hsl(${Math.round(index * 137.5) % 360} 52% 42%)`;
+
+  function cancelVisualiseClusters() {
+    clusterRequest += 1;
+    if (clusterWorker) clusterWorker.terminate();
+    if (clusterWorkerUrl) URL.revokeObjectURL(clusterWorkerUrl);
+    clusterWorker = null;
+    clusterWorkerUrl = null;
+  }
+
+  function renderVisualiseClusters() {
+    if (!visualiseClusterContext || state.mode !== 9 || state.single) return;
+    const { rows, fits, defaultK } = visualiseClusterContext;
+    const k = Math.min(rows.length, state.visualiseClusterK || defaultK);
+    const fit = fits[k - 1];
+    const slider = $("#visualise-cluster-count");
+    slider.max = String(Math.min(10, rows.length));
+    slider.value = String(k);
+    $("#visualise-cluster-value").textContent = String(k);
+    $("#visualise-cluster-auto").textContent = state.visualiseClusterK === null ? "Elbow default" :
+      `Elbow suggests ${defaultK}`;
+    $("#visualise-cluster-control").hidden = false;
+    $("#medieval-breakdown-status").textContent = `${rows.length} populations · ${k} ${k === 1 ? "cluster" : "clusters"}`;
+    const list = $("#medieval-breakdown-list");
+    list.replaceChildren();
+    fit.clusters.forEach((cluster, index) => {
+      const item = document.createElement("div");
+      item.className = "breakdown-group cluster-summary";
+      item.style.borderLeftColor = clusterColor(index);
+      const name = document.createElement("strong");
+      name.textContent = `Cluster ${index + 1} · ${cluster.size} ${cluster.size === 1 ? "population" : "populations"}`;
+      const representative = document.createElement("span");
+      representative.textContent = `Closest to centroid: ${rows[cluster.representativeIndex][1].replaceAll("_", " ")} · Distance ${cluster.representativeDistance.toFixed(3)}`;
+      item.append(name, representative);
+      list.append(item);
+    });
+    $("#pca-section").hidden = false;
+    renderMedievalPca(rows, "Only use", false, null, true, { clusterFit: fit });
+  }
+
+  function startVisualiseClusters(rows) {
+    cancelVisualiseClusters();
+    visualiseClusterContext = null;
+    const requestId = clusterRequest;
+    const status = $("#medieval-breakdown-status");
+    status.textContent = `Clustering ${rows.length} selected populations…`;
+    try {
+      const source = `(${window.G25ClustersModule.toString()})(self);\nself.onmessage = ({ data }) => {
+        try { self.postMessage({ requestId: data.requestId,
+          result: self.G25Clusters.clusterSeries(data.rows) }); }
+        catch (error) { self.postMessage({ requestId: data.requestId, error: error.message }); }
+      };`;
+      const url = URL.createObjectURL(new Blob([source], { type: "text/javascript" }));
+      clusterWorkerUrl = url;
+      const worker = new Worker(url);
+      clusterWorker = worker;
+      const finish = () => {
+        worker.terminate();
+        URL.revokeObjectURL(url);
+        if (clusterWorker === worker) {
+          clusterWorker = null;
+          clusterWorkerUrl = null;
+        }
+      };
+      worker.onmessage = ({ data }) => {
+        if (data.requestId !== clusterRequest || state.mode !== 9 || state.single) return;
+        finish();
+        if (data.error) {
+          status.textContent = data.error;
+          return;
+        }
+        visualiseClusterContext = { rows, ...data.result };
+        renderVisualiseClusters();
+      };
+      worker.onerror = () => {
+        if (requestId !== clusterRequest) return;
+        finish();
+        status.textContent = "Clustering could not start in this browser.";
+      };
+      worker.postMessage({ requestId, rows });
+    } catch (error) {
+      cancelVisualiseClusters();
+      status.textContent = `Clustering could not start: ${error.message}`;
+    }
+  }
+
   function renderVisualise() {
     cancelMixtures();
     cancelMedieval();
+    cancelVisualiseClusters();
     visualisePcaContext = null;
+    visualiseClusterContext = null;
     suggestionTarget = null;
     preparedMatches = null;
     preparedContext = null;
@@ -986,6 +1191,8 @@
     $("#medieval-breakdown-title").textContent = "Ancestry analysis";
     $("#ancestry-composition-title").hidden = true;
     $("#pca-heading-title").textContent = "PCA";
+    $("#visualise-cluster-control").hidden = true;
+    $("#copy-admixed").hidden = !state.single;
     for (const selector of ["#medieval-group-filter", "#modern-group-filter", "#modern-pca-filter"]) $(selector).hidden = true;
     const candidates = references.filter((row) => row[0] === state.visualiseCategory);
     const activeKeys = new Set(candidates.map(populationKey));
@@ -1008,7 +1215,15 @@
     $("#medieval-pca-legend").replaceChildren();
     $("#modern-closest-population").hidden = true;
     if (!state.single) {
-      status.textContent = "Choose or paste a sample to visualise its ancestry and PCA.";
+      for (const selector of ["#visualise-category-filter", "#visualise-limit-filter",
+        "#visualise-lock-controls"]) $(selector).hidden = true;
+      $("#medieval-breakdown-title").textContent = "Only use clusters";
+      $("#pca-heading-title").textContent = "Only use PCA";
+      const selected = onlyUseReferenceRows();
+      if (selected.length) startVisualiseClusters(selected);
+      else status.textContent = whitelist.size
+        ? "No Only use populations are available with the current reference switches."
+        : "Add populations to Only use to explore their PCA clusters.";
       return;
     }
     if (!candidates.length) {
@@ -1323,10 +1538,11 @@
     for (const selector of ["#pca-zoom-in", "#pca-zoom-out", "#pca-zoom-reset"]) $(selector).disabled = true;
     $("#pca-zoom-level").textContent = "100%";
     let projection;
+    const clusterFit = options.clusterFit || null;
     const modernReferences = options.references || (isModern
       ? allowedReferences(turkishReferences.filter((row) => row[0] === "modern"))
       : references.filter((row) => row[0] === "modern"));
-    const closestModern = isModern ? (closest ? [closest] : [])
+    const closestModern = clusterFit ? [] : isModern ? (closest ? [closest] : [])
       : core.nearestMatches(state.single, modernReferences, 3);
     const closestRows = closestModern.map((match) => modernReferences[match.id]);
     const highlightedIndex = isModern && closestRows.length
@@ -1340,9 +1556,14 @@
     const populationTooltip = (label, row) => `${label} · Distance to input ${distanceToInput(row).toFixed(3)}`;
     const closestOverlayRows = isModern && highlightedIndex >= 0 ? [] : closestRows;
     try {
-      projection = window.G25Pca.projectPca(state.single, periodReferences,
-        [...closestOverlayRows, ...neighborRows.map(({ row }) => row)],
-        options.groupStyle || (isModern ? "modern" : "colon"), mixed);
+      const overlays = clusterFit
+        ? clusterFit.clusters.map((cluster, index) => ({ label: `Cluster ${index + 1} centroid`, values: cluster.centroid }))
+        : [...closestOverlayRows, ...neighborRows.map(({ row }) => row)];
+      projection = window.G25Pca.projectPca(clusterFit ? null : state.single, periodReferences,
+        overlays, options.groupStyle || (isModern ? "modern" : "colon"), mixed);
+      if (clusterFit) projection.points.forEach((point, index) => {
+        point.ethnicity = `Cluster ${clusterFit.assignments[index] + 1}`;
+      });
     } catch (error) {
       container.textContent = error.message;
       return;
@@ -1351,7 +1572,7 @@
     const width = 1000;
     const height = 600;
     const bounds = { left: 62, right: width - 34, top: 28, bottom: height - 60 };
-    const all = [...projection.points, projection.target, ...projection.overlays];
+    const all = [...projection.points, ...(projection.target ? [projection.target] : []), ...projection.overlays];
     const extent = (key) => {
       const values = all.map((point) => point[key]);
       const low = Math.min(...values);
@@ -1366,7 +1587,9 @@
     const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
     svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
     svg.setAttribute("role", "group");
-    svg.setAttribute("aria-label", `${period} PCA of ${projection.points.length} references and ${projection.target.label}`);
+    svg.setAttribute("aria-label", clusterFit
+      ? `PCA of ${projection.points.length} Only use references in ${clusterFit.k} clusters`
+      : `${period} PCA of ${projection.points.length} references and ${projection.target.label}`);
     const tooltip = document.createElement("div");
     tooltip.className = "pca-tooltip";
     tooltip.setAttribute("role", "tooltip");
@@ -1454,7 +1677,8 @@
     };
     const groups = [...new Set(projection.points.map((point) => point.ethnicity))].sort((a, b) => a.localeCompare(b));
     const fallback = ["#228e71", "#a75d83", "#aa7731", "#657bc0"];
-    const groupColor = (group) => colors[group] || (isModern
+    const groupColor = (group) => clusterFit ? clusterColor(Number(group.slice(8)) - 1)
+      : colors[group] || (isModern
       ? `hsl(${Math.round(groups.indexOf(group) * 137.5) % 360} 52% 42%)`
       : fallback[groups.indexOf(group) % fallback.length]);
     const groupPositions = new Map();
@@ -1463,7 +1687,14 @@
       const positions = projection.points.filter((point) => point.ethnicity === group)
         .map((point) => ({ x: plotX(point.x), y: plotY(point.y) }));
       groupPositions.set(group, positions);
-      if (positions.length < 2) continue;
+      if (positions.length < 2) {
+        if (clusterFit && positions.length) {
+          const node = add(plotLayer, "circle", { cx: positions[0].x, cy: positions[0].y,
+            r: 20, fill: groupColor(group), stroke: groupColor(group), class: "pca-cluster" });
+          clusterPaths.push({ node, positions, singleton: true });
+        }
+        continue;
+      }
       const hull = window.G25PcaLayout.convexHull(positions);
       const path = hull.length === 2
         ? `M ${hull[0].x} ${hull[0].y} L ${hull[1].x} ${hull[1].y}`
@@ -1487,7 +1718,11 @@
       const circle = add(plotLayer, "circle", { cx: plotX(point.x), cy: plotY(point.y), r: 6,
         fill: groupColor(point.ethnicity), class: "pca-reference" });
       referenceMarkers.push({ node: circle, x: plotX(point.x), y: plotY(point.y) });
-      bindTooltip(circle, visualise ? populationTooltip(point.label, periodReferences[index]) : point.label);
+      const cluster = clusterFit?.clusters[clusterFit.assignments[index]];
+      const clusterDistance = cluster ? core.distance(periodReferences[index].slice(2), cluster.centroid) : null;
+      bindTooltip(circle, cluster
+        ? `${point.label} · Cluster ${clusterFit.assignments[index] + 1} · Distance to centroid ${clusterDistance.toFixed(3)}`
+        : visualise ? populationTooltip(point.label, periodReferences[index]) : point.label);
     });
     const modernMarkers = [];
     closestModern.forEach((match, index) => {
@@ -1507,16 +1742,38 @@
         ? `Closest population: ${point.label} · ${visualise ? "Distance to input" : "Distance"} ${match.distance.toFixed(3)}`
         : `#${index + 1} modern: ${point.label} · Distance ${match.distance.toFixed(3)}`);
     });
-    const targetX = plotX(projection.target.x);
-    const targetY = plotY(projection.target.y);
-    const marker = add(plotLayer, "path", { d: `M ${targetX} ${targetY - 10} L ${targetX + 10} ${targetY} L ${targetX} ${targetY + 10} L ${targetX - 10} ${targetY} Z`,
-      class: "pca-target" });
-    bindTooltip(marker, `Input: ${projection.target.label}`);
+    const centroidMarkers = [];
+    if (clusterFit) clusterFit.clusters.forEach((cluster, index) => {
+      const center = projection.overlays[index];
+      const x = plotX(center.x);
+      const y = plotY(center.y);
+      const color = clusterColor(index);
+      const representative = projection.points[cluster.representativeIndex];
+      const rx = plotX(representative.x);
+      const ry = plotY(representative.y);
+      const triangle = add(plotLayer, "path", {
+        d: `M ${rx} ${ry - 12} L ${rx + 12} ${ry + 9} L ${rx - 12} ${ry + 9} Z`,
+        fill: color, class: "pca-representative" });
+      bindTooltip(triangle, `Closest to cluster ${index + 1} centroid: ${representative.label} · Distance ${cluster.representativeDistance.toFixed(3)}`);
+      const marker = add(plotLayer, "path", {
+        d: `M ${x} ${y - 6} L ${x + 6} ${y} L ${x} ${y + 6} L ${x - 6} ${y} Z`,
+        stroke: color, class: "pca-centroid" });
+      bindTooltip(marker, `Cluster ${index + 1} centroid · ${cluster.size} populations`);
+      const label = add(plotLayer, "text", { x: x + 11, y: y - 10, fill: color,
+        class: "pca-centroid-label", "aria-hidden": "true" }, `C${index + 1}`);
+      centroidMarkers.push({ marker, label, triangle, x, y, rx, ry });
+    });
+    const targetX = projection.target ? plotX(projection.target.x) : null;
+    const targetY = projection.target ? plotY(projection.target.y) : null;
+    const marker = projection.target ? add(plotLayer, "path", {
+      d: `M ${targetX} ${targetY - 10} L ${targetX + 10} ${targetY} L ${targetX} ${targetY + 10} L ${targetX - 10} ${targetY} Z`,
+      class: "pca-target" }) : null;
+    if (marker) bindTooltip(marker, `Input: ${projection.target.label}`);
     const groupLabels = new Map(groups.map((group) => [group,
       add(plotLayer, "text", { "text-anchor": "middle", fill: groupColor(group),
         class: "pca-group-label", "aria-hidden": "true" }, group.replaceAll("_", " "))]));
-    const youLabel = add(plotLayer, "text", { class: "pca-you-label",
-      "aria-hidden": "true" }, "YOU");
+    const youLabel = marker ? add(plotLayer, "text", { class: "pca-you-label",
+      "aria-hidden": "true" }, "YOU") : null;
     container.append(svg);
     const zoomIn = $("#pca-zoom-in");
     const zoomOut = $("#pca-zoom-out");
@@ -1548,7 +1805,13 @@
         yTicks[i].textContent = formatTick(yMax - (baseY - bounds.top) /
           (bounds.bottom - bounds.top) * (yMax - yMin), tickPrecision);
       }
-      for (const { node, positions } of clusterPaths) {
+      for (const { node, positions, singleton } of clusterPaths) {
+        if (singleton) {
+          const point = screen(positions[0]);
+          node.setAttribute("cx", point.x);
+          node.setAttribute("cy", point.y);
+          continue;
+        }
         const hull = window.G25PcaLayout.convexHull(positions.map(screen));
         node.setAttribute("d", hull.length === 2
           ? `M ${hull[0].x} ${hull[0].y} L ${hull[1].x} ${hull[1].y}`
@@ -1563,21 +1826,37 @@
         const point = screen({ x, y });
         node.setAttribute("d", `M ${point.x} ${point.y - 10} L ${point.x + 10} ${point.y + 8} L ${point.x - 10} ${point.y + 8} Z`);
       }
-      const target = screen({ x: targetX, y: targetY });
-      marker.setAttribute("d", `M ${target.x} ${target.y - 10} L ${target.x + 10} ${target.y} L ${target.x} ${target.y + 10} L ${target.x - 10} ${target.y} Z`);
-      const youRight = target.x < bounds.right - 70;
-      const youX = target.x + (youRight ? 14 : -14);
-      const youY = target.y < bounds.top + 32 ? target.y + 23 : target.y - 13;
-      youLabel.setAttribute("x", youX);
-      youLabel.setAttribute("y", youY);
-      youLabel.setAttribute("text-anchor", youRight ? "start" : "end");
-      youLabel.style.display = visible(target) ? "" : "none";
+      for (const { marker: centroid, label, triangle, x, y, rx, ry } of centroidMarkers) {
+        const point = screen({ x, y });
+        const representative = screen({ x: rx, y: ry });
+        centroid.setAttribute("d", `M ${point.x} ${point.y - 6} L ${point.x + 6} ${point.y} L ${point.x} ${point.y + 6} L ${point.x - 6} ${point.y} Z`);
+        label.setAttribute("x", point.x + 11);
+        label.setAttribute("y", point.y - 10);
+        label.style.display = visible(point) ? "" : "none";
+        triangle.setAttribute("d", `M ${representative.x} ${representative.y - 12} L ${representative.x + 12} ${representative.y + 9} L ${representative.x - 12} ${representative.y + 9} Z`);
+      }
       const occupiedLabels = [];
-      if (visible(target)) {
-        occupiedLabels.push({ left: target.x - 15, right: target.x + 15,
-          top: target.y - 15, bottom: target.y + 15 });
-        occupiedLabels.push({ left: youRight ? youX : youX - 32,
-          right: youRight ? youX + 32 : youX, top: youY - 13, bottom: youY + 4 });
+      if (marker) {
+        const target = screen({ x: targetX, y: targetY });
+        marker.setAttribute("d", `M ${target.x} ${target.y - 10} L ${target.x + 10} ${target.y} L ${target.x} ${target.y + 10} L ${target.x - 10} ${target.y} Z`);
+        const youRight = target.x < bounds.right - 70;
+        const youX = target.x + (youRight ? 14 : -14);
+        const youY = target.y < bounds.top + 32 ? target.y + 23 : target.y - 13;
+        youLabel.setAttribute("x", youX);
+        youLabel.setAttribute("y", youY);
+        youLabel.setAttribute("text-anchor", youRight ? "start" : "end");
+        youLabel.style.display = visible(target) ? "" : "none";
+        if (visible(target)) {
+          occupiedLabels.push({ left: target.x - 15, right: target.x + 15,
+            top: target.y - 15, bottom: target.y + 15 });
+          occupiedLabels.push({ left: youRight ? youX : youX - 32,
+            right: youRight ? youX + 32 : youX, top: youY - 13, bottom: youY + 4 });
+        }
+      }
+      for (const { x, y } of centroidMarkers) {
+        const point = screen({ x, y });
+        if (visible(point)) occupiedLabels.push({ left: point.x - 20, right: point.x + 35,
+          top: point.y - 24, bottom: point.y + 10 });
       }
       for (const { x, y } of modernMarkers) {
         const point = screen({ x, y });
@@ -1634,6 +1913,7 @@
         y: (event.clientY - rect.top) * height / rect.height };
     };
     const zoomButtonAnchor = () => {
+      if (!marker) return center;
       const x = targetX * scale + panX;
       const y = targetY * scale + panY;
       return x >= bounds.left && x <= bounds.right && y >= bounds.top && y <= bounds.bottom
@@ -1656,7 +1936,7 @@
     }, { passive: false });
     svg.addEventListener("pointerdown", (event) => {
       if (scale <= 1 || event.button !== 0 ||
-          event.target.closest(".pca-reference, .pca-neighbor, .pca-modern, .pca-target")) return;
+          event.target.closest(".pca-reference, .pca-neighbor, .pca-modern, .pca-target, .pca-centroid, .pca-representative")) return;
       const { x, y } = svgPosition(event);
       if (x < bounds.left || x > bounds.right || y < bounds.top || y > bounds.bottom) return;
       drag = { id: event.pointerId, x: event.clientX, y: event.clientY };
@@ -1704,10 +1984,20 @@
         ? "Closest population" : `${closestModern.length} closest modern`));
       legend.append(modern);
     }
-    const input = document.createElement("span");
-    input.className = "pca-legend-item";
-    input.textContent = "◆ Input";
-    legend.append(input);
+    if (clusterFit) {
+      const centroid = document.createElement("span");
+      centroid.className = "pca-legend-item";
+      centroid.textContent = "◇ Centroid";
+      const representative = document.createElement("span");
+      representative.className = "pca-legend-item";
+      representative.textContent = "▲ Closest to centroid";
+      legend.append(centroid, representative);
+    } else {
+      const input = document.createElement("span");
+      input.className = "pca-legend-item";
+      input.textContent = "◆ Input";
+      legend.append(input);
+    }
   }
 
   function prepareAdmixedCopy(fit) {
@@ -2197,6 +2487,7 @@
     state.visualiseCategory = "modern";
     state.visualiseLimit = null;
     state.visualiseNeighborCount = 10;
+    state.visualiseClusterK = null;
     modernMixedPca = null;
     modernMixedDirty = true;
     familyMessage = "";
@@ -2211,10 +2502,11 @@
   $("#open-populations").addEventListener("click", () => {
     renderBlacklist();
     $("#population-panel").showModal();
-    $("#blacklist-search").focus();
+    $(populationListMode === "custom" ? "#custom-paste" : "#blacklist-search").focus();
   });
   $("#close-populations").addEventListener("click", () => $("#population-panel").close());
-  for (const [selector, mode] of [["#population-mode-exclude", "exclude"], ["#population-mode-only", "only"]]) {
+  for (const [selector, mode] of [["#population-mode-exclude", "exclude"],
+    ["#population-mode-only", "only"], ["#population-mode-custom", "custom"]]) {
     $(selector).addEventListener("click", () => {
       populationListMode = mode;
       renderBlacklist();
@@ -2222,6 +2514,13 @@
   }
   $("#blacklist-search").addEventListener("input", renderBlacklistSearch);
   $("#population-add-matches").addEventListener("click", addMatchingPopulations);
+  $("#custom-add").addEventListener("click", addCustomReferences);
+  $("#custom-toggle").addEventListener("change", (event) => {
+    customEnabled = event.currentTarget.checked;
+    persistCustomReferences();
+    updateSelectedReferences(activeReferenceRows());
+    render();
+  });
   $("#blacklist-clear").addEventListener("click", () => {
     blacklist.clear();
     whitelist.clear();
@@ -2258,6 +2557,10 @@
     state.visualiseNeighborCount = Math.max(5, Math.min(100, Number(event.currentTarget.value)));
     $("#visualise-neighbor-value").textContent = String(state.visualiseNeighborCount);
     renderVisualisePca();
+  });
+  $("#visualise-cluster-count").addEventListener("input", (event) => {
+    state.visualiseClusterK = Number(event.currentTarget.value);
+    renderVisualiseClusters();
   });
   $("#modern-group-limit").addEventListener("change", (event) => {
     const limit = Number(event.currentTarget.value);
@@ -2304,7 +2607,7 @@
     modernMixedDirty = true;
     if (state.modernPcaId === "mixed") state.modernPcaId = "auto";
     if (!state.turkish) state.analysisView = "results";
-    updateSelectedReferences(state.turkish ? turkishReferences : globalReferences);
+    updateSelectedReferences(activeReferenceRows());
     render();
   });
   const analysisTabViews = ["results", "early", "late", "modern"];

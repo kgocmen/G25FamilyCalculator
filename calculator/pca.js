@@ -46,8 +46,8 @@ function G25PcaModule(root) {
   }
 
   function projectPca(target, references, overlays = [], groupStyle = "colon", sparse = false) {
-    if (!target || !Array.isArray(target.values) || target.values.length !== DIMENSIONS ||
-        !target.values.every(Number.isFinite)) {
+    if (target !== null && (!target || !Array.isArray(target.values) || target.values.length !== DIMENSIONS ||
+        !target.values.every(Number.isFinite))) {
       throw new Error("The input needs 25 finite G25 coordinates.");
     }
     if (!Array.isArray(references) || references.length < (sparse ? 1 : 3)) {
@@ -64,7 +64,8 @@ function G25PcaModule(root) {
     };
     const rows = references.map((reference) => readRow(reference, "A reference"));
     const overlayRows = overlays.map((overlay) => readRow(overlay, "A PCA overlay"));
-    const allRows = [...rows, target, ...overlayRows];
+    // A reference-only PCA fits axes to references and projects the centroids afterward.
+    const allRows = target === null ? rows : [...rows, target, ...overlayRows];
     const mean = Array(DIMENSIONS).fill(0);
     for (const row of allRows) {
       for (let i = 0; i < DIMENSIONS; i += 1) mean[i] += row.values[i] / allRows.length;
@@ -73,7 +74,7 @@ function G25PcaModule(root) {
     const covariance = Array.from({ length: DIMENSIONS }, () => Array(DIMENSIONS).fill(0));
     for (const values of centered) {
       for (let i = 0; i < DIMENSIONS; i += 1) {
-        for (let j = 0; j <= i; j += 1) covariance[i][j] += values[i] * values[j] / (allRows.length - 1);
+        for (let j = 0; j <= i; j += 1) covariance[i][j] += values[i] * values[j] / Math.max(1, allRows.length - 1);
       }
     }
     for (let i = 0; i < DIMENSIONS; i += 1) {
@@ -91,7 +92,7 @@ function G25PcaModule(root) {
         ethnicity: groupStyle === "population" ? row.label : groupStyle === "modern"
           ? (row.label.includes(":") ? row.label.split(":", 1)[0] : row.label.split("_", 1)[0])
           : row.label.split(":", 1)[0], ...position(row.values) })),
-      target: { label: target.label || "Input", ...position(target.values) },
+      target: target === null ? null : { label: target.label || "Input", ...position(target.values) },
       overlays: overlayRows.map((row) => ({ label: row.label, ...position(row.values) })),
       explained: trace > 0 ? [first.variance / trace, second.variance / trace] : [0, 0],
     };

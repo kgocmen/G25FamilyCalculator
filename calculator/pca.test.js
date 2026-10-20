@@ -71,6 +71,21 @@ test("mixed PCA can project only its fitted components and one closest overlay",
     .every((point) => Number.isFinite(point.x) && Number.isFinite(point.y)));
 });
 
+test("reference-only PCA fits axes without an input or centroid overlays", () => {
+  const rows = [reference("A", -2, 0), reference("B", 2, 0),
+    reference("C", 0, -1), reference("D", 0, 1)];
+  const centroid = { label: "Center", values: Array(25).fill(0) };
+  const projection = projectPca(null, rows, [centroid], "population", true);
+  const withoutOverlay = projectPca(null, rows, [], "population", true);
+  assert.equal(projection.target, null);
+  assert.deepEqual(projection.points, withoutOverlay.points);
+  assert.deepEqual(projection.explained, withoutOverlay.explained);
+  assert.ok(Math.abs(projection.overlays[0].x) < 1e-9);
+  assert.ok(Math.abs(projection.overlays[0].y) < 1e-9);
+  assert.ok(projectPca(null, rows.slice(0, 1), [], "population", true).points
+    .every((point) => Number.isFinite(point.x) && Number.isFinite(point.y)));
+});
+
 test("invalid coordinates are rejected", () => {
   const references = [reference("A:1", 0, 0), reference("B:2", 1, 0), reference("C:3", 0, 1)];
   assert.throws(() => projectPca({ values: [0] }, references), /25 finite/);
