@@ -340,7 +340,7 @@
   }
 
   function matchingPopulationRows() {
-    const query = normalizeSearch($("#blacklist-search").value);
+    const query = normalizeSearch($("#blacklist-search").value, true);
     if (!query) return [];
     const words = query.split(/\s+/);
     const pool = [...activeReferenceRows(),
@@ -350,7 +350,8 @@
     const matches = [];
     for (const row of pool) {
       const key = populationKey(row);
-      if (seen.has(key) || isGroupExcluded(row) || (populationListMode === "only" ? whitelist : blacklist).has(key) || !words.every((word) => normalizeSearch(row[1]).includes(word))) continue;
+      if (seen.has(key) || isGroupExcluded(row) || (populationListMode === "only" ? whitelist : blacklist).has(key) ||
+          !words.every((word) => normalizeSearch(row[1], /[_-]/.test(word)).includes(word))) continue;
       seen.add(key);
       matches.push(row);
     }
@@ -386,7 +387,7 @@
       action.hidden = !count;
       action.textContent = `${verb} all ${count} ${category ? `${category} ` : ""}${count === 1 ? "match" : "matches"}`;
     }
-    if (!normalizeSearch($("#blacklist-search").value)) return;
+    if (!normalizeSearch($("#blacklist-search").value, true)) return;
     for (const row of matches.slice(0, 20)) {
       const entry = document.createElement("li");
       const name = makeButton(`${row[1]} · ${row[0]}`, () => {
@@ -613,9 +614,10 @@
     };
   }
 
-  function normalizeSearch(value) {
-    return String(value).normalize("NFKD").replace(/[\u0300-\u036f]/g, "")
-      .replace(/[_-]+/g, " ").toLocaleLowerCase().trim();
+  function normalizeSearch(value, preserveSeparators = false) {
+    const normalized = String(value).normalize("NFKD").replace(/[\u0300-\u036f]/g, "")
+      .toLocaleLowerCase();
+    return (preserveSeparators ? normalized : normalized.replace(/[_-]+/g, " ")).trim();
   }
 
   function makeButton(label, handler) {
