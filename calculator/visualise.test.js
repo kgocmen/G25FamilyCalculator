@@ -58,6 +58,23 @@ test("closest reference count can range from five to one hundred per contributor
   assert.ok(hundred.slice(100).every(({ contributorLabel }) => contributorLabel === "Source_B"));
 });
 
+test("overlapping nearby references belong to one closest contributor until its quota fills", () => {
+  const row = (label, coordinate) => ["modern", label, coordinate, ...Array(24).fill(0)];
+  const pool = [row("Source_A", 0), row("Source_Z", 0.0041),
+    ...Array.from({ length: 10 }, (_, index) => row(`Shared_${index + 1}`, (index + 1) / 1000))];
+  const fit = { components: [
+    { label: "Source_A", referenceIndex: 0 },
+    { label: "Source_Z", referenceIndex: 1 },
+  ] };
+  const neighbors = closestContributorReferences(fit, pool, nearestMatches, 5);
+  assert.equal(neighbors.length, 10);
+  assert.equal(new Set(neighbors.map(({ row }) => row[1])).size, 10);
+  assert.equal(neighbors.filter(({ contributorLabel }) => contributorLabel === "Source_A").length, 5);
+  assert.equal(neighbors.filter(({ contributorLabel }) => contributorLabel === "Source_Z").length, 5);
+  assert.equal(neighbors.find(({ row }) => row[1] === "Shared_4").contributorLabel, "Source_Z");
+  assert.equal(neighbors.find(({ row }) => row[1] === "Shared_1").contributorLabel, "Source_A");
+});
+
 test("2/3/4/5 source limits refit and normalize the complete reported mixture", () => {
   for (const limit of [2, 3, 4, 5]) {
     const fit = fitAncestry(target, references, limit);

@@ -298,13 +298,28 @@ function G25VisualiseModule(root) {
     const available = references.map((row, index) => ({ row, index }))
       .filter(({ index }) => !fitted.has(index));
     const pool = available.map(({ row }) => row);
-    return fit.components.flatMap((part) => {
+    const candidates = fit.components.flatMap((part, contributorIndex) => {
       const source = references[part.referenceIndex];
       const values = Array.isArray(source) ? source.slice(2) : source.values;
-      return nearestMatches({ values }, pool, count).map((match) => ({
-        row: available[match.id].row, contributorLabel: part.label, distance: match.distance,
+      return nearestMatches({ values }, pool, pool.length).map((match) => ({
+        contributorIndex, referenceIndex: match.id, distance: match.distance,
       }));
     });
+    candidates.sort((first, second) => first.distance - second.distance ||
+      first.contributorIndex - second.contributorIndex || first.referenceIndex - second.referenceIndex);
+    const assigned = new Set();
+    const byContributor = fit.components.map(() => []);
+    for (const candidate of candidates) {
+      if (assigned.has(candidate.referenceIndex) || byContributor[candidate.contributorIndex].length >= count) continue;
+      assigned.add(candidate.referenceIndex);
+      byContributor[candidate.contributorIndex].push({
+        row: available[candidate.referenceIndex].row,
+        contributorLabel: fit.components[candidate.contributorIndex].label,
+        distance: candidate.distance,
+      });
+      if (assigned.size === Math.min(pool.length, count * fit.components.length)) break;
+    }
+    return byContributor.flat();
   }
 
   const api = { fitAncestry, closestContributorReferences };
