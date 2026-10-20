@@ -1352,7 +1352,7 @@
       const circle = add(plotLayer, "circle", { cx: x, cy: y, r: 4.5,
         fill: groupColor(neighbor.contributorLabel), class: "pca-neighbor" });
       referenceMarkers.push({ node: circle, x, y });
-      bindTooltip(circle, `Closest to ${neighbor.contributorLabel}: ${point.label} · Distance ${neighbor.distance.toFixed(3)}`);
+      bindTooltip(circle, `${point.label} · Distance ${neighbor.distance.toFixed(3)}`);
     });
     projection.points.forEach((point, index) => {
       if (isModern && index === highlightedIndex) return;
