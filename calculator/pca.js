@@ -45,7 +45,8 @@ function G25PcaModule(root) {
     return { vector, variance };
   }
 
-  function projectPca(target, references, overlays = [], groupStyle = "colon", sparse = false) {
+  function projectPca(target, references, overlays = [], groupStyle = "colon", sparse = false,
+    displayOnlyOverlays = []) {
     if (target !== null && (!target || !Array.isArray(target.values) || target.values.length !== DIMENSIONS ||
         !target.values.every(Number.isFinite))) {
       throw new Error("The input needs 25 finite G25 coordinates.");
@@ -64,6 +65,7 @@ function G25PcaModule(root) {
     };
     const rows = references.map((reference) => readRow(reference, "A reference"));
     const overlayRows = overlays.map((overlay) => readRow(overlay, "A PCA overlay"));
+    const displayRows = displayOnlyOverlays.map((overlay) => readRow(overlay, "A PCA overlay"));
     // A reference-only PCA fits axes to references and projects the centroids afterward.
     const allRows = target === null ? rows : [...rows, target, ...overlayRows];
     const mean = Array(DIMENSIONS).fill(0);
@@ -93,7 +95,7 @@ function G25PcaModule(root) {
           ? (row.label.includes(":") ? row.label.split(":", 1)[0] : row.label.split("_", 1)[0])
           : row.label.split(":", 1)[0], ...position(row.values) })),
       target: target === null ? null : { label: target.label || "Input", ...position(target.values) },
-      overlays: overlayRows.map((row) => ({ label: row.label, ...position(row.values) })),
+      overlays: [...overlayRows, ...displayRows].map((row) => ({ label: row.label, ...position(row.values) })),
       explained: trace > 0 ? [first.variance / trace, second.variance / trace] : [0, 0],
     };
   }

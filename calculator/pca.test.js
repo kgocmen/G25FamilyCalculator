@@ -49,6 +49,19 @@ test("modern overlays participate in the plotted PCA", () => {
   }
 });
 
+test("display-only custom populations do not move the PCA axes or existing points", () => {
+  const rows = [reference("A", -2, 0), reference("B", 2, 0),
+    reference("C", 0, -1), reference("D", 0, 1)];
+  const input = { values: Array(25).fill(0) };
+  const baseline = projectPca(input, rows);
+  const custom = reference("Custom", 100, 100);
+  const withCustom = projectPca(input, rows, [], "colon", false, [custom]);
+  assert.deepEqual(withCustom.points, baseline.points);
+  assert.deepEqual(withCustom.target, baseline.target);
+  assert.deepEqual(withCustom.explained, baseline.explained);
+  assert.equal(withCustom.overlays[0].label, "Custom");
+});
+
 test("modern PCA uses prepared group names", () => {
   const references = [reference("Türk_Anadolu:Sample", -1, 0),
     reference("Rum_Helen:Sample", 1, 0), reference("Ermeni_Erzurum_(n=9)", 0, 1)];

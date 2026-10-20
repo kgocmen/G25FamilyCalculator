@@ -1555,12 +1555,19 @@
       Array.isArray(row) ? row.slice(2) : row.values);
     const populationTooltip = (label, row) => `${label} · Distance to input ${distanceToInput(row).toFixed(3)}`;
     const closestOverlayRows = isModern && highlightedIndex >= 0 ? [] : closestRows;
+    const customKeys = new Set(customReferences.keys());
+    const alreadyPlotted = new Set([...periodReferences, ...closestOverlayRows,
+      ...neighborRows.map(({ row }) => row)].map(populationKey));
+    const customRows = clusterFit || !customEnabled ? []
+      : allowedReferences([...customReferences.values()]).filter((row) => !alreadyPlotted.has(populationKey(row)));
+    let baseOverlayCount = 0;
     try {
       const overlays = clusterFit
         ? clusterFit.clusters.map((cluster, index) => ({ label: `Cluster ${index + 1} centroid`, values: cluster.centroid }))
         : [...closestOverlayRows, ...neighborRows.map(({ row }) => row)];
+      baseOverlayCount = overlays.length;
       projection = window.G25Pca.projectPca(clusterFit ? null : state.single, periodReferences,
-        overlays, options.groupStyle || (isModern ? "modern" : "colon"), mixed);
+        overlays, options.groupStyle || (isModern ? "modern" : "colon"), mixed, customRows);
       if (clusterFit) projection.points.forEach((point, index) => {
         point.ethnicity = `Cluster ${clusterFit.assignments[index] + 1}`;
       });
@@ -1704,25 +1711,49 @@
       clusterPaths.push({ node, positions });
     }
     const referenceMarkers = [];
+    const customLabels = [];
+    const addCustomLabel = (name, x, y) => {
+      const title = name.replaceAll("_", " ");
+      const displayed = title.length > 28 ? `${title.slice(0, 27)}…` : title;
+      const label = add(plotLayer, "text", { x: x + 12, y: y - 10,
+        class: "pca-custom-label", "aria-hidden": "true" }, displayed);
+      customLabels.push({ node: label, x, y });
+    };
     neighborRows.forEach((neighbor, index) => {
       const point = projection.overlays[closestOverlayRows.length + index];
       const x = plotX(point.x);
       const y = plotY(point.y);
-      const circle = add(plotLayer, "circle", { cx: x, cy: y, r: 4.5,
-        fill: groupColor(neighbor.contributorLabel), class: "pca-neighbor" });
+      const custom = customEnabled && customKeys.has(populationKey(neighbor.row));
+      const circle = add(plotLayer, "circle", { cx: x, cy: y, r: custom ? 7 : 4.5,
+        fill: groupColor(neighbor.contributorLabel),
+        class: custom ? "pca-neighbor pca-custom" : "pca-neighbor" });
       referenceMarkers.push({ node: circle, x, y });
-      bindTooltip(circle, populationTooltip(point.label, neighbor.row));
+      if (custom) addCustomLabel(point.label, x, y);
+      bindTooltip(circle, `${custom ? "Custom: " : ""}${populationTooltip(point.label, neighbor.row)}`);
     });
     projection.points.forEach((point, index) => {
       if (isModern && index === highlightedIndex) return;
-      const circle = add(plotLayer, "circle", { cx: plotX(point.x), cy: plotY(point.y), r: 6,
-        fill: groupColor(point.ethnicity), class: "pca-reference" });
-      referenceMarkers.push({ node: circle, x: plotX(point.x), y: plotY(point.y) });
+      const custom = customEnabled && customKeys.has(populationKey(periodReferences[index]));
+      const x = plotX(point.x);
+      const y = plotY(point.y);
+      const circle = add(plotLayer, "circle", { cx: x, cy: y, r: custom ? 8 : 6,
+        fill: groupColor(point.ethnicity), class: custom ? "pca-reference pca-custom" : "pca-reference" });
+      referenceMarkers.push({ node: circle, x, y });
+      if (custom) addCustomLabel(point.label, x, y);
       const cluster = clusterFit?.clusters[clusterFit.assignments[index]];
       const clusterDistance = cluster ? core.distance(periodReferences[index].slice(2), cluster.centroid) : null;
-      bindTooltip(circle, cluster
+      bindTooltip(circle, `${custom ? "Custom: " : ""}${cluster
         ? `${point.label} · Cluster ${clusterFit.assignments[index] + 1} · Distance to centroid ${clusterDistance.toFixed(3)}`
-        : visualise ? populationTooltip(point.label, periodReferences[index]) : point.label);
+        : custom || visualise ? populationTooltip(point.label, periodReferences[index]) : point.label}`);
+    });
+    customRows.forEach((row, index) => {
+      const point = projection.overlays[baseOverlayCount + index];
+      const x = plotX(point.x);
+      const y = plotY(point.y);
+      const circle = add(plotLayer, "circle", { cx: x, cy: y, r: 8, class: "pca-custom" });
+      referenceMarkers.push({ node: circle, x, y });
+      addCustomLabel(point.label, x, y);
+      bindTooltip(circle, `Custom: ${populationTooltip(point.label, row)}`);
     });
     const modernMarkers = [];
     closestModern.forEach((match, index) => {
@@ -1730,17 +1761,19 @@
         ? projection.points[highlightedIndex] : projection.overlays[index];
       const x = plotX(point.x);
       const y = plotY(point.y);
+      const custom = customEnabled && customKeys.has(populationKey(closestRows[index]));
       const triangle = add(plotLayer, "path", {
         d: `M ${x} ${y - 10} L ${x + 10} ${y + 8} L ${x - 10} ${y + 8} Z`,
-        class: "pca-modern",
+        class: custom ? "pca-modern pca-custom-closest" : "pca-modern",
       });
+      if (custom) addCustomLabel(point.label, x, y);
       if (options.groupStyle === "population" && highlightedIndex >= 0) {
         triangle.style.fill = groupColor(projection.points[highlightedIndex].ethnicity);
       }
       modernMarkers.push({ node: triangle, x, y });
-      bindTooltip(triangle, isModern
+      bindTooltip(triangle, `${custom ? "Custom · " : ""}${isModern
         ? `Closest population: ${point.label} · ${visualise ? "Distance to input" : "Distance"} ${match.distance.toFixed(3)}`
-        : `#${index + 1} modern: ${point.label} · Distance ${match.distance.toFixed(3)}`);
+        : `#${index + 1} modern: ${point.label} · Distance ${match.distance.toFixed(3)}`}`);
     });
     const centroidMarkers = [];
     if (clusterFit) clusterFit.clusters.forEach((cluster, index) => {
@@ -1765,9 +1798,8 @@
     });
     const targetX = projection.target ? plotX(projection.target.x) : null;
     const targetY = projection.target ? plotY(projection.target.y) : null;
-    const marker = projection.target ? add(plotLayer, "path", {
-      d: `M ${targetX} ${targetY - 10} L ${targetX + 10} ${targetY} L ${targetX} ${targetY + 10} L ${targetX - 10} ${targetY} Z`,
-      class: "pca-target" }) : null;
+    const marker = projection.target ? add(plotLayer, "circle", {
+      cx: targetX, cy: targetY, r: 11, class: "pca-target" }) : null;
     if (marker) bindTooltip(marker, `Input: ${projection.target.label}`);
     const groupLabels = new Map(groups.map((group) => [group,
       add(plotLayer, "text", { "text-anchor": "middle", fill: groupColor(group),
@@ -1822,6 +1854,26 @@
         node.setAttribute("cx", point.x);
         node.setAttribute("cy", point.y);
       }
+      const customLabelBoxes = [];
+      for (const { node, x, y } of customLabels) {
+        const point = screen({ x, y });
+        const labelWidth = Math.min(220, Math.max(40, node.textContent.length * 7));
+        const right = point.x + labelWidth + 18 < bounds.right;
+        const overlapsInput = marker && Math.hypot(point.x - (targetX * scale + panX),
+          point.y - (targetY * scale + panY)) < 32;
+        const below = point.y < bounds.top + 24 || overlapsInput;
+        const labelX = point.x + (right ? 13 : -13);
+        const labelY = point.y + (below ? 21 : -12);
+        node.setAttribute("x", labelX);
+        node.setAttribute("y", labelY);
+        node.setAttribute("text-anchor", right ? "start" : "end");
+        node.style.display = visible(point) ? "" : "none";
+        if (visible(point)) customLabelBoxes.push({
+          left: right ? labelX : labelX - labelWidth,
+          right: right ? labelX + labelWidth : labelX,
+          top: labelY - 12, bottom: labelY + 4,
+        });
+      }
       for (const { node, x, y } of modernMarkers) {
         const point = screen({ x, y });
         node.setAttribute("d", `M ${point.x} ${point.y - 10} L ${point.x + 10} ${point.y + 8} L ${point.x - 10} ${point.y + 8} Z`);
@@ -1835,22 +1887,23 @@
         label.style.display = visible(point) ? "" : "none";
         triangle.setAttribute("d", `M ${representative.x} ${representative.y - 12} L ${representative.x + 12} ${representative.y + 9} L ${representative.x - 12} ${representative.y + 9} Z`);
       }
-      const occupiedLabels = [];
+      const occupiedLabels = [...customLabelBoxes];
       if (marker) {
         const target = screen({ x: targetX, y: targetY });
-        marker.setAttribute("d", `M ${target.x} ${target.y - 10} L ${target.x + 10} ${target.y} L ${target.x} ${target.y + 10} L ${target.x - 10} ${target.y} Z`);
-        const youRight = target.x < bounds.right - 70;
-        const youX = target.x + (youRight ? 14 : -14);
-        const youY = target.y < bounds.top + 32 ? target.y + 23 : target.y - 13;
+        marker.setAttribute("cx", target.x);
+        marker.setAttribute("cy", target.y);
+        const youRight = target.x < bounds.right - 80;
+        const youX = target.x + (youRight ? 19 : -19);
+        const youY = target.y < bounds.top + 36 ? target.y + 27 : target.y - 15;
         youLabel.setAttribute("x", youX);
         youLabel.setAttribute("y", youY);
         youLabel.setAttribute("text-anchor", youRight ? "start" : "end");
         youLabel.style.display = visible(target) ? "" : "none";
         if (visible(target)) {
-          occupiedLabels.push({ left: target.x - 15, right: target.x + 15,
-            top: target.y - 15, bottom: target.y + 15 });
-          occupiedLabels.push({ left: youRight ? youX : youX - 32,
-            right: youRight ? youX + 32 : youX, top: youY - 13, bottom: youY + 4 });
+          occupiedLabels.push({ left: target.x - 17, right: target.x + 17,
+            top: target.y - 17, bottom: target.y + 17 });
+          occupiedLabels.push({ left: youRight ? youX : youX - 42,
+            right: youRight ? youX + 42 : youX, top: youY - 15, bottom: youY + 4 });
         }
       }
       for (const { x, y } of centroidMarkers) {
@@ -1936,7 +1989,7 @@
     }, { passive: false });
     svg.addEventListener("pointerdown", (event) => {
       if (scale <= 1 || event.button !== 0 ||
-          event.target.closest(".pca-reference, .pca-neighbor, .pca-modern, .pca-target, .pca-centroid, .pca-representative")) return;
+          event.target.closest(".pca-reference, .pca-neighbor, .pca-modern, .pca-target, .pca-centroid, .pca-representative, .pca-custom")) return;
       const { x, y } = svgPosition(event);
       if (x < bounds.left || x > bounds.right || y < bounds.top || y > bounds.bottom) return;
       drag = { id: event.pointerId, x: event.clientX, y: event.clientY };
@@ -1984,6 +2037,14 @@
         ? "Closest population" : `${closestModern.length} closest modern`));
       legend.append(modern);
     }
+    if (customLabels.length) {
+      const custom = document.createElement("span");
+      custom.className = "pca-legend-item";
+      const swatch = document.createElement("span");
+      swatch.className = "pca-legend-custom-swatch";
+      custom.append(swatch, document.createTextNode("Custom population"));
+      legend.append(custom);
+    }
     if (clusterFit) {
       const centroid = document.createElement("span");
       centroid.className = "pca-legend-item";
@@ -1995,7 +2056,7 @@
     } else {
       const input = document.createElement("span");
       input.className = "pca-legend-item";
-      input.textContent = "◆ Input";
+      input.textContent = "● YOU";
       legend.append(input);
     }
   }
