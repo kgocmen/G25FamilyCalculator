@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#14243b">
   <title>G25 Family Calculator</title>
-  <link rel="stylesheet" href="style.css?v=20261020-5">
+  <link rel="stylesheet" href="style.css?v=20261020-6">
   <script defer src="references.js?v=20261020-1"></script>
   <script defer src="turkish_references.js?v=20261020-1"></script>
   <script defer src="modern_pca_references.js?v=20261020-3"></script>
@@ -13,11 +13,11 @@
   <script defer src="core.js?v=20261017-21"></script>
   <script defer src="mixture.js?v=20261015-5"></script>
   <script defer src="medieval.js?v=20261020-1"></script>
-  <script defer src="visualise.js?v=20261020-6"></script>
+  <script defer src="visualise.js?v=20261020-7"></script>
   <script defer src="pca.js?v=20261020-1"></script>
   <script defer src="modern_pca.js?v=20261020-1"></script>
   <script defer src="pca_layout.js?v=20261016-2"></script>
-  <script defer src="app.js?v=20261020-10"></script>
+  <script defer src="app.js?v=20261020-11"></script>
 </head>
 <body>
   <main class="shell">
@@ -240,6 +240,11 @@
             <button id="pca-zoom-reset" type="button">Reset</button>
             <output id="pca-zoom-level" aria-live="off">100%</output>
           </div>
+        </div>
+        <div id="visualise-neighbor-control" class="visualise-neighbor-control" hidden>
+          <label for="visualise-neighbor-count">Closest per contributor</label>
+          <input id="visualise-neighbor-count" type="range" min="5" max="100" step="1" value="10">
+          <output id="visualise-neighbor-value" for="visualise-neighbor-count">10</output>
         </div>
         <div id="medieval-pca-plot" class="pca-scroll" role="region" tabindex="0" aria-label="PCA plot"></div>
         <div id="medieval-pca-legend" class="pca-legend"></div>

@@ -40,6 +40,24 @@ test("plots ten nearby non-contributors for each of at most five fitted populati
   assert.ok(neighbors.slice(10).every(({ contributorLabel }) => contributorLabel === "Source_B"));
 });
 
+test("closest reference count can range from five to one hundred per contributor", () => {
+  const row = (label, coordinate) => ["modern", label, coordinate, ...Array(24).fill(0)];
+  const pool = [row("Source_A", 0), row("Source_B", 10),
+    ...Array.from({ length: 100 }, (_, index) => row(`Near_A_${index}`, (index + 1) / 1000)),
+    ...Array.from({ length: 100 }, (_, index) => row(`Near_B_${index}`, 10 - (index + 1) / 1000))];
+  const fit = { components: [
+    { label: "Source_A", referenceIndex: 0 },
+    { label: "Source_B", referenceIndex: 1 },
+  ] };
+  const five = closestContributorReferences(fit, pool, nearestMatches, 5);
+  const hundred = closestContributorReferences(fit, pool, nearestMatches, 100);
+  assert.equal(five.length, 10);
+  assert.equal(hundred.length, 200);
+  assert.ok(five.every(({ row }) => !row[1].startsWith("Source_")));
+  assert.ok(hundred.slice(0, 100).every(({ contributorLabel }) => contributorLabel === "Source_A"));
+  assert.ok(hundred.slice(100).every(({ contributorLabel }) => contributorLabel === "Source_B"));
+});
+
 test("2/3/4/5 source limits refit and normalize the complete reported mixture", () => {
   for (const limit of [2, 3, 4, 5]) {
     const fit = fitAncestry(target, references, limit);

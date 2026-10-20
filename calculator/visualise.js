@@ -292,7 +292,7 @@ function G25VisualiseModule(root) {
       converged: limit === null ? fit.converged : undefined };
   }
 
-  function closestContributorReferences(fit, references, nearestMatches) {
+  function closestContributorReferences(fit, references, nearestMatches, count = 10) {
     if (fit.components.length > 5) return [];
     const fitted = new Set(fit.components.map((part) => part.referenceIndex));
     const available = references.map((row, index) => ({ row, index }))
@@ -301,7 +301,7 @@ function G25VisualiseModule(root) {
     return fit.components.flatMap((part) => {
       const source = references[part.referenceIndex];
       const values = Array.isArray(source) ? source.slice(2) : source.values;
-      return nearestMatches({ values }, pool, 10).map((match) => ({
+      return nearestMatches({ values }, pool, count).map((match) => ({
         row: available[match.id].row, contributorLabel: part.label, distance: match.distance,
       }));
     });

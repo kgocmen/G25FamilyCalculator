@@ -102,6 +102,10 @@ p { margin: 0; }
 .pca-zoom-controls button { min-width: 34px; min-height: 30px; padding: 4px 9px; border: 1px solid #dce4eb; border-radius: 7px; background: #fff; color: #365a72; font-weight: 700; }
 .pca-zoom-controls button:disabled { opacity: .45; cursor: default; }
 .pca-zoom-controls output { min-width: 42px; margin-left: 4px; text-align: right; color: #526a80; font-size: 12px; font-variant-numeric: tabular-nums; }
+.visualise-neighbor-control { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; margin: 0 0 12px; color: #526a80; font-size: 12px; font-weight: 700; }
+.visualise-neighbor-control[hidden] { display: none; }
+.visualise-neighbor-control input { width: min(250px, 100%); accent-color: #176e8d; }
+.visualise-neighbor-control output { min-width: 26px; color: #173c50; font-variant-numeric: tabular-nums; }
 .pca-scroll { width: 100%; overflow-x: auto; border: 1px solid #dfe7ed; border-radius: 10px; background: #fbfdfe; color: #607286; font-size: 13px; }
 .pca-scroll svg { display: block; width: 100%; min-width: 900px; height: auto; }
 .pca-scroll svg.is-zoomed { cursor: grab; touch-action: none; }

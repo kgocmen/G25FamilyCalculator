@@ -28,6 +28,7 @@
     modernPcaId: "auto",
     visualiseCategory: "modern",
     visualiseLimit: null,
+    visualiseNeighborCount: 10,
     single: null,
     compare: [null, null],
     offspring: null,
@@ -58,6 +59,7 @@
   let modernMixedDirty = true;
   let modernPcaFitDistances = new Map();
   const visualiseLocks = new Set();
+  let visualisePcaContext = null;
   let admixedOutput = "";
   let relaxedFits = { modern: [], ancient: [] };
   let relaxedReady = { modern: false, ancient: false };
@@ -645,6 +647,7 @@
     $("#turkish-toggle").checked = state.turkish;
     $("#analysis-tabs").hidden = mode !== 1 || !state.turkish || !state.single;
     $("#medieval-breakdown-panel").hidden = true;
+    $("#visualise-neighbor-control").hidden = true;
     $("#closest-count").value = String(state.closestCount);
     $("#closest-count-value").textContent = String(state.closestCount);
     $("#suggestion-count").value = String(state.closestCount);
@@ -958,9 +961,20 @@
     }
   }
 
+  function renderVisualisePca() {
+    if (!visualisePcaContext || state.mode !== 9) return;
+    const { fit, candidates, closest } = visualisePcaContext;
+    const fittedRows = fit.components.map((part) => candidates[part.referenceIndex]);
+    const neighbors = window.G25Visualise.closestContributorReferences(
+      fit, candidates, core.nearestMatches, state.visualiseNeighborCount);
+    renderMedievalPca(fittedRows, "Visualise", true, closest, true,
+      { references: candidates, groupStyle: "population", neighbors });
+  }
+
   function renderVisualise() {
     cancelMixtures();
     cancelMedieval();
+    visualisePcaContext = null;
     suggestionTarget = null;
     preparedMatches = null;
     preparedContext = null;
@@ -982,6 +996,9 @@
     }
     $("#visualise-category").value = state.visualiseCategory;
     $("#visualise-limit").value = state.visualiseLimit === null ? "unlimited" : String(state.visualiseLimit);
+    $("#visualise-neighbor-count").value = String(state.visualiseNeighborCount);
+    $("#visualise-neighbor-value").textContent = String(state.visualiseNeighborCount);
+    $("#visualise-neighbor-control").hidden = true;
     const list = $("#medieval-breakdown-list");
     const status = $("#medieval-breakdown-status");
     list.replaceChildren();
@@ -1051,12 +1068,10 @@
           row.append(name, weight, lock, excludeButton({ label: part.label, category: state.visualiseCategory }));
           list.append(row);
         });
-        const fittedRows = fit.components.map((part) => candidates[part.referenceIndex]);
-        const neighbors = window.G25Visualise.closestContributorReferences(
-          fit, candidates, core.nearestMatches);
+        visualisePcaContext = { fit, candidates, closest };
         $("#pca-section").hidden = false;
-        renderMedievalPca(fittedRows, "Visualise", true, closest, true,
-          { references: candidates, groupStyle: "population", neighbors });
+        $("#visualise-neighbor-control").hidden = fit.components.length > 5;
+        renderVisualisePca();
       };
       worker.onerror = () => {
         if (requestId !== medievalRequest) return;
@@ -2177,6 +2192,7 @@
     state.modernPcaId = "auto";
     state.visualiseCategory = "modern";
     state.visualiseLimit = null;
+    state.visualiseNeighborCount = 10;
     modernMixedPca = null;
     modernMixedDirty = true;
     familyMessage = "";
@@ -2233,6 +2249,11 @@
     }
     state.visualiseLimit = limit;
     render();
+  });
+  $("#visualise-neighbor-count").addEventListener("input", (event) => {
+    state.visualiseNeighborCount = Math.max(5, Math.min(100, Number(event.currentTarget.value)));
+    $("#visualise-neighbor-value").textContent = String(state.visualiseNeighborCount);
+    renderVisualisePca();
   });
   $("#modern-group-limit").addEventListener("change", (event) => {
     const limit = Number(event.currentTarget.value);
