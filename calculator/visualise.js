@@ -238,7 +238,22 @@ function G25VisualiseModule(root) {
       converged: limit === null ? fit.converged : undefined };
   }
 
-  const api = { fitAncestry };
+  function closestContributorReferences(fit, references, nearestMatches) {
+    if (fit.components.length > 5) return [];
+    const fitted = new Set(fit.components.map((part) => part.referenceIndex));
+    const available = references.map((row, index) => ({ row, index }))
+      .filter(({ index }) => !fitted.has(index));
+    const pool = available.map(({ row }) => row);
+    return fit.components.flatMap((part) => {
+      const source = references[part.referenceIndex];
+      const values = Array.isArray(source) ? source.slice(2) : source.values;
+      return nearestMatches({ values }, pool, 10).map((match) => ({
+        row: available[match.id].row, contributorLabel: part.label, distance: match.distance,
+      }));
+    });
+  }
+
+  const api = { fitAncestry, closestContributorReferences };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else {
     root.G25Visualise = api;

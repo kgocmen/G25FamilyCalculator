@@ -111,7 +111,8 @@ p { margin: 0; }
 .pca-tick { fill: #6c7e90; font-size: 11px; font-variant-numeric: tabular-nums; }
 .pca-axis-label { fill: #365a72; font-size: 13px; font-weight: 700; }
 .pca-reference { stroke: #fff; stroke-width: 1.5; opacity: .88; cursor: help; }
-.pca-reference:focus-visible, .pca-modern:focus-visible, .pca-target:focus-visible { outline: 3px solid #173c50; outline-offset: 3px; }
+.pca-neighbor { stroke: #fff; stroke-width: 1.2; opacity: .72; cursor: help; }
+.pca-reference:focus-visible, .pca-neighbor:focus-visible, .pca-modern:focus-visible, .pca-target:focus-visible { outline: 3px solid #173c50; outline-offset: 3px; }
 .pca-cluster { fill-opacity: .14; stroke-opacity: .2; stroke-width: 16; stroke-linejoin: round; }
 .pca-cluster-line { stroke-opacity: .27; stroke-width: 18; stroke-linecap: round; }
 .pca-target { fill: #173c50; stroke: #fff; stroke-width: 2; cursor: help; }

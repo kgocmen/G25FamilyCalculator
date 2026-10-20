@@ -3,7 +3,8 @@ const fs = require("node:fs");
 const path = require("node:path");
 const test = require("node:test");
 const vm = require("node:vm");
-const { fitAncestry } = require("./visualise.js");
+const { fitAncestry, closestContributorReferences } = require("./visualise.js");
+const { nearestMatches } = require("./core.js");
 const { projectPca } = require("./pca.js");
 
 const reference = (index) => ["modern", `Shared_Group:Population_${index}`,
@@ -17,6 +18,26 @@ test("Unlimited fits more than five populations, including more than four from o
   assert.ok(fit.distance < 1e-6);
   assert.ok(fit.components.every((part) => Math.abs(part.weight - 1 / 6) < 1e-6));
   assert.ok(fit.components.every((part) => part.label === part.ethnicity));
+  assert.deepEqual(closestContributorReferences(fit, references, nearestMatches), []);
+});
+
+test("plots ten nearby non-contributors for each of at most five fitted populations", () => {
+  const row = (label, coordinate) => ["modern", label, coordinate, ...Array(24).fill(0)];
+  const pool = [row("Source_A", 0), row("Source_B", 10),
+    ...Array.from({ length: 12 }, (_, index) => row(`Near_A_${index}`, (index + 1) / 100)),
+    ...Array.from({ length: 12 }, (_, index) => row(`Near_B_${index}`, 10 - (index + 1) / 100))];
+  const fit = { components: [
+    { label: "Source_A", referenceIndex: 0 },
+    { label: "Source_B", referenceIndex: 1 },
+  ] };
+  const neighbors = closestContributorReferences(fit, pool, nearestMatches);
+  assert.equal(neighbors.length, 20);
+  assert.deepEqual(neighbors.slice(0, 10).map(({ row }) => row[1]),
+    Array.from({ length: 10 }, (_, index) => `Near_A_${index}`));
+  assert.deepEqual(neighbors.slice(10).map(({ row }) => row[1]),
+    Array.from({ length: 10 }, (_, index) => `Near_B_${index}`));
+  assert.ok(neighbors.slice(0, 10).every(({ contributorLabel }) => contributorLabel === "Source_A"));
+  assert.ok(neighbors.slice(10).every(({ contributorLabel }) => contributorLabel === "Source_B"));
 });
 
 test("3/4/5 source limits refit and normalize the complete reported mixture", () => {

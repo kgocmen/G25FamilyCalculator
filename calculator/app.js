@@ -946,9 +946,11 @@
           list.append(row);
         });
         const fittedRows = fit.components.map((part) => candidates[part.referenceIndex]);
+        const neighbors = window.G25Visualise.closestContributorReferences(
+          fit, candidates, core.nearestMatches);
         $("#pca-section").hidden = false;
         renderMedievalPca(fittedRows, "Visualise", true, closest, true,
-          { references: candidates, groupStyle: "population" });
+          { references: candidates, groupStyle: "population", neighbors });
       };
       worker.onerror = () => {
         if (requestId !== medievalRequest) return;
@@ -1207,9 +1209,11 @@
       ? periodReferences.findIndex((row) => row[1] === closestRows[0][1] &&
         row.slice(2).every((value, index) => value === closestRows[0][index + 2]))
       : -1;
+    const neighborRows = options.neighbors || [];
+    const closestOverlayRows = isModern && highlightedIndex >= 0 ? [] : closestRows;
     try {
       projection = window.G25Pca.projectPca(state.single, periodReferences,
-        isModern && highlightedIndex >= 0 ? [] : closestRows,
+        [...closestOverlayRows, ...neighborRows.map(({ row }) => row)],
         options.groupStyle || (isModern ? "modern" : "colon"), mixed);
     } catch (error) {
       container.textContent = error.message;
@@ -1341,6 +1345,15 @@
       clusterPaths.push({ node, positions });
     }
     const referenceMarkers = [];
+    neighborRows.forEach((neighbor, index) => {
+      const point = projection.overlays[closestOverlayRows.length + index];
+      const x = plotX(point.x);
+      const y = plotY(point.y);
+      const circle = add(plotLayer, "circle", { cx: x, cy: y, r: 4.5,
+        fill: groupColor(neighbor.contributorLabel), class: "pca-neighbor" });
+      referenceMarkers.push({ node: circle, x, y });
+      bindTooltip(circle, `Closest to ${neighbor.contributorLabel}: ${point.label} · Distance ${neighbor.distance.toFixed(3)}`);
+    });
     projection.points.forEach((point, index) => {
       if (isModern && index === highlightedIndex) return;
       const circle = add(plotLayer, "circle", { cx: plotX(point.x), cy: plotY(point.y), r: 6,
@@ -1358,6 +1371,9 @@
         d: `M ${x} ${y - 10} L ${x + 10} ${y + 8} L ${x - 10} ${y + 8} Z`,
         class: "pca-modern",
       });
+      if (options.groupStyle === "population" && highlightedIndex >= 0) {
+        triangle.style.fill = groupColor(projection.points[highlightedIndex].ethnicity);
+      }
       modernMarkers.push({ node: triangle, x, y });
       bindTooltip(triangle, isModern
         ? `Closest population: ${point.label} · Distance ${match.distance.toFixed(3)}`
@@ -1512,7 +1528,7 @@
     }, { passive: false });
     svg.addEventListener("pointerdown", (event) => {
       if (scale <= 1 || event.button !== 0 ||
-          event.target.closest(".pca-reference, .pca-modern, .pca-target")) return;
+          event.target.closest(".pca-reference, .pca-neighbor, .pca-modern, .pca-target")) return;
       const { x, y } = svgPosition(event);
       if (x < bounds.left || x > bounds.right || y < bounds.top || y > bounds.bottom) return;
       drag = { id: event.pointerId, x: event.clientX, y: event.clientY };
@@ -1553,6 +1569,9 @@
       modern.className = "pca-legend-item";
       const swatch = document.createElement("span");
       swatch.className = "pca-legend-modern-swatch";
+      if (options.groupStyle === "population" && highlightedIndex >= 0) {
+        swatch.style.backgroundColor = groupColor(projection.points[highlightedIndex].ethnicity);
+      }
       modern.append(swatch, document.createTextNode(isModern
         ? "Closest population" : `${closestModern.length} closest modern`));
       legend.append(modern);
