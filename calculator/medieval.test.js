@@ -139,7 +139,7 @@ test("modern group limit refits selected groups", () => {
   assert.throws(() => fitAdmixture(target, references, 6, "mixed"), /1 to 5/);
 });
 
-test("modern group cap can use a nearby Kayseri reference even when an Istanbul-only refit is worse", () => {
+test("modern group cap can use nearby Kayseri after the İç Anadolu groups merge", () => {
   const lines = fs.readFileSync(path.join(__dirname, "../data/pca/turkish_modern_pca7_g25.txt"), "utf8")
     .trim().split(/\r?\n/);
   const references = lines.map((line) => {
@@ -158,10 +158,11 @@ test("modern group cap can use a nearby Kayseri reference even when an Istanbul-
   const nearest = nearestMatches(target, references, 1)[0];
   assert.match(references[nearest.id][1], /Türk_Kayseri_\(n=35\)/);
   const oneGroup = fitAdmixture(target, references, 1, "modern");
-  assert.equal(oneGroup.groups[0].ethnicity, "Türk_Doğu_İç_Anadolu");
-  assert.ok(Math.abs(oneGroup.distance - nearest.distance) < 1e-9);
+  assert.equal(oneGroup.groups[0].ethnicity, "Türk_İç_Anadolu");
+  assert.ok(oneGroup.components.some((component) => /Türk_Kayseri_\(n=35\)/.test(component.label)));
+  assert.ok(oneGroup.distance <= nearest.distance + 1e-9);
   const twoGroups = fitAdmixture(target, references, 2, "modern");
-  assert.ok(twoGroups.distance < nearest.distance - 0.05);
+  assert.ok(twoGroups.distance < oneGroup.distance - 0.05);
   assert.ok(twoGroups.groups.length <= 2);
   assert.ok(twoGroups.components.every((component) =>
     references[component.referenceIndex][1] === component.label));
