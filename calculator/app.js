@@ -547,7 +547,7 @@
         let fit = null;
         let pca = null;
         let pcaFitDistances = null;
-        if (data.modernPcas) {
+        if (data.modernPcas && data.selectedPcaId !== "mixed") {
           const pcaFits = data.modernPcas.filter((pca) => pca.references.length >= 3)
             .map((pca) => ({ pca, fit: self.G25Medieval.fitAdmixture(
               data.target, pca.references, data.groupLimit, "modern") }));
@@ -1458,7 +1458,8 @@
       renderMedievalPca(periodReferences, period, false);
     }
     const requestId = medievalRequest;
-    const scanModernPcas = isModern && (state.modernPcaId === "auto" || modernMixedDirty);
+    const scanModernPcas = isModern && state.modernPcaId !== "mixed" &&
+      (state.modernPcaId === "auto" || modernMixedDirty);
     try {
       const source = `(${window.G25MedievalModule.toString()})(self);\n(${window.G25ModernPcaModule.toString()})(self);\n(${medievalWorkerMain.toString()})();`;
       const url = URL.createObjectURL(new Blob([source], { type: "text/javascript" }));

@@ -44,7 +44,7 @@ test("mixed PCA fits the combined references only when selected", () => {
     const result = calculate({ selectedPcaId: "mixed", references: mixedReferences, groupLimit });
     assert.equal(result.pca, null);
     assert.ok(result.fit.distance < 0.001);
-    assert.equal(result.pcaFitDistances.length, 3);
+    assert.equal(result.pcaFitDistances, null);
   }
 });
 
@@ -60,8 +60,11 @@ test("manual PCA selection remains regular", () => {
   assert.ok(result.fit.distance > 0);
 });
 
-test("worker fits mixed selection without scanning every regular PCA", () => {
-  const result = calculate({ selectedPcaId: "mixed", references: mixedReferences, modernPcas: null });
+test("worker skips regular scans for mixed even if maps are supplied", () => {
+  const invalidMaps = [{ id: "bad", references: [row("Bad:A", 0), row("Bad:B", 1),
+    ["modern", "Bad:Invalid", Number.NaN, ...Array(24).fill(0)]] }];
+  const result = calculate({ selectedPcaId: "mixed", references: mixedReferences,
+    modernPcas: invalidMaps });
   assert.equal(result.pca, null);
   assert.equal(result.pcaFitDistances, null);
   assert.ok(result.fit.distance < 0.001);
