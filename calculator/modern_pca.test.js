@@ -10,15 +10,18 @@ const { selectModernPca, rankModernPcas, buildMixedPca, findMixedPca, mixedFitIs
 const row = (label, first) => ["modern", label, first, ...Array(24).fill(0)];
 const target = (first) => ({ label: "Input", values: [first, ...Array(24).fill(0)] });
 
-test("bundled İstanbul PCA matches its source file", () => {
+test("bundled modern PCAs match their source files", () => {
   const bundle = fs.readFileSync(path.join(__dirname, "modern_pca_references.js"), "utf8");
   const pcas = JSON.parse(bundle.slice(bundle.indexOf("=") + 1).trim().replace(/;$/, ""));
-  const istanbul = pcas.find((pca) => pca.id === "istanbul");
-  const source = fs.readFileSync(path.join(__dirname, "../data/pca/turkish_modern_pca15_g25.txt"), "utf8");
-  const labels = source.trim().split(/\r?\n/).map((line) => line.split(",", 1)[0]);
-  assert.equal(istanbul.title, "İstanbul");
-  assert.deepEqual(istanbul.references.map((reference) => reference[1]), labels);
-  assert.equal(istanbul.referenceAnchors.length, labels.length);
+  const config = JSON.parse(fs.readFileSync(path.join(__dirname, "../data/pca/turkish_pca_config.txt"), "utf8"));
+  assert.deepEqual(pcas.map(({ id, title }) => ({ id, title })),
+    config.modern.map(({ id, title }) => ({ id, title })));
+  for (const [index, entry] of config.modern.entries()) {
+    const source = fs.readFileSync(path.join(__dirname, "../data/pca", entry.file), "utf8");
+    const labels = source.trim().split(/\r?\n/).map((line) => line.split(",", 1)[0]);
+    assert.deepEqual(pcas[index].references.map((reference) => reference[1]), labels, entry.file);
+    assert.equal(pcas[index].referenceAnchors.length, labels.length, entry.file);
+  }
 });
 
 test("auto selects the best-fitting PCA", () => {
