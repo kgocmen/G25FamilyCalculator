@@ -16,7 +16,9 @@ test("bundled modern PCAs match their source files", () => {
   const config = JSON.parse(fs.readFileSync(path.join(__dirname, "../data/pca/turkish_pca_config.txt"), "utf8"));
   assert.deepEqual(pcas.map(({ id, title }) => ({ id, title })),
     config.modern.map(({ id, title }) => ({ id, title })));
-  assert.equal(pcas.length, 13);
+  assert.equal(pcas.length, 11);
+  assert.deepEqual({ id: pcas[6].id, title: pcas[6].title },
+    { id: "ic-anadolu", title: "İç Anadolu" });
   assert.deepEqual(pcas.slice(-3).map(({ id, title }) => ({ id, title })), [
     { id: "kafkasya", title: "Kafkasya" },
     { id: "turkistan", title: "Türkistan" },

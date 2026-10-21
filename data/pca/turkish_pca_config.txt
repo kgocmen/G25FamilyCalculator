@@ -31,8 +31,8 @@
       "file": "turkish_modern_pca6_g25.txt"
     },
     {
-      "id": "orta-anadolu",
-      "title": "Orta Anadolu",
+      "id": "ic-anadolu",
+      "title": "İç Anadolu",
       "file": "turkish_modern_pca7_g25.txt"
     },
     {
@@ -41,29 +41,19 @@
       "file": "turkish_modern_pca8_g25.txt"
     },
     {
-      "id": "yoruk-cepni",
-      "title": "Yörük ve Çepni",
-      "file": "turkish_modern_pca9_g25.txt"
-    },
-    {
-      "id": "karadeniz",
-      "title": "Karadeniz",
-      "file": "turkish_modern_pca10_g25.txt"
-    },
-    {
       "id": "kafkasya",
       "title": "Kafkasya",
-      "file": "turkish_modern_pca11_g25.txt"
+      "file": "turkish_modern_pca9_g25.txt"
     },
     {
       "id": "turkistan",
       "title": "Türkistan",
-      "file": "turkish_modern_pca12_g25.txt"
+      "file": "turkish_modern_pca10_g25.txt"
     },
     {
       "id": "istanbul",
       "title": "İstanbul",
-      "file": "turkish_modern_pca13_g25.txt"
+      "file": "turkish_modern_pca11_g25.txt"
     }
   ]
 }
