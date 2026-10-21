@@ -51,29 +51,19 @@
       "file": "turkish_modern_pca10_g25.txt"
     },
     {
-      "id": "nogay-tatar",
-      "title": "Nogay ve Tatar",
+      "id": "kafkasya",
+      "title": "Kafkasya",
       "file": "turkish_modern_pca11_g25.txt"
-    },
-    {
-      "id": "azerbaycan",
-      "title": "Azerbaycan",
-      "file": "turkish_modern_pca12_g25.txt"
-    },
-    {
-      "id": "kuzey-kafkasya",
-      "title": "Kuzey Kafkasya",
-      "file": "turkish_modern_pca13_g25.txt"
     },
     {
       "id": "turkistan",
       "title": "Türkistan",
-      "file": "turkish_modern_pca14_g25.txt"
+      "file": "turkish_modern_pca12_g25.txt"
     },
     {
       "id": "istanbul",
       "title": "İstanbul",
-      "file": "turkish_modern_pca15_g25.txt"
+      "file": "turkish_modern_pca13_g25.txt"
     }
   ]
 }

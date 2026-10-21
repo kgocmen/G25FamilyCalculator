@@ -16,6 +16,12 @@ test("bundled modern PCAs match their source files", () => {
   const config = JSON.parse(fs.readFileSync(path.join(__dirname, "../data/pca/turkish_pca_config.txt"), "utf8"));
   assert.deepEqual(pcas.map(({ id, title }) => ({ id, title })),
     config.modern.map(({ id, title }) => ({ id, title })));
+  assert.equal(pcas.length, 13);
+  assert.deepEqual(pcas.slice(-3).map(({ id, title }) => ({ id, title })), [
+    { id: "kafkasya", title: "Kafkasya" },
+    { id: "turkistan", title: "Türkistan" },
+    { id: "istanbul", title: "İstanbul" },
+  ]);
   for (const [index, entry] of config.modern.entries()) {
     const source = fs.readFileSync(path.join(__dirname, "../data/pca", entry.file), "utf8");
     const labels = source.trim().split(/\r?\n/).map((line) => line.split(",", 1)[0]);
