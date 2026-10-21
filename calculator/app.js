@@ -22,6 +22,7 @@
   const singular = { 2: "parent", 4: "grandparent", 8: "great_grandparent" };
   const state = {
     mode: 2,
+    familyMode: 2,
     turkish: false,
     analysisView: "results",
     medievalGroupLimit: 5,
@@ -838,6 +839,8 @@
 
   function render() {
     const mode = state.mode;
+    const familyMode = [2, 4, 8].includes(mode);
+    if (familyMode) state.familyMode = mode;
     if (mode !== 9) cancelVisualiseClusters();
     renderFamilyOptimise();
     renderFamilyAccordions();
@@ -854,9 +857,18 @@
     $("#suggestion-count").value = String(state.closestCount);
     $("#suggestion-count-value").textContent = String(state.closestCount);
     document.querySelectorAll(".mode-button").forEach((button) => {
-      const active = Number(button.dataset.mode) === mode;
+      const active = button.dataset.mode === "family"
+        ? familyMode : Number(button.dataset.mode) === mode;
       button.classList.toggle("active", active);
       button.setAttribute("aria-pressed", String(active));
+    });
+    $("#family-tabs").hidden = !familyMode;
+    document.querySelectorAll(".family-tab").forEach((button) => {
+      const active = Number(button.dataset.familyMode) === mode;
+      button.classList.toggle("active", active);
+      button.setAttribute("aria-selected", String(active));
+      button.tabIndex = active ? 0 : -1;
+      if (active) $("#family-inputs").setAttribute("aria-labelledby", button.id);
     });
     const singleMode = mode === 1 || mode === 9;
     $("#single-input").hidden = !singleMode;
@@ -2636,11 +2648,34 @@
   }
 
   document.querySelectorAll(".mode-button").forEach((button) => {
-    if (![0, 1, 2, 4, 8, 9].includes(Number(button.dataset.mode))) {
+    if (button.dataset.mode !== "family" && ![0, 1, 9].includes(Number(button.dataset.mode))) {
       button.hidden = true;
       return;
     }
-    button.addEventListener("click", () => { state.mode = Number(button.dataset.mode); render(); });
+    button.addEventListener("click", () => {
+      state.mode = button.dataset.mode === "family" ? state.familyMode : Number(button.dataset.mode);
+      render();
+    });
+  });
+  document.querySelectorAll(".family-tab").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.mode = Number(button.dataset.familyMode);
+      render();
+    });
+  });
+  $("#family-tabs").addEventListener("keydown", (event) => {
+    const tabs = [...document.querySelectorAll(".family-tab")];
+    const current = tabs.findIndex((tab) => Number(tab.dataset.familyMode) === state.mode);
+    let next = current;
+    if (event.key === "ArrowRight") next = (current + 1) % tabs.length;
+    else if (event.key === "ArrowLeft") next = (current - 1 + tabs.length) % tabs.length;
+    else if (event.key === "Home") next = 0;
+    else if (event.key === "End") next = tabs.length - 1;
+    else return;
+    event.preventDefault();
+    state.mode = Number(tabs[next].dataset.familyMode);
+    render();
+    tabs[next].focus();
   });
   $("#clear-all").addEventListener("click", () => {
     state.single = null;

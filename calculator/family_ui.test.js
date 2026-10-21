@@ -11,6 +11,7 @@ class Element {
   replaceChildren(...items) { this.children=items; }
   addEventListener(name, fn) { this.listeners[name]=fn; }
   setAttribute(name,value) { this[name]=value; }
+  focus() { this.focused=true; }
   close() { this.listeners.close?.(); }
   createTHead() { return new Element(); }
   createTBody() { return new Element(); }
@@ -18,7 +19,12 @@ class Element {
   insertCell() { const e=new Element(); this.append(e); return e; }
 }
 const elements=new Map();
-const document={ querySelector(s) { if(!elements.has(s)) elements.set(s,new Element()); return elements.get(s); }, querySelectorAll(){return [];}, createElement(){return new Element();}, createTextNode(text){return {textContent:text};} };
+const modeButtons=['1','0','9','family'].map((mode) => Object.assign(new Element(), {dataset:{mode}}));
+const familyTabs=['2','4','8'].map((mode) => Object.assign(new Element(),
+  {dataset:{familyMode:mode},id:`family-tab-${mode}`}));
+const document={ querySelector(s) { if(!elements.has(s)) elements.set(s,new Element()); return elements.get(s); },
+  querySelectorAll(s){return s==='.mode-button'?modeButtons:s==='.family-tab'?familyTabs:[];},
+  createElement(){return new Element();}, createTextNode(text){return {textContent:text};} };
 const row = (label, value, source='reference') => ({label,values:Array(25).fill(value),category:'modern',source});
 const refs=[['modern','Low',...Array(25).fill(0)],['modern','High',...Array(25).fill(1)]];
 let lastWorker;
@@ -47,6 +53,22 @@ source=source.replace('  render();\n})();','  window.testApi = {state, familyLoc
 vm.runInNewContext(source,context);
 const api=window.testApi;
 const button=()=>document.querySelector('#family-optimise');
+familyTabs[1].listeners.click();
+assert.equal(api.state.mode,4);
+api.state.slots[4][0]=row('Saved grandparent',.2);
+modeButtons[0].listeners.click();
+assert.equal(document.querySelector('#family-tabs').hidden,true);
+modeButtons[3].listeners.click();
+assert.equal(api.state.mode,4);
+assert.equal(document.querySelector('#family-tabs').hidden,false);
+assert.equal(familyTabs[1]['aria-selected'],'true');
+assert.equal(document.querySelector('#family-inputs')['aria-labelledby'],familyTabs[1].id);
+familyTabs[0].listeners.click();
+assert.equal(api.state.slots[4][0].label,'Saved grandparent');
+let preventedTabKey=false;
+document.querySelector('#family-tabs').listeners.keydown({key:'End',preventDefault(){preventedTabKey=true;}});
+assert.equal(api.state.mode,8);
+assert.ok(preventedTabKey && familyTabs[2].focused);
 for(const mode of [2,4,8]) {
   api.state.mode=mode;
   api.state.offspring=row('Child',.5);

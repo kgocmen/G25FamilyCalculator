@@ -49,9 +49,12 @@
         <button class="mode-button" type="button" data-mode="1" aria-pressed="false">Analyse</button>
         <button class="mode-button" type="button" data-mode="0" aria-pressed="false">Compare</button>
         <button class="mode-button" type="button" data-mode="9" aria-pressed="false">Visualise</button>
-        <button class="mode-button active" type="button" data-mode="2" aria-pressed="true">2 parents</button>
-        <button class="mode-button" type="button" data-mode="4" aria-pressed="false">4 grandparents</button>
-        <button class="mode-button" type="button" data-mode="8" aria-pressed="false">8 great-grandparents</button>
+        <button class="mode-button active" type="button" data-mode="family" aria-pressed="true" aria-controls="family-tabs">Family</button>
+      </div>
+      <div id="family-tabs" class="family-tabs" role="tablist" aria-label="Family generation">
+        <button id="family-tab-parents" class="family-tab active" type="button" role="tab" data-family-mode="2" aria-selected="true" aria-controls="family-inputs">2 parents</button>
+        <button id="family-tab-grandparents" class="family-tab" type="button" role="tab" data-family-mode="4" aria-selected="false" aria-controls="family-inputs">4 grandparents</button>
+        <button id="family-tab-great-grandparents" class="family-tab" type="button" role="tab" data-family-mode="8" aria-selected="false" aria-controls="family-inputs">8 great-grandparents</button>
       </div>
       <div id="single-input" hidden>
         <div id="single-row"></div>
@@ -61,7 +64,7 @@
         <p id="compare-status" class="method-note" role="status">Enter both A and B.</p>
         <p id="compare-distance" class="comparison" hidden></p>
       </div>
-      <div id="family-inputs">
+      <div id="family-inputs" role="tabpanel" aria-labelledby="family-tab-parents">
         <div class="group-label"><span>CHILD</span></div>
         <div class="family-controls">
           <div class="family-weight-controls">
