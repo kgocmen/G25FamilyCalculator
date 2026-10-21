@@ -2,7 +2,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from build_calculator_data import read_modern_pcas, read_rows
+from build_calculator_data import ROOT, read_modern_pcas, read_rows, rebuild_mixed_pca
 
 
 class ReadRowsTests(unittest.TestCase):
@@ -56,6 +56,31 @@ class ReadRowsTests(unittest.TestCase):
                 encoding="utf-8")
             shared = read_modern_pcas(modern, path)
             self.assertEqual([pca["anchorLabels"] for pca in shared], [["Sample"], ["Sample"]])
+
+    def test_mixed_pca_rebuilds_from_regular_maps_without_istanbul(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "mixed.txt"
+            pcas = [{"id": "west", "title": "Batı Anadolu", "references": [
+                ["modern", "Türk_Orta_Karadeniz:One", *([1.0] * 25)],
+                ["modern", "Türk_Orta_Karadeniz:Two", *([3.0] * 25)],
+                ["modern", "Rum:Three", *([4.0] * 25)],
+            ]}, {"id": "istanbul", "title": "İstanbul", "references": [
+                ["modern", "Türk:Four", *([9.0] * 25)],
+            ]}]
+            self.assertEqual(rebuild_mixed_pca(pcas, output), 2)
+            rows = read_rows(output, "modern")
+            self.assertEqual([row[1] for row in rows],
+                             ["Batı_Anadolu:Türk_Orta_Karadeniz", "Batı_Anadolu:Rum"])
+            self.assertEqual([row[2] for row in rows], [2.0, 4.0])
+
+    def test_saved_mixed_pca_matches_current_sources(self):
+        modern = read_rows(ROOT / "data" / "turkish_modern_g25.txt", "modern")
+        pcas = read_modern_pcas(modern)
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "mixed.txt"
+            rebuild_mixed_pca(pcas, output)
+            saved = ROOT / "data" / "pca" / "turkish_modern_pca_mixed_g25.txt"
+            self.assertEqual(saved.read_text(encoding="utf-8"), output.read_text(encoding="utf-8"))
 
 
 if __name__ == "__main__":

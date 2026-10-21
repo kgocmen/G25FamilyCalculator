@@ -70,7 +70,16 @@ test("modern PCA uses prepared group names", () => {
     ["Türk_Anadolu", "Rum_Helen", "Ermeni"]);
 });
 
-test("mixed PCA can project only its fitted components and one closest overlay", () => {
+test("mixed PCA colours map points by the ethnicity after the colon", () => {
+  const references = [reference("Batı_Anadolu:Türk_Orta_Karadeniz", -1, 0),
+    reference("İç_Anadolu:Türk_Doğu_İç_Anadolu", 1, 0),
+    reference("Balkanlar:Yunan;Ege", 0, 1)];
+  const projected = projectPca({ values: Array(25).fill(0) }, references, [], "mixed");
+  assert.deepEqual(projected.points.map((point) => point.ethnicity),
+    ["Türk", "Türk", "Yunan"]);
+});
+
+test("sparse PCA can project only its fitted components and one closest overlay", () => {
   const target = { values: [0.5, 0.5, ...Array(23).fill(0)] };
   const components = [reference("Türk_A:First", 0, 0), reference("Türk_B:Second", 1, 0)];
   const closest = reference("Türk_İstanbul:Closest", 0, 1);

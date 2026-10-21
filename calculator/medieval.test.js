@@ -76,7 +76,7 @@ test("modern PCA limits each group to four samples at every group count", () => 
     `Group_${Math.floor(index / 5)}:Sample${index}`,
     ...Array.from({ length: 25 }, (_, coordinate) => coordinate === index ? 1 : 0)]);
   const target = { values: Array.from({ length: 25 }, (_, index) => index < 10 ? 1 / 10 : 0) };
-  for (const limit of [1, 2, 3]) {
+  for (const limit of [1, 2, 3, 4, 5]) {
     const fit = fitAdmixture(target, references, limit, "modern");
     assert.ok(fit.groups.length <= limit);
     assert.ok(fit.groups.every((group) => group.samples.length === 4));
@@ -125,13 +125,18 @@ test("modern group limit refits selected groups", () => {
   const references = Array.from({ length: 6 }, (_, group) => ["modern", `Group_${group}:Sample`,
     ...Array.from({ length: 25 }, (_, k) => k === group ? 1 : 0)]);
   const target = { values: Array.from({ length: 25 }, (_, k) => k < 6 ? 1 / 6 : 0) };
-  for (const limit of [1, 2, 3]) {
+  for (const limit of [1, 2, 3, 4, 5]) {
     const fit = fitAdmixture(target, references, limit, "modern");
     assert.equal(fit.groups.length, limit);
     assert.ok(fit.components.every((part) => references[part.referenceIndex][1] === part.label));
     assert.ok(Math.abs(fit.groups.reduce((sum, group) => sum + group.weight, 0) - 1) < 1e-12);
   }
-  assert.throws(() => fitAdmixture(target, references, 4, "modern"), /1, 2 or 3/);
+  assert.throws(() => fitAdmixture(target, references, 6, "modern"), /1 to 5/);
+  for (const limit of [1, 2, 3, 4, 5]) {
+    const fit = fitAdmixture(target, references, limit, "mixed");
+    assert.equal(fit.groups.length, limit);
+  }
+  assert.throws(() => fitAdmixture(target, references, 6, "mixed"), /1 to 5/);
 });
 
 test("modern group cap can use a nearby Kayseri reference even when an Istanbul-only refit is worse", () => {

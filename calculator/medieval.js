@@ -5,7 +5,7 @@ function G25MedievalModule(root) {
   const MAX_SAMPLES_PER_GROUP = 4;
 
   function groupName(label, groupStyle) {
-    if (groupStyle === "modern") {
+    if (groupStyle === "modern" || groupStyle === "mixed") {
       const colon = label.indexOf(":");
       return colon < 0 ? label.split("_", 1)[0] : label.slice(0, colon);
     }
@@ -159,20 +159,21 @@ function G25MedievalModule(root) {
   }
 
   function fitAdmixture(target, references, groupLimit = 5, groupStyle = "colon") {
-    if (groupStyle !== "colon" && groupStyle !== "modern") throw new Error("Unknown ancestry grouping.");
-    const allowedLimits = groupStyle === "modern" ? [1, 2, 3] : [3, 4, 5];
+    if (groupStyle !== "colon" && groupStyle !== "modern" && groupStyle !== "mixed") {
+      throw new Error("Unknown ancestry grouping.");
+    }
+    const allowedLimits = groupStyle === "colon" ? [3, 4, 5] : [1, 2, 3, 4, 5];
     if (!allowedLimits.includes(groupLimit)) {
-      throw new Error(groupStyle === "modern"
-        ? "Choose a limit of 1, 2 or 3 groups."
-        : "Choose a limit of 3, 4 or 5 groups.");
+      throw new Error(groupStyle === "colon" ? "Choose a limit of 3, 4 or 5 groups."
+        : "Choose a limit from 1 to 5 groups.");
     }
     const unrestricted = fitWithSampleCap(target, references, groupStyle);
     if (unrestricted.groups.length <= groupLimit) return unrestricted;
     const referenceGroup = (row) => groupName(Array.isArray(row) ? row[1] : row.label, groupStyle);
     const names = [...new Set(references.map(referenceGroup))].sort();
     let best = null;
-    // Evaluate every allowed group subset, refitting all samples within it.
-    // The cap applies to ancestry groups, not individual reference samples.
+    // Every smaller group set is contained in a set of the requested size.
+    // Fitting the requested-size sets therefore also covers smaller fits.
     function evaluate(selected) {
       const subset = references.map((row, index) => ({ row, index }))
         .filter(({ row }) => selected.includes(referenceGroup(row)));
@@ -183,12 +184,11 @@ function G25MedievalModule(root) {
       if (!best || fit.distance < best.distance) best = fit;
     }
     function search(start, selected) {
-      if (selected.length && groupStyle === "modern") evaluate(selected);
       if (selected.length === groupLimit) {
-        if (groupStyle !== "modern") evaluate(selected);
+        evaluate(selected);
         return;
       }
-      const remaining = groupStyle === "modern" ? 1 : groupLimit - selected.length;
+      const remaining = groupLimit - selected.length;
       for (let i = start; i <= names.length - remaining; i += 1) {
         search(i + 1, [...selected, names[i]]);
       }

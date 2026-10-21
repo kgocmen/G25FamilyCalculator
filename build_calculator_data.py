@@ -14,6 +14,8 @@ TURKISH_OUTPUT = ROOT / "calculator" / "turkish_references.js"
 MEDIEVAL_OUTPUT = ROOT / "calculator" / "medieval_references.js"
 MODERN_PCA_OUTPUT = ROOT / "calculator" / "modern_pca_references.js"
 MODERN_PCA_DIRECTORY = ROOT / "data" / "pca"
+MODERN_PCA_MIXED_SOURCE = MODERN_PCA_DIRECTORY / "turkish_modern_pca_mixed_g25.txt"
+MODERN_PCA_MIXED_OUTPUT = ROOT / "calculator" / "mixed_pca_references.js"
 
 
 def read_rows(path: Path, category: str) -> list[list]:
@@ -67,6 +69,28 @@ def read_modern_pcas(modern_rows: list[list], directory: Path = MODERN_PCA_DIREC
     return result
 
 
+def rebuild_mixed_pca(pcas: list[dict], output: Path = MODERN_PCA_MIXED_SOURCE) -> int:
+    lines = []
+    for pca in pcas:
+        if pca["id"] == "istanbul":
+            continue
+        groups = {}
+        for row in pca["references"]:
+            name = row[1].split(":", 1)[0] if ":" in row[1] else row[1].split("_", 1)[0]
+            groups.setdefault(name, []).append(row)
+        for name, rows in groups.items():
+            values = []
+            for index in range(2, 27):
+                total = 0.0
+                for row in rows:
+                    total += row[index]
+                values.append(total / len(rows))
+            label = f"{pca['title'].replace(' ', '_')}:{name}"
+            lines.append(",".join([label, *map(str, values)]))
+    output.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return len(lines)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--turkish", action="store_true", help="Rebuild only the Turkish modern, ancient, medieval and PCA bundles")
@@ -93,6 +117,17 @@ def main() -> None:
         encoding="utf-8",
     )
     print(f"Bundled {len(modern_pcas)} Turkish modern PCA into {MODERN_PCA_OUTPUT}")
+    rebuild_mixed_pca(modern_pcas)
+    mixed_rows = read_rows(MODERN_PCA_MIXED_SOURCE, "modern")
+    if len(mixed_rows) < 3:
+        raise ValueError("Mixed PCA needs at least three references")
+    MODERN_PCA_MIXED_OUTPUT.write_text(
+        "window.G25_MODERN_MIXED_PCA = "
+        + json.dumps({"id": "mixed", "title": "Mixed PCA", "references": mixed_rows,
+                      "referenceAnchors": []}, ensure_ascii=False, separators=(",", ":")) + ";\n",
+        encoding="utf-8",
+    )
+    print(f"Bundled {len(mixed_rows)} mixed PCA references into {MODERN_PCA_MIXED_OUTPUT}")
     medieval_rows = {
         "early": read_rows(ROOT / "data" / "turkish_early_medieval_g25.txt", "medieval"),
         "late": read_rows(ROOT / "data" / "turkish_late_medieval_g25.txt", "medieval"),

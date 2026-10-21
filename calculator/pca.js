@@ -91,9 +91,11 @@ function G25PcaModule(root) {
     };
     return {
       points: rows.map((row) => ({ label: row.label,
-        ethnicity: groupStyle === "population" ? row.label : groupStyle === "modern"
-          ? (row.label.includes(":") ? row.label.split(":", 1)[0] : row.label.split("_", 1)[0])
-          : row.label.split(":", 1)[0], ...position(row.values) })),
+        ethnicity: groupStyle === "population" ? row.label : groupStyle === "mixed"
+          ? row.label.split(":", 2).at(-1).split(/[_;]/, 1)[0]
+          : groupStyle === "modern"
+            ? (row.label.includes(":") ? row.label.split(":", 1)[0] : row.label.split("_", 1)[0])
+            : row.label.split(":", 1)[0], ...position(row.values) })),
       target: target === null ? null : { label: target.label || "Input", ...position(target.values) },
       overlays: [...overlayRows, ...displayRows].map((row) => ({ label: row.label, ...position(row.values) })),
       explained: trace > 0 ? [first.variance / trace, second.variance / trace] : [0, 0],

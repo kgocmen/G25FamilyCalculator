@@ -3,9 +3,8 @@ const fs = require("node:fs");
 const path = require("node:path");
 const test = require("node:test");
 const { nearestMatches } = require("./core.js");
-const { fitAdmixture } = require("./medieval.js");
-const { selectModernPca, rankModernPcas, buildMixedPca, fitMixedPca,
-  isIstanbulReference } = require("./modern_pca.js");
+const { selectModernPca, rankModernPcas, defaultGroupFit,
+  shouldAutoSelectMixed, isIstanbulReference } = require("./modern_pca.js");
 
 const row = (label, first) => ["modern", label, first, ...Array(24).fill(0)];
 const target = (first) => ({ label: "Input", values: [first, ...Array(24).fill(0)] });
@@ -79,13 +78,28 @@ test("PCA options sort by genetic distance while retaining their original number
   assert.ok(ranked[0].distance < ranked[1].distance);
 });
 
-test("PCA order uses only the closest distance, preserving original order on ties", () => {
+test("PCA ties retain source order before auto fits are known", () => {
   const pcas = [
     { id: "west", references: [row("Shared", 0), row("West", 0.5)] },
     { id: "east", references: [row("Shared", 0), row("East", 0.2)] },
   ];
   assert.deepEqual(rankModernPcas(target(0), pcas, nearestMatches).map(({ pca }) => pca.id),
     ["west", "east"]);
+});
+
+test("equal closest distances use the lower auto fit as the PCA tie break", () => {
+  const pcas = [
+    { id: "first", references: [row("Shared", 0.1)] },
+    { id: "second", references: [row("Shared", -0.1)] },
+  ];
+  const autoFits = new Map([
+    ["first", { distance: 2.5 }], ["second", { distance: 1.2 }],
+  ]);
+  const ranked = rankModernPcas(target(0), pcas, nearestMatches,
+    (pca) => pca.references, autoFits);
+  assert.deepEqual(ranked.map(({ pca }) => pca.id), ["second", "first"]);
+  assert.equal(selectModernPca(target(0), [], pcas, nearestMatches, "auto",
+    (pca) => pca.references, ranked).pca.id, "second");
 });
 
 test("Istanbul informs admixture but never ranks the closest PCA", () => {
@@ -108,33 +122,9 @@ test("Istanbul informs admixture but never ranks the closest PCA", () => {
   assert.equal(isIstanbulReference(row("Türk_Balkan:Türk_İstanbul_(Balkan_Profili)", 0)), false);
 });
 
-test("mixed PCA averages each inner group into a point under its source PCA", () => {
-  const pcas = [
-    { id: "south", title: "Güney Anadolu", references: [
-      row("Türk_A:One", 0), row("Türk_A:Two", 2), row("Kürt:Sample", 4),
-    ] },
-    { id: "east", title: "Doğu Anadolu", references: [
-      row("Türk_A:One", 10), row("Türk_A:Two", 14), row("Ermeni:Sample", 20),
-    ] },
-    { id: "istanbul", title: "İstanbul", references: [row("İstanbul:Sample", 100)] },
-  ];
-  const mixed = buildMixedPca(pcas);
-  assert.equal(mixed.id, "mixed");
-  assert.deepEqual(mixed.sourceIds, ["south", "east"]);
-  assert.deepEqual(mixed.references.map((reference) => reference[1]), [
-    "Güney Anadolu:Türk_A centroid", "Güney Anadolu:Kürt centroid",
-    "Doğu Anadolu:Türk_A centroid", "Doğu Anadolu:Ermeni centroid",
-  ]);
-  assert.deepEqual(mixed.references.map((reference) => reference[2]), [1, 4, 12, 20]);
-  assert.ok(mixed.references.every((reference) => reference.length === 27));
-  assert.equal(buildMixedPca([pcas[2]]), null);
-});
-
-test("mixed PCA remains selectable but never becomes automatic", () => {
+test("closest-distance ranking starts on a regular PCA while mixed remains selectable", () => {
   const regular = { id: "regular", references: [row("Regular", 0.5)] };
-  const mixed = buildMixedPca([regular, { id: "other", references: [
-    row("Other", 1), row("Near", 0), row("Extra", 2),
-  ] }]);
+  const mixed = { id: "mixed", references: [row("Other:Near", 0)] };
   const choices = [regular, mixed];
   const ranked = rankModernPcas(target(0), choices, nearestMatches);
   assert.equal(ranked[0].pca.id, "mixed");
@@ -144,40 +134,34 @@ test("mixed PCA remains selectable but never becomes automatic", () => {
     choices, nearestMatches, "mixed", (pca) => pca.references, ranked).pca.id, "mixed");
 });
 
-test("bundled mixed PCA has ten source groups and their inner-group centroids", () => {
-  const bundle = fs.readFileSync(path.join(__dirname, "modern_pca_references.js"), "utf8");
-  const pcas = JSON.parse(bundle.slice(bundle.indexOf("=") + 1).trim().replace(/;$/, ""));
-  const mixed = buildMixedPca(pcas);
-  const sources = pcas.filter((pca) => pca.id !== "istanbul");
-  assert.deepEqual(mixed.sourceIds, sources.map((pca) => pca.id));
-  assert.equal(mixed.sourceIds.length, 10);
-  assert.deepEqual([...new Set(mixed.references.map((reference) => reference[1].split(":", 1)[0]))],
-    sources.map((pca) => pca.title));
-  for (const pca of sources) {
-    const groups = new Map();
-    for (const reference of pca.references) {
-      const name = reference[1].split(":", 1)[0];
-      if (!groups.has(name)) groups.set(name, []);
-      groups.get(name).push(reference);
-    }
-    const centroids = mixed.references.filter((reference) => reference[1].startsWith(`${pca.title}:`));
-    assert.equal(centroids.length, groups.size);
-    for (const [name, rows] of groups) {
-      const point = centroids.find((reference) => reference[1] === `${pca.title}:${name} centroid`);
-      assert.ok(point);
-      for (let coordinate = 0; coordinate < 25; coordinate += 1) {
-        const expected = rows.reduce((sum, row) => sum + row[coordinate + 2], 0) / rows.length;
-        assert.ok(Math.abs(point[coordinate + 2] - expected) < 1e-12);
-      }
-    }
-  }
+test("default group count advances only after a 25 percent fit improvement", () => {
+  const fits = [4, 2.9, 2.1, 1.9, 0.5]
+    .map((distance, index) => ({ groupLimit: index + 1, fit: { distance } }));
+  assert.equal(defaultGroupFit(fits).groupLimit, 3);
+  assert.equal(defaultGroupFit([fits[0], { groupLimit: 2, fit: { distance: 3 } }]).groupLimit, 1);
+  assert.equal(defaultGroupFit([]), null);
 });
 
-test("mixed fit uses the complete centroid dataset and requires two or three groups", () => {
-  const references = [row("West:A centroid", -1), row("East:B centroid", 1),
-    ["modern", "North:C centroid", 3, 0.5, ...Array(23).fill(0)]];
-  const fit = fitMixedPca(target(0), references, 2, fitAdmixture);
-  assert.ok(fit.distance < 0.001);
-  assert.deepEqual(new Set(fit.groups.map((group) => group.ethnicity)), new Set(["West", "East"]));
-  assert.throws(() => fitMixedPca(target(0), references, 1, fitAdmixture), /requires 2 or 3/);
+test("mixed overrides auto only above two and with a strictly better auto fit", () => {
+  assert.equal(shouldAutoSelectMixed(2.001, 2), true);
+  assert.equal(shouldAutoSelectMixed(2, 1), false);
+  assert.equal(shouldAutoSelectMixed(3, 3), false);
+  assert.equal(shouldAutoSelectMixed(3, 3.1), false);
+  assert.equal(shouldAutoSelectMixed(Infinity, 1), false);
+  assert.equal(shouldAutoSelectMixed(3, undefined), false);
+});
+
+test("bundled mixed PCA uses the editable dataset with ten groups", () => {
+  const bundle = fs.readFileSync(path.join(__dirname, "mixed_pca_references.js"), "utf8");
+  const mixed = JSON.parse(bundle.slice(bundle.indexOf("=") + 1).trim().replace(/;$/, ""));
+  const source = fs.readFileSync(path.join(__dirname,
+    "../data/pca/turkish_modern_pca_mixed_g25.txt"), "utf8").trim().split(/\r?\n/);
+  assert.equal(mixed.id, "mixed");
+  assert.equal(mixed.references.length, source.length);
+  assert.equal(new Set(mixed.references.map((reference) => reference[1].split(":", 1)[0])).size, 10);
+  for (const [index, line] of source.entries()) {
+    const [label, ...coordinates] = line.split(",");
+    assert.deepEqual(mixed.references[index], ["modern", label, ...coordinates.map(Number)]);
+    assert.doesNotMatch(label, /centroid/i);
+  }
 });

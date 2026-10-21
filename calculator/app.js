@@ -4,6 +4,7 @@
   const globalReferences = window.G25_REFERENCES || [];
   const turkishReferences = window.G25_TURKISH_REFERENCES || [];
   const modernPcas = window.G25_MODERN_PCAS || [];
+  const mixedPca = window.G25_MODERN_MIXED_PCA || null;
   const medievalReferences = window.G25_MEDIEVAL_REFERENCES || { early: [], late: [] };
   let references = globalReferences;
   const core = window.G25Core;
@@ -24,7 +25,7 @@
     turkish: false,
     analysisView: "results",
     medievalGroupLimit: 5,
-    modernGroupLimit: 2,
+    modernGroupLimit: "auto",
     modernPcaId: "auto",
     visualiseCategory: "modern",
     visualiseLimit: null,
@@ -58,7 +59,7 @@
   let pcaTooltip = null;
   let modernMixedPca = null;
   let modernMixedDirty = true;
-  let modernPcaFitDistances = new Map();
+  const modernPcaFitDistances = new Map();
   const visualiseLocks = new Set();
   let visualisePcaContext = null;
   let visualiseClusterContext = null;
@@ -122,6 +123,7 @@
     if (!whitelist.size) return [];
     const pool = [...activeReferenceRows(),
       ...(state.turkish ? modernPcas.flatMap((pca) => pca.references) : []),
+      ...(state.turkish && mixedPca ? mixedPca.references : []),
       ...(medievalReferences.early || []), ...(medievalReferences.late || [])];
     const seen = new Set();
     return allowedReferences(pool).filter((row) => {
@@ -161,6 +163,7 @@
     if (!excludedGroupKeys.size) return;
     const rows = [...globalReferences, ...turkishReferences, ...customReferences.values(),
       ...modernPcas.flatMap((pca) => pca.references),
+      ...(mixedPca ? mixedPca.references : []),
       ...(medievalReferences.early || []), ...(medievalReferences.late || [])];
     for (const row of rows) {
       if (excludedGroupKeys.has(ancestryGroupKey(row))) excludedGroupCoordinates.add(groupCoordinateKey(row));
@@ -180,7 +183,7 @@
   function allowedPcaReferences(pca) {
     return pca.references.filter((row, index) => {
       const keys = [populationKey(row)];
-      if (pca.referenceAnchors[index]) {
+      if (pca.referenceAnchors?.[index]) {
         keys.push(populationKey({ category: "modern", label: pca.referenceAnchors[index] }));
       }
       return !isGroupExcluded(row) && !keys.some((key) => blacklist.has(key)) &&
@@ -215,7 +218,7 @@
     rebuildGroupExclusions();
     modernMixedPca = null;
     modernMixedDirty = true;
-    if (state.modernPcaId === "mixed") state.modernPcaId = "auto";
+    modernPcaFitDistances.clear();
     try { sessionStorage.setItem(blacklistStorageKey, JSON.stringify([...blacklist.values()])); } catch (_) {}
     try { sessionStorage.setItem(whitelistStorageKey, JSON.stringify([...whitelist.values()])); } catch (_) {}
     familyMessage = "";
@@ -345,6 +348,7 @@
     const words = query.split(/\s+/);
     const pool = [...activeReferenceRows(),
       ...(state.turkish ? modernPcas.flatMap((pca) => pca.references) : []),
+      ...(state.turkish && mixedPca ? mixedPca.references : []),
       ...(medievalReferences.early || []), ...(medievalReferences.late || [])];
     const seen = new Set();
     const matches = [];
@@ -543,35 +547,120 @@
 
   function medievalWorkerMain() {
     self.onmessage = ({ data }) => {
+      const send = (kind, extras = {}) => self.postMessage({ requestId: data.requestId, kind, ...extras });
       try {
-        let fit = null;
-        let pca = null;
-        let pcaFitDistances = null;
-        if (data.modernPcas && data.selectedPcaId !== "mixed") {
-          const pcaFits = data.modernPcas.filter((pca) => pca.references.length >= 3)
-            .map((pca) => ({ pca, fit: self.G25Medieval.fitAdmixture(
-              data.target, pca.references, data.groupLimit, "modern") }));
-          pcaFitDistances = pcaFits.map(({ pca, fit }) => ({ id: pca.id, distance: fit.distance }));
-          const best = pcaFits.reduce((current, entry) =>
-            !current || entry.fit.distance < current.fit.distance ? entry : current, null);
-          const selected = data.selectedPcaId === "auto"
-            ? pcaFits.find((entry) => entry.pca.id === data.closestPcaId) || best
-            : pcaFits.find((entry) => entry.pca.id === data.selectedPcaId);
-          if (selected) {
-            fit = selected.fit;
-            pca = selected.pca;
+        const fitSeries = (references, style, onStart = () => {}, knownLimit = null, knownFit = null) => {
+          const fits = [];
+          for (let groupLimit = 1; groupLimit <= 5; groupLimit += 1) {
+            if (groupLimit !== knownLimit) onStart(groupLimit);
+            const fit = groupLimit === knownLimit ? knownFit
+              : self.G25Medieval.fitAdmixture(data.target, references, groupLimit, style);
+            fits.push({ groupLimit, fit });
+            if (self.G25ModernPca.defaultGroupFit(fits).groupLimit !== groupLimit) break;
+          }
+          return fits;
+        };
+        if (data.modernPcas) {
+          const selectedId = data.selectedPcaId === "auto"
+            ? data.closestPcaId : data.selectedPcaId;
+          const closestIds = data.selectedPcaId === "auto"
+            ? (data.closestPcaIds?.length ? data.closestPcaIds : [data.closestPcaId])
+            : [];
+          const maps = data.modernPcas.filter((pca) => pca.references.length >= 3);
+          const tiedIds = closestIds.filter((id) => maps.some((pca) => pca.id === id));
+          maps.sort((first, second) => {
+            const priority = (pca) => {
+              if (data.selectedPcaId !== "auto") return pca.id === selectedId ? 0 : 1;
+              const tiedIndex = tiedIds.indexOf(pca.id);
+              return tiedIndex >= 0 ? tiedIndex : pca.id === "mixed" ? tiedIds.length : tiedIds.length + 1;
+            };
+            return priority(first) - priority(second);
+          });
+          let selectedSent = false;
+          let best = null;
+          const closestProfiles = [];
+          let mixedProfile = null;
+          const hasMixed = maps.some((pca) => pca.id === "mixed");
+          const sendAutoSelection = () => {
+            if (selectedSent || !tiedIds.length || closestProfiles.length < tiedIds.length ||
+                (hasMixed && !mixedProfile)) return;
+            const closestProfile = closestProfiles.reduce((bestProfile, candidate) =>
+              candidate.chosen.fit.distance < bestProfile.chosen.fit.distance
+                ? candidate : bestProfile);
+            const chosen = self.G25ModernPca.shouldAutoSelectMixed(
+              closestProfile.chosen.fit.distance, mixedProfile?.chosen.fit.distance)
+              ? mixedProfile : closestProfile;
+            const fit = data.groupLimit === "auto" ? chosen.chosen.fit
+              : chosen.fits.find((entry) => entry.groupLimit === data.groupLimit)?.fit ||
+                self.G25Medieval.fitAdmixture(data.target, chosen.pca.references,
+                  data.groupLimit, chosen.pca.id === "mixed" ? "mixed" : "modern");
+            send("selected", { fit, pca: chosen.pca });
+            selectedSent = true;
+          };
+          for (const pca of maps) {
+            const style = pca.id === "mixed" ? "mixed" : "modern";
+            const onStart = pca.id === selectedId ||
+              (data.selectedPcaId === "auto" && tiedIds.includes(pca.id)) ||
+              (data.selectedPcaId === "auto" && pca.id === "mixed")
+              ? (groupLimit) => { if (!selectedSent) send("progress", { groupLimit }); }
+              : () => {};
+            let manualFit = null;
+            if (data.selectedPcaId !== "auto" && pca.id === selectedId &&
+                data.groupLimit !== "auto") {
+              onStart(data.groupLimit);
+              manualFit = self.G25Medieval.fitAdmixture(
+                data.target, pca.references, data.groupLimit, style);
+              send("selected", { fit: manualFit, pca });
+              selectedSent = true;
+            }
+            const fits = fitSeries(pca.references, style, onStart,
+              manualFit ? data.groupLimit : null, manualFit);
+            const chosen = self.G25ModernPca.defaultGroupFit(fits);
+            send("profile", { id: pca.id, distance: chosen.fit.distance,
+              groupLimit: chosen.groupLimit });
+            if (pca.id !== "mixed" && (!best || chosen.fit.distance < best.distance)) {
+              best = { pca, distance: chosen.fit.distance, fits };
+            }
+            if (data.selectedPcaId === "auto") {
+              if (tiedIds.includes(pca.id)) closestProfiles.push({ pca, chosen, fits });
+              if (pca.id === "mixed") mixedProfile = { pca, chosen, fits };
+              sendAutoSelection();
+            } else if (pca.id === selectedId && !selectedSent) {
+              send("selected", { fit: chosen.fit, pca });
+              selectedSent = true;
+            }
+          }
+          if (!selectedSent && best) {
+            const fit = data.groupLimit === "auto"
+              ? self.G25ModernPca.defaultGroupFit(best.fits).fit
+              : best.fits.find((entry) => entry.groupLimit === data.groupLimit)?.fit ||
+                self.G25Medieval.fitAdmixture(data.target, best.pca.references,
+                  data.groupLimit, "modern");
+            send("selected", { fit, pca: best.pca });
+          }
+          send("done");
+          return;
+        }
+        let groupLimit = data.groupLimit;
+        if (groupLimit === "auto") {
+          if (Number.isInteger(data.defaultGroupLimit)) groupLimit = data.defaultGroupLimit;
+          else {
+            const selected = self.G25ModernPca.defaultGroupFit(
+              fitSeries(data.references, data.groupStyle,
+                (limit) => send("progress", { groupLimit: limit })));
+            send("profile", { id: data.selectedPcaId, distance: selected.fit.distance,
+              groupLimit: selected.groupLimit });
+            send("selected", { fit: selected.fit, pca: null });
+            send("done");
+            return;
           }
         }
-        if (data.selectedPcaId === "mixed") {
-          fit = self.G25ModernPca.fitMixedPca(
-            data.target, data.references, data.groupLimit, self.G25Medieval.fitAdmixture);
-          pca = null;
-        }
-        if (!fit) fit = self.G25Medieval.fitAdmixture(
-          data.target, data.references, data.groupLimit, data.groupStyle);
-        self.postMessage({ requestId: data.requestId, fit, pca, pcaFitDistances });
+        send("progress", { groupLimit });
+        send("selected", { fit: self.G25Medieval.fitAdmixture(
+          data.target, data.references, groupLimit, data.groupStyle), pca: null });
+        send("done");
       } catch (error) {
-        self.postMessage({ requestId: data.requestId, error: error.message });
+        send("error", { error: error.message });
       }
     };
   }
@@ -621,6 +710,7 @@
       state.modernPcaId = "auto";
       modernMixedPca = null;
       modernMixedDirty = true;
+      modernPcaFitDistances.clear();
     }
     else if (state.pickerTarget.type === "compare") state.compare[state.pickerTarget.index] = item;
     else if (state.pickerTarget.type === "offspring") state.offspring = item;
@@ -734,6 +824,7 @@
           state.modernPcaId = "auto";
           modernMixedPca = null;
           modernMixedDirty = true;
+          modernPcaFitDistances.clear();
         }
         else if (target.type === "compare") state.compare[target.index] = null;
         else if (target.type === "offspring") state.offspring = null;
@@ -1326,37 +1417,37 @@
   function populateModernPcaSelect() {
     const chooser = $("#modern-pca-chooser");
     const options = $("#modern-pca-options");
-    if (!modernMixedPca) {
-      const mixed = window.G25ModernPca.buildMixedPca(modernPcas.map((pca) => ({
-        id: pca.id, title: pca.title, references: allowedPcaReferences(pca),
-      })));
-      if (mixed) mixed.references = mixed.references.filter((row) =>
-        !blacklist.has(populationKey(row)) && !isGroupExcluded(row));
-      modernMixedPca = mixed?.references.length >= 3 ? mixed : null;
+    if (!modernMixedPca && mixedPca) {
+      const included = allowedPcaReferences(mixedPca);
+      modernMixedPca = included.length >= 3 ? { ...mixedPca, references: included } : null;
     }
-    $("#modern-group-limit option[value='1']").disabled = state.modernPcaId === "mixed";
+    if (state.modernPcaId === "mixed" && !modernMixedPca) state.modernPcaId = "auto";
     options.replaceChildren();
     const choices = modernMixedPca
       ? [...modernPcas, modernMixedPca]
       : modernPcas;
     const rankedPcas = window.G25ModernPca.rankModernPcas(
       state.single, choices, core.nearestMatches,
-      (pca) => pca.id === "mixed" ? pca.references : allowedPcaReferences(pca));
+      (pca) => pca.id === "mixed" ? pca.references : allowedPcaReferences(pca),
+      modernPcaFitDistances);
     const distances = [...new Set(rankedPcas.map((entry) => entry.distance).filter(Number.isFinite))];
     const automatic = rankedPcas.find(({ pca, distance }) =>
       pca.id !== "mixed" && Number.isFinite(distance));
-    const autoFit = modernMixedDirty ? null : modernPcaFitDistances.get(automatic?.pca.id);
+    const closestFit = modernPcaFitDistances.get(automatic?.pca.id);
+    const mixedFit = modernPcaFitDistances.get("mixed");
+    const autoMixed = modernMixedPca && window.G25ModernPca.shouldAutoSelectMixed(
+      closestFit?.distance, mixedFit?.distance);
+    const autoFit = autoMixed ? mixedFit : closestFit;
     const entries = new Map();
-    const addOption = (id, title, color, closestDistance, fitDistance, disabled = false) => {
-      const fitText = Number.isFinite(fitDistance)
-        ? `Genetic fit ${fitDistance.toFixed(3)}` : "Genetic fit —";
+    const addOption = (id, title, color, closestDistance, fitDistance) => {
+      const fitText = fitDistance && Number.isFinite(fitDistance.distance)
+        ? `Genetic fits ${fitDistance.distance.toFixed(3)} (${fitDistance.groupLimit})`
+        : "Genetic fits —";
       const option = document.createElement("button");
       option.type = "button";
       option.className = "modern-pca-option";
       option.setAttribute("role", "option");
       option.setAttribute("aria-selected", String(state.modernPcaId === id));
-      option.disabled = disabled;
-      if (disabled) option.title = "Mixed PCA requires 2 or 3 groups.";
       const name = document.createElement("span");
       name.className = "modern-pca-option-name";
       name.textContent = title;
@@ -1374,6 +1465,7 @@
       option.addEventListener("click", () => {
         chooser.open = false;
         state.modernPcaId = id;
+        state.modernGroupLimit = "auto";
         renderSingle();
         $("#modern-pca-current").focus();
       });
@@ -1385,10 +1477,9 @@
     for (const { pca, distance: geneticDistance } of rankedPcas) {
       const available = Number.isFinite(geneticDistance);
       const position = distances.length > 1 ? distances.indexOf(geneticDistance) / (distances.length - 1) : 0;
-      const fitDistance = pca.id === "mixed" ? modernMixedPca?.fit?.distance
-        : modernMixedDirty ? null : modernPcaFitDistances.get(pca.id);
+      const fitDistance = modernPcaFitDistances.get(pca.id);
       addOption(pca.id, pca.title, available ? modernPcaColor(position) : "#687585",
-        geneticDistance, fitDistance, pca.id === "mixed" && state.modernGroupLimit === 1);
+        geneticDistance, fitDistance);
     }
     const selected = entries.get(state.modernPcaId) || entries.get("auto");
     const currentName = $("#modern-pca-current-name");
@@ -1419,17 +1510,25 @@
     let closestModern = null;
     let displayedPcaId = null;
     let closestPcaId = null;
+    let closestPcaIds = [];
     if (isModern) {
       const rankedPcas = populateModernPcaSelect().filter(({ pca }) => pca.id !== "mixed");
-      closestPcaId = rankedPcas.find(({ distance }) => Number.isFinite(distance))?.pca.id || null;
+      const closestDistance = rankedPcas.find(({ distance }) => Number.isFinite(distance))?.distance;
+      closestPcaIds = rankedPcas.filter(({ distance }) => distance === closestDistance)
+        .map(({ pca }) => pca.id);
+      closestPcaId = closestPcaIds[0] || null;
       const { closest, pca } = window.G25ModernPca.selectModernPca(state.single,
         allowedReferences(turkishReferences.filter((row) => row[0] === "modern")),
         modernPcas, core.nearestMatches, state.modernPcaId, allowedPcaReferences, rankedPcas);
       closestModern = closest;
-      const selectedMixed = state.modernGroupLimit > 1 && state.modernPcaId === "mixed" && modernMixedPca;
+      const closestFit = modernPcaFitDistances.get(closestPcaId);
+      const mixedFit = modernPcaFitDistances.get("mixed");
+      const selectedMixed = modernMixedPca && (state.modernPcaId === "mixed" ||
+        state.modernPcaId === "auto" && window.G25ModernPca.shouldAutoSelectMixed(
+          closestFit?.distance, mixedFit?.distance));
       displayedPcaId = selectedMixed ? "mixed" : pca?.id || null;
       periodReferences = selectedMixed ? modernMixedPca.references : pca ? regularPcaReferences(pca) : [];
-      const hasPlot = periodReferences.length >= (selectedMixed ? 1 : 3);
+      const hasPlot = periodReferences.length >= 3;
       period = selectedMixed ? "Mixed" : pca ? pca.title : "Modern";
       $("#medieval-breakdown-title").textContent = displayedPcaId ? `Modern · ${period}${selectedMixed ? " PCA" : ""}` : "Modern";
       $("#pca-heading-title").textContent = selectedMixed ? `${period} PCA` : pca ? `${pca.title} PCA` : "Custom PCA";
@@ -1443,7 +1542,8 @@
       else status.textContent = "No modern references are available.";
       $("#pca-section").hidden = !hasPlot;
       $("#ancestry-composition-title").hidden = !hasPlot;
-      if (hasPlot) renderMedievalPca(periodReferences, period, true, closest, Boolean(selectedMixed));
+      if (hasPlot) renderMedievalPca(periodReferences, period, true, closest,
+        false, { groupStyle: selectedMixed ? "mixed" : "modern" });
       else {
         $("#medieval-pca-plot").replaceChildren();
         $("#medieval-pca-legend").replaceChildren();
@@ -1458,8 +1558,7 @@
       renderMedievalPca(periodReferences, period, false);
     }
     const requestId = medievalRequest;
-    const scanModernPcas = isModern && state.modernPcaId !== "mixed" &&
-      (state.modernPcaId === "auto" || modernMixedDirty);
+    const scanModernPcas = isModern && modernMixedDirty;
     try {
       const source = `(${window.G25MedievalModule.toString()})(self);\n(${window.G25ModernPcaModule.toString()})(self);\n(${medievalWorkerMain.toString()})();`;
       const url = URL.createObjectURL(new Blob([source], { type: "text/javascript" }));
@@ -1477,24 +1576,31 @@
       worker.onmessage = ({ data }) => {
         if (data.requestId !== medievalRequest || state.mode !== 1 || !state.turkish ||
             !isPeriodView()) return;
-        finish();
         if (data.error) {
+          finish();
           status.textContent = data.error;
           return;
         }
-        if (scanModernPcas) {
-          modernMixedDirty = false;
-          modernPcaFitDistances = new Map((data.pcaFitDistances || [])
-            .map(({ id, distance }) => [id, distance]));
+        if (data.kind === "profile") {
+          modernPcaFitDistances.set(data.id,
+            { distance: data.distance, groupLimit: data.groupLimit });
           populateModernPcaSelect();
+          return;
         }
-        if (displayedPcaId === "mixed" && modernMixedPca) {
-          modernMixedPca.fit = data.fit;
-          populateModernPcaSelect();
-        } else if (data.pca && data.pca.id !== displayedPcaId) {
+        if (data.kind === "progress") {
+          status.textContent = `Calculating ancestry composition… ${data.groupLimit} ${data.groupLimit === 1 ? "group" : "groups"}`;
+          return;
+        }
+        if (data.kind === "done") {
+          if (scanModernPcas) modernMixedDirty = false;
+          finish();
+          return;
+        }
+        if (data.pca && data.pca.id !== displayedPcaId) {
           $("#medieval-breakdown-title").textContent = `Modern · ${data.pca.title}`;
           $("#pca-heading-title").textContent = `${data.pca.title} PCA`;
-          renderMedievalPca(data.pca.references, data.pca.title, true, closestModern);
+          renderMedievalPca(data.pca.references, data.pca.title, true, closestModern,
+            false, { groupStyle: data.pca.id === "mixed" ? "mixed" : "modern" });
         }
         renderMedievalFit(data.fit, isModern);
       };
@@ -1505,19 +1611,23 @@
       };
       worker.postMessage({ requestId, target: state.single, references: periodReferences,
         groupLimit: isModern ? state.modernGroupLimit : state.medievalGroupLimit,
-        groupStyle: isModern ? "modern" : "colon",
+        defaultGroupLimit: modernPcaFitDistances.get(displayedPcaId)?.groupLimit,
+        groupStyle: isModern ? (displayedPcaId === "mixed" ? "mixed" : "modern") : "colon",
         selectedPcaId: isModern ? state.modernPcaId : null,
-        closestPcaId,
-        modernPcas: scanModernPcas ? modernPcas.map((pca) => ({
-          id: pca.id, title: pca.title, references: regularPcaReferences(pca),
-        })) : null });
+        closestPcaId, closestPcaIds,
+        modernPcas: scanModernPcas ? [
+          ...modernPcas.map((pca) => ({
+            id: pca.id, title: pca.title, references: regularPcaReferences(pca),
+          })),
+          ...(modernMixedPca ? [modernMixedPca] : []),
+        ] : null });
     } catch (error) {
       cancelMedieval();
       status.textContent = `Analysis could not start: ${error.message}`;
     }
   }
 
-  function renderMedievalPca(periodReferences, period, isModern, closest = null, mixed = false, options = {}) {
+  function renderMedievalPca(periodReferences, period, isModern, closest = null, sparse = false, options = {}) {
     const container = $("#medieval-pca-plot");
     const legend = $("#medieval-pca-legend");
     if (pcaTooltip) pcaTooltip.remove();
@@ -1556,7 +1666,7 @@
         : [...closestOverlayRows, ...neighborRows.map(({ row }) => row)];
       baseOverlayCount = overlays.length;
       projection = window.G25Pca.projectPca(clusterFit ? null : state.single, periodReferences,
-        overlays, options.groupStyle || (isModern ? "modern" : "colon"), mixed, customRows);
+        overlays, options.groupStyle || (isModern ? "modern" : "colon"), sparse, customRows);
       if (clusterFit) projection.points.forEach((point, index) => {
         point.ethnicity = `Cluster ${clusterFit.assignments[index] + 1}`;
       });
@@ -2550,7 +2660,7 @@
     state.strictGrandparentCount = 10;
     state.male = false;
     state.medievalGroupLimit = 5;
-    state.modernGroupLimit = 2;
+    state.modernGroupLimit = "auto";
     state.modernPcaId = "auto";
     state.visualiseCategory = "modern";
     state.visualiseLimit = null;
@@ -2558,6 +2668,7 @@
     state.visualiseClusterK = null;
     modernMixedPca = null;
     modernMixedDirty = true;
+    modernPcaFitDistances.clear();
     familyMessage = "";
     render();
   });
@@ -2634,14 +2745,8 @@
     renderVisualiseClusters();
   });
   $("#modern-group-limit").addEventListener("change", (event) => {
-    const limit = Number(event.currentTarget.value);
-    if (limit === 1 && state.modernPcaId === "mixed") {
-      event.currentTarget.value = String(state.modernGroupLimit);
-      return;
-    }
-    state.modernGroupLimit = limit;
-    modernMixedPca = null;
-    modernMixedDirty = true;
+    state.modernGroupLimit = event.currentTarget.value === "auto"
+      ? "auto" : Number(event.currentTarget.value);
     renderSingle();
   });
   const modernPcaChooser = $("#modern-pca-chooser");
@@ -2673,6 +2778,7 @@
     visualiseLocks.clear();
     modernMixedPca = null;
     modernMixedDirty = true;
+    modernPcaFitDistances.clear();
     if (state.modernPcaId === "mixed") state.modernPcaId = "auto";
     if (!state.turkish) state.analysisView = "results";
     updateSelectedReferences(activeReferenceRows());
