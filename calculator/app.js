@@ -1488,7 +1488,7 @@
             .map(({ id, distance }) => [id, distance]));
           populateModernPcaSelect();
         }
-        if (selectedMixed && modernMixedPca) {
+        if (displayedPcaId === "mixed" && modernMixedPca) {
           modernMixedPca.fit = data.fit;
           populateModernPcaSelect();
         } else if (data.pca && data.pca.id !== displayedPcaId) {
