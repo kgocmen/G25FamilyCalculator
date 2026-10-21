@@ -3,6 +3,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const test = require("node:test");
 const vm = require("node:vm");
+const { buildMixedPca } = require("./modern_pca.js");
 
 const app = fs.readFileSync(path.join(__dirname, "app.js"), "utf8");
 const start = app.indexOf("  function medievalWorkerMain() {");
@@ -14,9 +15,10 @@ const moduleSource = ["medieval.js", "modern_pca.js"].map((file) =>
 const row = (label, x, y = 0) => ["modern", label, x, y, ...Array(23).fill(0)];
 const pcas = [-1, 1, 2].map((coordinate, index) => {
   const references = [1, 2, 3].map((multiple) => row(`Group${index}:Sample${multiple}`, coordinate * multiple));
-  return { id: ["first", "second", "third"][index], references };
+  return { id: ["first", "second", "third"][index],
+    title: ["First", "Second", "Third"][index], references };
 });
-const mixedReferences = pcas.flatMap((pca) => pca.references);
+const mixedReferences = buildMixedPca(pcas).references;
 const input = { values: Array(25).fill(0) };
 
 function calculate(overrides = {}) {

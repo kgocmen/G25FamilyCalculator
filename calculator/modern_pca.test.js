@@ -108,21 +108,26 @@ test("Istanbul informs admixture but never ranks the closest PCA", () => {
   assert.equal(isIstanbulReference(row("Türk_Balkan:Türk_İstanbul_(Balkan_Profili)", 0)), false);
 });
 
-test("mixed PCA combines every distinct population label from all maps", () => {
-  const istanbul = row("Türk_İstanbul:Shared", 0);
-  const shared = row("Türk_A:Shared", 1);
+test("mixed PCA averages each inner group into a point under its source PCA", () => {
   const pcas = [
-    { id: "first", references: [istanbul, shared, row("Türk_A:Other", 2)] },
-    { id: "second", references: [shared, row("Türk_B:Sample", 3)] },
-    { id: "third", references: [row("Türk_C:Sample", 4)] },
+    { id: "south", title: "Güney Anadolu", references: [
+      row("Türk_A:One", 0), row("Türk_A:Two", 2), row("Kürt:Sample", 4),
+    ] },
+    { id: "east", title: "Doğu Anadolu", references: [
+      row("Türk_A:One", 10), row("Türk_A:Two", 14), row("Ermeni:Sample", 20),
+    ] },
+    { id: "istanbul", title: "İstanbul", references: [row("İstanbul:Sample", 100)] },
   ];
   const mixed = buildMixedPca(pcas);
   assert.equal(mixed.id, "mixed");
-  assert.equal(mixed.title, "Mixed PCA");
-  assert.deepEqual(mixed.sourceIds, ["first", "second", "third"]);
-  assert.deepEqual(mixed.references.map((reference) => reference[1]),
-    ["Türk_İstanbul:Shared", "Türk_A:Shared", "Türk_A:Other", "Türk_B:Sample", "Türk_C:Sample"]);
-  assert.equal(buildMixedPca([{ id: "empty", references: [shared, shared] }]), null);
+  assert.deepEqual(mixed.sourceIds, ["south", "east"]);
+  assert.deepEqual(mixed.references.map((reference) => reference[1]), [
+    "Güney Anadolu:Türk_A centroid", "Güney Anadolu:Kürt centroid",
+    "Doğu Anadolu:Türk_A centroid", "Doğu Anadolu:Ermeni centroid",
+  ]);
+  assert.deepEqual(mixed.references.map((reference) => reference[2]), [1, 4, 12, 20]);
+  assert.ok(mixed.references.every((reference) => reference.length === 27));
+  assert.equal(buildMixedPca([pcas[2]]), null);
 });
 
 test("mixed PCA remains selectable but never becomes automatic", () => {
@@ -139,24 +144,40 @@ test("mixed PCA remains selectable but never becomes automatic", () => {
     choices, nearestMatches, "mixed", (pca) => pca.references, ranked).pca.id, "mixed");
 });
 
-test("bundled mixed PCA is the distinct union of all eleven maps", () => {
+test("bundled mixed PCA has ten source groups and their inner-group centroids", () => {
   const bundle = fs.readFileSync(path.join(__dirname, "modern_pca_references.js"), "utf8");
   const pcas = JSON.parse(bundle.slice(bundle.indexOf("=") + 1).trim().replace(/;$/, ""));
   const mixed = buildMixedPca(pcas);
-  const labels = pcas.flatMap((pca) => pca.references.map((reference) => reference[1]));
-  assert.equal(mixed.sourceIds.length, 11);
-  assert.equal(mixed.references.length, new Set(labels).size);
-  assert.deepEqual(new Set(mixed.references.map((reference) => reference[1])), new Set(labels));
+  const sources = pcas.filter((pca) => pca.id !== "istanbul");
+  assert.deepEqual(mixed.sourceIds, sources.map((pca) => pca.id));
+  assert.equal(mixed.sourceIds.length, 10);
+  assert.deepEqual([...new Set(mixed.references.map((reference) => reference[1].split(":", 1)[0]))],
+    sources.map((pca) => pca.title));
+  for (const pca of sources) {
+    const groups = new Map();
+    for (const reference of pca.references) {
+      const name = reference[1].split(":", 1)[0];
+      if (!groups.has(name)) groups.set(name, []);
+      groups.get(name).push(reference);
+    }
+    const centroids = mixed.references.filter((reference) => reference[1].startsWith(`${pca.title}:`));
+    assert.equal(centroids.length, groups.size);
+    for (const [name, rows] of groups) {
+      const point = centroids.find((reference) => reference[1] === `${pca.title}:${name} centroid`);
+      assert.ok(point);
+      for (let coordinate = 0; coordinate < 25; coordinate += 1) {
+        const expected = rows.reduce((sum, row) => sum + row[coordinate + 2], 0) / rows.length;
+        assert.ok(Math.abs(point[coordinate + 2] - expected) < 1e-12);
+      }
+    }
+  }
 });
 
-test("large mixed fits screen every group for a useful cross-group pair", () => {
-  const references = [row("Left:Sample", -1), row("Right:Sample", 1)];
-  for (let index = 0; index < 13; index += 1) {
-    references.push(["modern", `Nearby${index}:Sample`, 0.1 + index * 0.01, 0.5,
-      ...Array(23).fill(0)]);
-  }
+test("mixed fit uses the complete centroid dataset and requires two or three groups", () => {
+  const references = [row("West:A centroid", -1), row("East:B centroid", 1),
+    ["modern", "North:C centroid", 3, 0.5, ...Array(23).fill(0)]];
   const fit = fitMixedPca(target(0), references, 2, fitAdmixture);
   assert.ok(fit.distance < 0.001);
-  assert.deepEqual(new Set(fit.groups.map((group) => group.ethnicity)), new Set(["Left", "Right"]));
+  assert.deepEqual(new Set(fit.groups.map((group) => group.ethnicity)), new Set(["West", "East"]));
   assert.throws(() => fitMixedPca(target(0), references, 1, fitAdmixture), /requires 2 or 3/);
 });

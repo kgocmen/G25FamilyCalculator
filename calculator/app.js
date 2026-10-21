@@ -1327,9 +1327,12 @@
     const chooser = $("#modern-pca-chooser");
     const options = $("#modern-pca-options");
     if (!modernMixedPca) {
-      modernMixedPca = window.G25ModernPca.buildMixedPca(modernPcas.map((pca) => ({
-        id: pca.id, references: allowedPcaReferences(pca),
+      const mixed = window.G25ModernPca.buildMixedPca(modernPcas.map((pca) => ({
+        id: pca.id, title: pca.title, references: allowedPcaReferences(pca),
       })));
+      if (mixed) mixed.references = mixed.references.filter((row) =>
+        !blacklist.has(populationKey(row)) && !isGroupExcluded(row));
+      modernMixedPca = mixed?.references.length >= 3 ? mixed : null;
     }
     $("#modern-group-limit option[value='1']").disabled = state.modernPcaId === "mixed";
     options.replaceChildren();
