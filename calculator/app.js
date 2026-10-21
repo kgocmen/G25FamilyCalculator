@@ -545,9 +545,7 @@
     self.onmessage = ({ data }) => {
       try {
         let fit = null;
-        let mixed = null;
         let pca = null;
-        let availableMixed = null;
         let pcaFitDistances = null;
         if (data.modernPcas) {
           const pcaFits = data.modernPcas.filter((pca) => pca.references.length >= 3)
@@ -563,27 +561,15 @@
             fit = selected.fit;
             pca = selected.pca;
           }
-          const mixedSourceFits = data.groupLimit > 1
-            ? data.modernPcas.filter((entry) => (entry.mixedReferences || entry.references).length >= 3)
-              .map((entry) => {
-                const source = { ...entry, references: entry.mixedReferences || entry.references };
-                return { pca: source, fit: self.G25Medieval.fitAdmixture(
-                  data.target, source.references, data.groupLimit, "modern") };
-              }) : [];
-          const candidate = self.G25ModernPca.findMixedPca(
-            data.target, mixedSourceFits, data.groupLimit, self.G25Medieval.fitAdmixture, pcaFits);
-          if (candidate) {
-            availableMixed = candidate;
-            if (data.selectedPcaId === "auto") {
-              fit = candidate.fit;
-              mixed = candidate;
-              pca = null;
-            }
-          }
+        }
+        if (data.selectedPcaId === "mixed") {
+          fit = self.G25ModernPca.fitMixedPca(
+            data.target, data.references, data.groupLimit, self.G25Medieval.fitAdmixture);
+          pca = null;
         }
         if (!fit) fit = self.G25Medieval.fitAdmixture(
           data.target, data.references, data.groupLimit, data.groupStyle);
-        self.postMessage({ requestId: data.requestId, fit, mixed, pca, availableMixed, pcaFitDistances });
+        self.postMessage({ requestId: data.requestId, fit, pca, pcaFitDistances });
       } catch (error) {
         self.postMessage({ requestId: data.requestId, error: error.message });
       }
@@ -1340,24 +1326,25 @@
   function populateModernPcaSelect() {
     const chooser = $("#modern-pca-chooser");
     const options = $("#modern-pca-options");
-    const mixedActive = state.modernPcaId === "mixed" ||
-      (state.modernPcaId === "auto" && Boolean(modernMixedPca));
-    $("#modern-group-limit option[value='1']").disabled = mixedActive;
+    if (!modernMixedPca) {
+      modernMixedPca = window.G25ModernPca.buildMixedPca(modernPcas.map((pca) => ({
+        id: pca.id, references: allowedPcaReferences(pca),
+      })));
+    }
+    $("#modern-group-limit option[value='1']").disabled = state.modernPcaId === "mixed";
     options.replaceChildren();
-    const choices = modernMixedPca && state.modernGroupLimit > 1
-      ? [...modernPcas, { id: "mixed", title: "Mixed PCA",
-        references: modernMixedPca.references, referenceAnchors: [] }]
+    const choices = modernMixedPca
+      ? [...modernPcas, modernMixedPca]
       : modernPcas;
     const rankedPcas = window.G25ModernPca.rankModernPcas(
-      state.single, choices, core.nearestMatches, allowedPcaReferences);
+      state.single, choices, core.nearestMatches,
+      (pca) => pca.id === "mixed" ? pca.references : allowedPcaReferences(pca));
     const distances = [...new Set(rankedPcas.map((entry) => entry.distance).filter(Number.isFinite))];
-    const automatic = modernMixedPca && state.modernGroupLimit > 1
-      ? rankedPcas.find(({ pca }) => pca.id === "mixed")
-      : rankedPcas.find(({ pca, distance }) => pca.id !== "mixed" && Number.isFinite(distance));
-    const autoFit = automatic?.pca.id === "mixed" ? modernMixedPca.fit.distance
-      : modernMixedDirty ? null : modernPcaFitDistances.get(automatic?.pca.id);
+    const automatic = rankedPcas.find(({ pca, distance }) =>
+      pca.id !== "mixed" && Number.isFinite(distance));
+    const autoFit = modernMixedDirty ? null : modernPcaFitDistances.get(automatic?.pca.id);
     const entries = new Map();
-    const addOption = (id, title, color, closestDistance, fitDistance) => {
+    const addOption = (id, title, color, closestDistance, fitDistance, disabled = false) => {
       const fitText = Number.isFinite(fitDistance)
         ? `Genetic fit ${fitDistance.toFixed(3)}` : "Genetic fit —";
       const option = document.createElement("button");
@@ -1365,6 +1352,8 @@
       option.className = "modern-pca-option";
       option.setAttribute("role", "option");
       option.setAttribute("aria-selected", String(state.modernPcaId === id));
+      option.disabled = disabled;
+      if (disabled) option.title = "Mixed PCA requires 2 or 3 groups.";
       const name = document.createElement("span");
       name.className = "modern-pca-option-name";
       name.textContent = title;
@@ -1393,10 +1382,10 @@
     for (const { pca, distance: geneticDistance } of rankedPcas) {
       const available = Number.isFinite(geneticDistance);
       const position = distances.length > 1 ? distances.indexOf(geneticDistance) / (distances.length - 1) : 0;
-      const fitDistance = pca.id === "mixed" ? modernMixedPca?.fit.distance
+      const fitDistance = pca.id === "mixed" ? modernMixedPca?.fit?.distance
         : modernMixedDirty ? null : modernPcaFitDistances.get(pca.id);
       addOption(pca.id, pca.title, available ? modernPcaColor(position) : "#687585",
-        geneticDistance, fitDistance);
+        geneticDistance, fitDistance, pca.id === "mixed" && state.modernGroupLimit === 1);
     }
     const selected = entries.get(state.modernPcaId) || entries.get("auto");
     const currentName = $("#modern-pca-current-name");
@@ -1445,7 +1434,7 @@
       const closestNote = $("#modern-closest-population");
       closestNote.textContent = closest ? `Closest population: ${label} · Distance ${closest.distance.toFixed(3)}` : "";
       if (displayedPcaId && !hasPlot) status.textContent = "At least three included references are needed for ancestry composition and PCA.";
-      else if (selectedMixed) status.textContent = "";
+      else if (selectedMixed) status.textContent = "Calculating ancestry composition…";
       else if (pca) status.textContent = "Calculating ancestry composition…";
       else if (label) status.textContent = "No custom analysis is available for this population yet.";
       else status.textContent = "No modern references are available.";
@@ -1457,10 +1446,6 @@
         $("#medieval-pca-legend").replaceChildren();
         for (const selector of ["#pca-zoom-in", "#pca-zoom-out", "#pca-zoom-reset"]) $(selector).disabled = true;
         $("#pca-zoom-level").textContent = "100%";
-        return;
-      }
-      if (selectedMixed) {
-        renderMedievalFit(modernMixedPca.fit, true);
         return;
       }
     } else {
@@ -1497,17 +1482,11 @@
           modernMixedDirty = false;
           modernPcaFitDistances = new Map((data.pcaFitDistances || [])
             .map(({ id, distance }) => [id, distance]));
-          modernMixedPca = null;
-          if (data.availableMixed) {
-            modernMixedPca = data.availableMixed;
-          }
           populateModernPcaSelect();
         }
-        if (data.mixed) {
-          const mixedTitle = "Mixed";
-          $("#medieval-breakdown-title").textContent = `Modern · ${mixedTitle} PCA`;
-          $("#pca-heading-title").textContent = `${mixedTitle} PCA`;
-          renderMedievalPca(modernMixedPca.references, mixedTitle, true, closestModern, true);
+        if (selectedMixed && modernMixedPca) {
+          modernMixedPca.fit = data.fit;
+          populateModernPcaSelect();
         } else if (data.pca && data.pca.id !== displayedPcaId) {
           $("#medieval-breakdown-title").textContent = `Modern · ${data.pca.title}`;
           $("#pca-heading-title").textContent = `${data.pca.title} PCA`;
@@ -1527,7 +1506,6 @@
         closestPcaId,
         modernPcas: scanModernPcas ? modernPcas.map((pca) => ({
           id: pca.id, title: pca.title, references: regularPcaReferences(pca),
-          mixedReferences: allowedPcaReferences(pca),
         })) : null });
     } catch (error) {
       cancelMedieval();
@@ -2653,16 +2631,13 @@
   });
   $("#modern-group-limit").addEventListener("change", (event) => {
     const limit = Number(event.currentTarget.value);
-    const mixedActive = state.modernPcaId === "mixed" ||
-      (state.modernPcaId === "auto" && Boolean(modernMixedPca));
-    if (limit === 1 && mixedActive) {
+    if (limit === 1 && state.modernPcaId === "mixed") {
       event.currentTarget.value = String(state.modernGroupLimit);
       return;
     }
     state.modernGroupLimit = limit;
     modernMixedPca = null;
     modernMixedDirty = true;
-    if (state.modernPcaId === "mixed") state.modernPcaId = "auto";
     renderSingle();
   });
   const modernPcaChooser = $("#modern-pca-chooser");

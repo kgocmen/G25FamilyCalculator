@@ -4,7 +4,7 @@ const path = require("node:path");
 const test = require("node:test");
 const { nearestMatches } = require("./core.js");
 const { fitAdmixture } = require("./medieval.js");
-const { selectModernPca, rankModernPcas, buildMixedPca, findMixedPca, mixedFitIsBetter,
+const { selectModernPca, rankModernPcas, buildMixedPca, fitMixedPca,
   isIstanbulReference } = require("./modern_pca.js");
 
 const row = (label, first) => ["modern", label, first, ...Array(24).fill(0)];
@@ -108,93 +108,55 @@ test("Istanbul informs admixture but never ranks the closest PCA", () => {
   assert.equal(isIstanbulReference(row("Türk_Balkan:Türk_İstanbul_(Balkan_Profili)", 0)), false);
 });
 
-test("mixed PCA uses non-Istanbul fitted components from all maps without duplicate samples", () => {
+test("mixed PCA combines every distinct population label from all maps", () => {
   const istanbul = row("Türk_İstanbul:Shared", 0);
   const shared = row("Türk_A:Shared", 1);
-  const fits = [
-    { pca: { id: "first", references: [istanbul, shared, row("Türk_A:Other", 2)] },
-      fit: { distance: 1, groups: [{ ethnicity: "Türk_İstanbul", weight: 0.4 },
-        { ethnicity: "Türk_A", weight: 0.6 }],
-      components: [{ label: "Türk_İstanbul:Shared", ethnicity: "Türk_İstanbul" },
-        { label: "Türk_A:Shared", ethnicity: "Türk_A" },
-        { label: "Türk_A:Other", ethnicity: "Türk_A" }] } },
-    { pca: { id: "second", references: [istanbul, shared, row("Türk_B:Sample", 3)] },
-      fit: { distance: 2, groups: [{ ethnicity: "Türk_İstanbul", weight: 0.5 },
-        { ethnicity: "Türk_A", weight: 0.25 }, { ethnicity: "Türk_B", weight: 0.25 }],
-      components: [{ label: "Türk_İstanbul:Shared", ethnicity: "Türk_İstanbul" },
-        { label: "Türk_A:Shared", ethnicity: "Türk_A" },
-        { label: "Türk_B:Sample", ethnicity: "Türk_B" }] } },
-    { pca: { id: "third", references: [row("Türk_C:Sample", 4)] },
-      fit: { distance: 3, groups: [{ ethnicity: "Türk_C", weight: 1 }],
-        components: [{ label: "Türk_C:Sample", ethnicity: "Türk_C" }] } },
+  const pcas = [
+    { id: "first", references: [istanbul, shared, row("Türk_A:Other", 2)] },
+    { id: "second", references: [shared, row("Türk_B:Sample", 3)] },
+    { id: "third", references: [row("Türk_C:Sample", 4)] },
   ];
-  const mixed = buildMixedPca(fits);
+  const mixed = buildMixedPca(pcas);
+  assert.equal(mixed.id, "mixed");
+  assert.equal(mixed.title, "Mixed PCA");
   assert.deepEqual(mixed.sourceIds, ["first", "second", "third"]);
   assert.deepEqual(mixed.references.map((reference) => reference[1]),
-    ["Türk_A:Shared", "Türk_A:Other", "Türk_B:Sample", "Türk_C:Sample"]);
-  assert.equal(buildMixedPca(fits.slice(0, 1)), null);
+    ["Türk_İstanbul:Shared", "Türk_A:Shared", "Türk_A:Other", "Türk_B:Sample", "Türk_C:Sample"]);
+  assert.equal(buildMixedPca([{ id: "empty", references: [shared, shared] }]), null);
 });
 
-test("mixed PCA must be strictly below 75.00% for two groups and 66.66% for three", () => {
-  const fits = [{ fit: { distance: 4 } }, { fit: { distance: 2 } }];
-  for (const [limit, boundary] of [[2, 1.5], [3, 1.3332]]) {
-    assert.equal(mixedFitIsBetter({ distance: boundary - 1e-8 }, fits, limit), true);
-    assert.equal(mixedFitIsBetter({ distance: boundary }, fits, limit), false);
-    assert.equal(mixedFitIsBetter({ distance: boundary + 1e-8 }, fits, limit), false);
-    assert.equal(mixedFitIsBetter({ distance: 0 }, [{ fit: { distance: 0 } }], limit), false);
-    assert.equal(mixedFitIsBetter({ distance: 0 }, [{ fit: { distance: 1e-8 } }], limit), false);
-  }
-  assert.equal(mixedFitIsBetter({ distance: 1.4 }, fits, 2), true);
-  assert.equal(mixedFitIsBetter({ distance: 1.4 }, fits, 3), false);
+test("mixed PCA remains selectable but never becomes automatic", () => {
+  const regular = { id: "regular", references: [row("Regular", 0.5)] };
+  const mixed = buildMixedPca([regular, { id: "other", references: [
+    row("Other", 1), row("Near", 0), row("Extra", 2),
+  ] }]);
+  const choices = [regular, mixed];
+  const ranked = rankModernPcas(target(0), choices, nearestMatches);
+  assert.equal(ranked[0].pca.id, "mixed");
+  assert.equal(selectModernPca(target(0), [...regular.references, ...mixed.references],
+    choices, nearestMatches, "auto", (pca) => pca.references, ranked).pca.id, "regular");
+  assert.equal(selectModernPca(target(0), [...regular.references, ...mixed.references],
+    choices, nearestMatches, "mixed", (pca) => pca.references, ranked).pca.id, "mixed");
 });
 
-
-test("Istanbul must contribute in at least two maps before trying a mixed fit", () => {
-  const pcas = [
-    { id: "first", references: [row("A:One", -1), row("A:Two", -2), row("A:Three", -3)] },
-    { id: "second", references: [row("B:One", 1), row("B:Two", 2), row("B:Three", 3)] },
-  ];
-  const fits = pcas.map((pca) => ({ pca, fit: fitAdmixture(target(0), pca.references, 2, "modern") }));
-  assert.equal(buildMixedPca(fits), null);
-  assert.equal(findMixedPca(target(0), fits, 2, () => { throw Error("Must not search arbitrary pairs"); }), null);
-  fits[0].fit.groups.push({ ethnicity: "Türk_İstanbul", weight: 0.5 });
-  assert.equal(buildMixedPca(fits), null);
-  fits[1].fit.groups.push({ ethnicity: "Türk_İstanbul", weight: 0 });
-  assert.equal(buildMixedPca(fits), null);
-});
-
-test("Istanbul-gated refitting applies each group threshold against the regular PCA baseline", () => {
-  const fits = [-1, 1, 2].map((coordinate, index) => ({
-    pca: { id: String(index), references: [row("Türk_İstanbul:Shared", 10),
-      row(`Group${index}:Selected`, coordinate), row(`Group${index}:Unused`, coordinate * 3)] },
-    fit: { distance: 0.5, groups: [{ ethnicity: "Türk_İstanbul", weight: 0.5 }],
-      components: [{ ethnicity: `Group${index}`, label: `Group${index}:Selected` }] },
-  }));
-  const baseline = [{ fit: { distance: 2 } }, { fit: { distance: 4 } }];
-  const refit = (_target, references, limit, style) => {
-    assert.ok(references.every((row) => row[1].endsWith(":Selected")));
-    assert.equal(references.length, 3);
-    assert.equal(style, "modern");
-    return { distance: 1.4, groupLimit: limit };
-  };
-  const result = findMixedPca(target(0), fits, 2, refit, baseline);
-  assert.equal(result.fit.groupLimit, 2);
-  assert.equal(findMixedPca(target(0), fits, 3, refit, baseline), null);
-  assert.equal(findMixedPca(target(0), fits, 1, refit, baseline), null);
-});
-
-test("the bundled four-sample southern Anatolian control remains a single-source fit", () => {
+test("bundled mixed PCA is the distinct union of all eleven maps", () => {
   const bundle = fs.readFileSync(path.join(__dirname, "modern_pca_references.js"), "utf8");
   const pcas = JSON.parse(bundle.slice(bundle.indexOf("=") + 1).trim().replace(/;$/, ""));
-  const southern = pcas.find((pca) => pca.id === "guney-anadolu").references.filter((row) =>
-    /:Türk_(Adana|Mersin|Osmaniye|Gaziantep)_/.test(row[1]));
-  assert.equal(southern.length, 4);
-  const input = { values: southern[0].slice(2).map((_, index) =>
-    southern.reduce((sum, row) => sum + row[index + 2] / 4, 0)) };
-  for (const limit of [2, 3]) {
-    const baseline = pcas.map((pca) => ({ pca, fit: fitAdmixture(input,
-      pca.references.filter((row) => !isIstanbulReference(row)), limit, "modern") }));
-    const sourceFits = pcas.map((pca) => ({ pca, fit: fitAdmixture(input, pca.references, limit, "modern") }));
-    assert.equal(findMixedPca(input, sourceFits, limit, fitAdmixture, baseline), null);
+  const mixed = buildMixedPca(pcas);
+  const labels = pcas.flatMap((pca) => pca.references.map((reference) => reference[1]));
+  assert.equal(mixed.sourceIds.length, 11);
+  assert.equal(mixed.references.length, new Set(labels).size);
+  assert.deepEqual(new Set(mixed.references.map((reference) => reference[1])), new Set(labels));
+});
+
+test("large mixed fits screen every group for a useful cross-group pair", () => {
+  const references = [row("Left:Sample", -1), row("Right:Sample", 1)];
+  for (let index = 0; index < 13; index += 1) {
+    references.push(["modern", `Nearby${index}:Sample`, 0.1 + index * 0.01, 0.5,
+      ...Array(23).fill(0)]);
   }
+  const fit = fitMixedPca(target(0), references, 2, fitAdmixture);
+  assert.ok(fit.distance < 0.001);
+  assert.deepEqual(new Set(fit.groups.map((group) => group.ethnicity)), new Set(["Left", "Right"]));
+  assert.throws(() => fitMixedPca(target(0), references, 1, fitAdmixture), /requires 2 or 3/);
 });
