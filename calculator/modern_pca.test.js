@@ -10,6 +10,17 @@ const { selectModernPca, rankModernPcas, buildMixedPca, findMixedPca, mixedFitIs
 const row = (label, first) => ["modern", label, first, ...Array(24).fill(0)];
 const target = (first) => ({ label: "Input", values: [first, ...Array(24).fill(0)] });
 
+test("bundled İstanbul PCA contains the five Istanbul profiles", () => {
+  const bundle = fs.readFileSync(path.join(__dirname, "modern_pca_references.js"), "utf8");
+  const pcas = JSON.parse(bundle.slice(bundle.indexOf("=") + 1).trim().replace(/;$/, ""));
+  const istanbul = pcas.find((pca) => pca.id === "istanbul");
+  assert.equal(istanbul.title, "İstanbul");
+  assert.equal(istanbul.references.length, 5);
+  assert.deepEqual(istanbul.references.map((reference) => reference[1].split(":", 1)[0]),
+    ["Türk_Anadolu", "Türk_Karışım", "Türk_Balkan", "Rum", "Ermeni"]);
+  assert.equal(istanbul.referenceAnchors.length, 5);
+});
+
 test("auto selects the best-fitting PCA", () => {
   const references = [row("East", 0), row("West", 1)];
   const pcas = [{ id: "east", references: [row("East", 0)] },

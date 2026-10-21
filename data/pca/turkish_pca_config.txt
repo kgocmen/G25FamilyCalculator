@@ -69,6 +69,11 @@
       "id": "turkistan",
       "title": "Türkistan",
       "file": "turkish_modern_pca14_g25.txt"
+    },
+    {
+      "id": "istanbul",
+      "title": "İstanbul",
+      "file": "turkish_modern_pca15_g25.txt"
     }
   ]
 }

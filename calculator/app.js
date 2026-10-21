@@ -1811,9 +1811,24 @@
     const groupLabels = new Map(groups.map((group) => [group,
       add(plotLayer, "text", { "text-anchor": "middle", fill: groupColor(group),
         class: "pca-group-label", "aria-hidden": "true" }, group.replaceAll("_", " "))]));
-    const youLabel = marker ? add(plotLayer, "text", { class: "pca-you-label",
-      "aria-hidden": "true" }, "YOU") : null;
+    const inputName = projection.target?.label || "Input";
+    const inputLabel = marker ? add(plotLayer, "text", { class: "pca-you-label",
+      "aria-hidden": "true" }, inputName) : null;
     container.append(svg);
+    const fitInputLabel = (maxWidth) => {
+      inputLabel.textContent = inputName;
+      if (inputLabel.getComputedTextLength() <= maxWidth) return inputLabel.getComputedTextLength();
+      let low = 0;
+      let high = inputName.length;
+      while (low < high) {
+        const length = Math.ceil((low + high) / 2);
+        inputLabel.textContent = `${inputName.slice(0, length)}…`;
+        if (inputLabel.getComputedTextLength() <= maxWidth) low = length;
+        else high = length - 1;
+      }
+      inputLabel.textContent = `${inputName.slice(0, low)}…`;
+      return inputLabel.getComputedTextLength();
+    };
     const zoomIn = $("#pca-zoom-in");
     const zoomOut = $("#pca-zoom-out");
     const zoomReset = $("#pca-zoom-reset");
@@ -1899,18 +1914,21 @@
         const target = screen({ x: targetX, y: targetY });
         marker.setAttribute("cx", target.x);
         marker.setAttribute("cy", target.y);
-        const youRight = target.x < bounds.right - 80;
+        const rightSpace = bounds.right - target.x - 24;
+        const leftSpace = target.x - bounds.left - 24;
+        const youRight = rightSpace >= leftSpace;
+        const inputLabelWidth = fitInputLabel(Math.max(rightSpace, leftSpace));
         const youX = target.x + (youRight ? 19 : -19);
         const youY = target.y < bounds.top + 36 ? target.y + 27 : target.y - 15;
-        youLabel.setAttribute("x", youX);
-        youLabel.setAttribute("y", youY);
-        youLabel.setAttribute("text-anchor", youRight ? "start" : "end");
-        youLabel.style.display = visible(target) ? "" : "none";
+        inputLabel.setAttribute("x", youX);
+        inputLabel.setAttribute("y", youY);
+        inputLabel.setAttribute("text-anchor", youRight ? "start" : "end");
+        inputLabel.style.display = visible(target) ? "" : "none";
         if (visible(target)) {
           occupiedLabels.push({ left: target.x - 17, right: target.x + 17,
             top: target.y - 17, bottom: target.y + 17 });
-          occupiedLabels.push({ left: youRight ? youX : youX - 42,
-            right: youRight ? youX + 42 : youX, top: youY - 15, bottom: youY + 4 });
+          occupiedLabels.push({ left: youRight ? youX : youX - inputLabelWidth,
+            right: youRight ? youX + inputLabelWidth : youX, top: youY - 15, bottom: youY + 4 });
         }
       }
       for (const { x, y } of centroidMarkers) {
@@ -2063,7 +2081,7 @@
     } else {
       const input = document.createElement("span");
       input.className = "pca-legend-item";
-      input.textContent = "● YOU";
+      input.textContent = `● ${inputName}`;
       legend.append(input);
     }
   }
