@@ -35,6 +35,7 @@ p { margin: 0; }
 .analysis-tabs { display: flex; gap: 8px; margin: 3px 0 17px; }
 .analysis-tabs[hidden] { display: none; }
 .analysis-tab { border: 1px solid #dce4eb; border-radius: 9px; background: #fff; color: #526a80; font-size: 13px; font-weight: 700; padding: 9px 13px; }
+.analysis-tab[hidden] { display: none; }
 .analysis-tab.active { background: #e5f2f7; border-color: #61a7be; color: #075b75; }
 .male-option { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 7px; margin: 0 0 14px; padding: 7px 10px; border: 1px solid #dce4eb; border-radius: 9px; color: #34495f; font-size: 13px; font-weight: 700; cursor: pointer; }
 .male-option[hidden] { display: none; }

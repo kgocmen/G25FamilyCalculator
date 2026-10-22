@@ -4,13 +4,13 @@ const path = require("node:path");
 const test = require("node:test");
 const { nearestMatches } = require("./core.js");
 const { selectModernPca, rankModernPcas, defaultGroupFit,
-  shouldAutoSelectMixed, isIstanbulReference } = require("./modern_pca.js");
+  shouldAutoSelectMixed, isIstanbulReference, selectFitReferences } = require("./modern_pca.js");
 
 const row = (label, first) => ["modern", label, first, ...Array(24).fill(0)];
 const target = (first) => ({ label: "Input", values: [first, ...Array(24).fill(0)] });
 
 test("bundled modern PCAs match their source files", () => {
-  const bundle = fs.readFileSync(path.join(__dirname, "modern_pca_references.js"), "utf8");
+  const bundle = fs.readFileSync(path.join(__dirname, "turkish_modern_pca_references.js"), "utf8");
   const pcas = JSON.parse(bundle.slice(bundle.indexOf("=") + 1).trim().replace(/;$/, ""));
   const config = JSON.parse(fs.readFileSync(path.join(__dirname, "../data/pca/turkish_pca_config.txt"), "utf8"));
   assert.deepEqual(pcas.map(({ id, title }) => ({ id, title })),
@@ -37,6 +37,13 @@ test("auto selects the best-fitting PCA", () => {
     { id: "west", references: [row("West", 1)] }];
   assert.equal(selectModernPca(target(0.1), references, pcas, nearestMatches).pca.id, "east");
   assert.equal(selectModernPca(target(0.9), references, pcas, nearestMatches).pca.id, "west");
+});
+
+test("large regional maps fit nearest samples from every group", () => {
+  const references = [row("A:Far", 0.9), row("A:Near", 0.1), row("A:Middle", 0.2),
+    row("B:Far", -0.9), row("B:Near", -0.1), row("B:Middle", -0.2)];
+  assert.deepEqual(selectFitReferences(target(0), references, nearestMatches, 2)
+    .map((reference) => reference[1]), ["A:Near", "A:Middle", "B:Near", "B:Middle"]);
 });
 
 test("reports the closest population independently of the best-fitting PCA", () => {
@@ -152,10 +159,10 @@ test("mixed overrides auto only above two and with a strictly better auto fit", 
 });
 
 test("bundled mixed PCA uses the editable dataset with ten groups", () => {
-  const bundle = fs.readFileSync(path.join(__dirname, "mixed_pca_references.js"), "utf8");
+  const bundle = fs.readFileSync(path.join(__dirname, "turkish_mixed_pca_references.js"), "utf8");
   const mixed = JSON.parse(bundle.slice(bundle.indexOf("=") + 1).trim().replace(/;$/, ""));
   const source = fs.readFileSync(path.join(__dirname,
-    "../data/pca/turkish_modern_pca_mixed_g25.txt"), "utf8").trim().split(/\r?\n/);
+    "../data/pca/turkish_modern_pca_mixed.g25.txt"), "utf8").trim().split(/\r?\n/);
   assert.equal(mixed.id, "mixed");
   assert.equal(mixed.references.length, source.length);
   assert.equal(new Set(mixed.references.map((reference) => reference[1].split(":", 1)[0])).size, 10);

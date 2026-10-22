@@ -31,11 +31,11 @@ let lastWorker;
 class Worker { constructor(url){this.url=url; lastWorker=this;} postMessage(data){this.data=data;} terminate(){this.terminated=true;} }
 const window={G25Core:core,G25_REFERENCES:refs};
 const pcaRow = (label, value, category = 'modern') => [category, label, ...Array(25).fill(value)];
-window.G25_MODERN_PCAS = [
+window.G25_TURKISH_MODERN_PCAS = [
   { id: 'first', references: [pcaRow('Group_A:Fitted', 2), pcaRow('Group_A:Unused', 3), pcaRow('Group_B:Other', 4)], referenceAnchors: [] },
   { id: 'second', references: [pcaRow('Other_Group:Alias', 3), pcaRow('Group_B:Other', 4)], referenceAnchors: [] },
 ];
-window.G25_MEDIEVAL_REFERENCES = {
+window.G25_TURKISH_MEDIEVAL_REFERENCES = {
   early: [pcaRow('Rum:Early', 5, 'medieval')],
   late: [pcaRow('Rum:Late', 6, 'medieval'), pcaRow('Türk:Late', 7, 'medieval')],
 };
@@ -209,24 +209,24 @@ groupButton.listeners.click({ preventDefault() { prevented = true; }, stopPropag
 assert.ok(prevented && stopped);
 assert.equal(document.querySelector('#blacklist-count').textContent, '1');
 assert.equal(JSON.parse(storage.get('g25-temporary-blacklist'))[0].group, true);
-assert.equal(api.allowedPcaReferences(window.G25_MODERN_PCAS[0]).map((row) => row[1]).join(','), 'Group_B:Other');
-assert.equal(api.allowedPcaReferences(window.G25_MODERN_PCAS[1]).map((row) => row[1]).join(','), 'Group_B:Other');
+assert.equal(api.allowedPcaReferences(window.G25_TURKISH_MODERN_PCAS[0]).map((row) => row[1]).join(','), 'Group_B:Other');
+assert.equal(api.allowedPcaReferences(window.G25_TURKISH_MODERN_PCAS[1]).map((row) => row[1]).join(','), 'Group_B:Other');
 assert.equal(api.allowedReferences([pcaRow('Group_A:New', 8)]).length, 0);
 assert.equal(api.allowedReferences([pcaRow('Main_Dataset_Alias', 3)]).length, 0);
 const groupRule = document.querySelector('#blacklist-list').children[0];
 assert.equal(groupRule.children[0].children[1].textContent, 'modern · entire group');
 groupRule.children[2].listeners.click();
-assert.equal(api.allowedPcaReferences(window.G25_MODERN_PCAS[0]).length, 3);
-assert.equal(api.allowedPcaReferences(window.G25_MODERN_PCAS[1]).length, 2);
+assert.equal(api.allowedPcaReferences(window.G25_TURKISH_MODERN_PCAS[0]).length, 3);
+assert.equal(api.allowedPcaReferences(window.G25_TURKISH_MODERN_PCAS[1]).length, 2);
 
 // Medieval rules cover both periods and remain scoped to their reference category.
 api.changeBlacklist({ category: 'medieval', label: 'Rum', group: true }, true);
-assert.equal(api.allowedReferences(window.G25_MEDIEVAL_REFERENCES.early).length, 0);
-assert.equal(api.allowedReferences(window.G25_MEDIEVAL_REFERENCES.late).map((row) => row[1]).join(','), 'Türk:Late');
+assert.equal(api.allowedReferences(window.G25_TURKISH_MEDIEVAL_REFERENCES.early).length, 0);
+assert.equal(api.allowedReferences(window.G25_TURKISH_MEDIEVAL_REFERENCES.late).map((row) => row[1]).join(','), 'Türk:Late');
 assert.equal(api.allowedReferences([pcaRow('Rum:Modern', 5)]).length, 1);
 document.querySelector('#blacklist-clear').listeners.click();
-assert.equal(api.allowedReferences(window.G25_MEDIEVAL_REFERENCES.early).length, 1);
-assert.equal(api.allowedReferences(window.G25_MEDIEVAL_REFERENCES.late).length, 2);
+assert.equal(api.allowedReferences(window.G25_TURKISH_MEDIEVAL_REFERENCES.early).length, 1);
+assert.equal(api.allowedReferences(window.G25_TURKISH_MEDIEVAL_REFERENCES.late).length, 2);
 
 // Bulk actions apply the full search, including rows beyond the visible first 20.
 const bulkRows = Array.from({length: 25}, (_, index) => pcaRow(`Bulk_Phrase_${index}`, index));

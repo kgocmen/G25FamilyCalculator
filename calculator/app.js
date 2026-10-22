@@ -3,9 +3,11 @@
 
   const globalReferences = window.G25_REFERENCES || [];
   const turkishReferences = window.G25_TURKISH_REFERENCES || [];
-  const modernPcas = window.G25_MODERN_PCAS || [];
-  const mixedPca = window.G25_MODERN_MIXED_PCA || null;
-  const medievalReferences = window.G25_MEDIEVAL_REFERENCES || { early: [], late: [] };
+  const modernPcas = window.G25_TURKISH_MODERN_PCAS || [];
+  const globalModernPcas = window.G25_MODERN_PCAS || [];
+  const turkishMixedPca = window.G25_TURKISH_MODERN_MIXED_PCA || null;
+  const globalMixedPca = window.G25_MODERN_MIXED_PCA || null;
+  const medievalReferences = window.G25_TURKISH_MEDIEVAL_REFERENCES || { early: [], late: [] };
   let references = globalReferences;
   const core = window.G25Core;
   const names = {
@@ -120,11 +122,19 @@
       ...(customEnabled ? customReferences.values() : [])];
   }
 
+  function activeModernPcas() {
+    return state.turkish ? modernPcas : globalModernPcas;
+  }
+
+  function activeMixedPca() {
+    return state.turkish ? turkishMixedPca : globalMixedPca;
+  }
+
   function onlyUseReferenceRows() {
     if (!whitelist.size) return [];
     const pool = [...activeReferenceRows(),
-      ...(state.turkish ? modernPcas.flatMap((pca) => pca.references) : []),
-      ...(state.turkish && mixedPca ? mixedPca.references : []),
+      ...activeModernPcas().flatMap((pca) => pca.references),
+      ...(activeMixedPca()?.references || []),
       ...(medievalReferences.early || []), ...(medievalReferences.late || [])];
     const seen = new Set();
     return allowedReferences(pool).filter((row) => {
@@ -164,7 +174,9 @@
     if (!excludedGroupKeys.size) return;
     const rows = [...globalReferences, ...turkishReferences, ...customReferences.values(),
       ...modernPcas.flatMap((pca) => pca.references),
-      ...(mixedPca ? mixedPca.references : []),
+      ...globalModernPcas.flatMap((pca) => pca.references),
+      ...(turkishMixedPca?.references || []),
+      ...(globalMixedPca?.references || []),
       ...(medievalReferences.early || []), ...(medievalReferences.late || [])];
     for (const row of rows) {
       if (excludedGroupKeys.has(ancestryGroupKey(row))) excludedGroupCoordinates.add(groupCoordinateKey(row));
@@ -195,6 +207,12 @@
   function regularPcaReferences(pca) {
     return allowedPcaReferences(pca).filter((row) =>
       !window.G25ModernPca.isIstanbulReference(row));
+  }
+
+  function pcaFitReferences(pca) {
+    const rows = pca.id === "mixed" ? pca.references : regularPcaReferences(pca);
+    return state.turkish ? rows
+      : window.G25ModernPca.selectFitReferences(state.single, rows, core.nearestMatches);
   }
 
   function changeBlacklist(item, excluded) {
@@ -348,8 +366,8 @@
     if (!query) return [];
     const words = query.split(/\s+/);
     const pool = [...activeReferenceRows(),
-      ...(state.turkish ? modernPcas.flatMap((pca) => pca.references) : []),
-      ...(state.turkish && mixedPca ? mixedPca.references : []),
+      ...activeModernPcas().flatMap((pca) => pca.references),
+      ...(activeMixedPca()?.references || []),
       ...(medievalReferences.early || []), ...(medievalReferences.late || [])];
     const seen = new Set();
     const matches = [];
@@ -848,7 +866,9 @@
     references = allowedReferences(activeReferenceRows());
     renderBlacklist();
     $("#turkish-toggle").checked = state.turkish;
-    $("#analysis-tabs").hidden = mode !== 1 || !state.turkish || !state.single;
+    $("#analysis-tabs").hidden = mode !== 1 || !state.single;
+    $("#early-medieval-tab").hidden = !state.turkish;
+    $("#late-medieval-tab").hidden = !state.turkish;
     $("#medieval-breakdown-panel").hidden = true;
     $("#visualise-neighbor-control").hidden = true;
     $("#visualise-cluster-control").hidden = true;
@@ -884,7 +904,8 @@
     for (const selector of ["#visualise-category-filter", "#visualise-limit-filter", "#visualise-lock-controls"]) {
       $(selector).hidden = mode !== 9;
     }
-    $("#copy-admixed").hidden = mode !== 9 && !(mode === 1 && state.turkish && isPeriodView());
+    $("#copy-admixed").hidden = mode !== 9 && !(mode === 1 && isPeriodView() &&
+      (state.turkish || state.analysisView === "modern"));
     $("#medieval-breakdown-list").classList.toggle("visualise-breakdown", mode === 9);
     if (mode === 9) {
       renderVisualise();
@@ -1084,7 +1105,7 @@
     }
     updateAnalysisView();
     if (!state.single) return;
-    if (state.turkish && isPeriodView()) {
+    if (isPeriodView() && (state.turkish || state.analysisView === "modern")) {
       renderMedievalBreakdown();
       return;
     }
@@ -1400,7 +1421,8 @@
   }
 
   function updateAnalysisView() {
-    const periodView = state.mode === 1 && state.turkish && isPeriodView();
+    const periodView = state.mode === 1 && isPeriodView() &&
+      (state.turkish || state.analysisView === "modern");
     $("#copy-admixed").hidden = state.mode !== 9 && !periodView;
     const available = state.mode === 1 && Boolean(state.single) && (periodView || references.length > 0);
     for (const [selector, active] of [
@@ -1429,6 +1451,7 @@
   function populateModernPcaSelect() {
     const chooser = $("#modern-pca-chooser");
     const options = $("#modern-pca-options");
+    const mixedPca = activeMixedPca();
     if (!modernMixedPca && mixedPca) {
       const included = allowedPcaReferences(mixedPca);
       modernMixedPca = included.length >= 3 ? { ...mixedPca, references: included } : null;
@@ -1436,8 +1459,8 @@
     if (state.modernPcaId === "mixed" && !modernMixedPca) state.modernPcaId = "auto";
     options.replaceChildren();
     const choices = modernMixedPca
-      ? [...modernPcas, modernMixedPca]
-      : modernPcas;
+      ? [...activeModernPcas(), modernMixedPca]
+      : activeModernPcas();
     const rankedPcas = window.G25ModernPca.rankModernPcas(
       state.single, choices, core.nearestMatches,
       (pca) => pca.id === "mixed" ? pca.references : allowedPcaReferences(pca),
@@ -1530,8 +1553,9 @@
         .map(({ pca }) => pca.id);
       closestPcaId = closestPcaIds[0] || null;
       const { closest, pca } = window.G25ModernPca.selectModernPca(state.single,
-        allowedReferences(turkishReferences.filter((row) => row[0] === "modern")),
-        modernPcas, core.nearestMatches, state.modernPcaId, allowedPcaReferences, rankedPcas);
+        allowedReferences((state.turkish ? turkishReferences : globalReferences)
+          .filter((row) => row[0] === "modern")),
+        activeModernPcas(), core.nearestMatches, state.modernPcaId, allowedPcaReferences, rankedPcas);
       closestModern = closest;
       const closestFit = modernPcaFitDistances.get(closestPcaId);
       const mixedFit = modernPcaFitDistances.get("mixed");
@@ -1586,7 +1610,7 @@
         }
       };
       worker.onmessage = ({ data }) => {
-        if (data.requestId !== medievalRequest || state.mode !== 1 || !state.turkish ||
+        if (data.requestId !== medievalRequest || state.mode !== 1 ||
             !isPeriodView()) return;
         if (data.error) {
           finish();
@@ -1611,7 +1635,9 @@
         if (data.pca && data.pca.id !== displayedPcaId) {
           $("#medieval-breakdown-title").textContent = `Modern · ${data.pca.title}`;
           $("#pca-heading-title").textContent = `${data.pca.title} PCA`;
-          renderMedievalPca(data.pca.references, data.pca.title, true, closestModern,
+          const fullPca = activeModernPcas().find((pca) => pca.id === data.pca.id);
+          renderMedievalPca(fullPca ? regularPcaReferences(fullPca) : data.pca.references,
+            data.pca.title, true, closestModern,
             false, { groupStyle: data.pca.id === "mixed" ? "mixed" : "modern" });
         }
         renderMedievalFit(data.fit, isModern);
@@ -1621,15 +1647,18 @@
         finish();
         status.textContent = "Analysis could not start in this browser.";
       };
-      worker.postMessage({ requestId, target: state.single, references: periodReferences,
+      worker.postMessage({ requestId, target: state.single,
+        references: isModern && !state.turkish
+          ? window.G25ModernPca.selectFitReferences(state.single, periodReferences, core.nearestMatches)
+          : periodReferences,
         groupLimit: isModern ? state.modernGroupLimit : state.medievalGroupLimit,
         defaultGroupLimit: modernPcaFitDistances.get(displayedPcaId)?.groupLimit,
         groupStyle: isModern ? (displayedPcaId === "mixed" ? "mixed" : "modern") : "colon",
         selectedPcaId: isModern ? state.modernPcaId : null,
         closestPcaId, closestPcaIds,
         modernPcas: scanModernPcas ? [
-          ...modernPcas.map((pca) => ({
-            id: pca.id, title: pca.title, references: regularPcaReferences(pca),
+          ...activeModernPcas().map((pca) => ({
+            id: pca.id, title: pca.title, references: pcaFitReferences(pca),
           })),
           ...(modernMixedPca ? [modernMixedPca] : []),
         ] : null });
@@ -1651,7 +1680,8 @@
     let projection;
     const clusterFit = options.clusterFit || null;
     const modernReferences = options.references || (isModern
-      ? allowedReferences(turkishReferences.filter((row) => row[0] === "modern"))
+      ? allowedReferences((state.turkish ? turkishReferences : globalReferences)
+        .filter((row) => row[0] === "modern"))
       : references.filter((row) => row[0] === "modern"));
     const closestModern = clusterFit ? [] : isModern ? (closest ? [closest] : [])
       : core.nearestMatches(state.single, modernReferences, 3);
@@ -2814,7 +2844,7 @@
     modernMixedPca = null;
     modernMixedDirty = true;
     modernPcaFitDistances.clear();
-    if (state.modernPcaId === "mixed") state.modernPcaId = "auto";
+    state.modernPcaId = "auto";
     if (!state.turkish) state.analysisView = "results";
     updateSelectedReferences(activeReferenceRows());
     render();
@@ -2833,7 +2863,9 @@
       if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
       event.preventDefault();
       const direction = event.key === "ArrowRight" ? 1 : -1;
-      const other = $(analysisTabSelectors[(index + direction + analysisTabSelectors.length) % analysisTabSelectors.length]);
+      const visible = analysisTabSelectors.map((candidate) => $(candidate)).filter((candidate) => !candidate.hidden);
+      const current = visible.indexOf(button);
+      const other = visible[(current + direction + visible.length) % visible.length];
       other.click();
       other.focus();
     });

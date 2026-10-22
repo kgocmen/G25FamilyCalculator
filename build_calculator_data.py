@@ -11,11 +11,14 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 OUTPUT = ROOT / "calculator" / "references.js"
 TURKISH_OUTPUT = ROOT / "calculator" / "turkish_references.js"
-MEDIEVAL_OUTPUT = ROOT / "calculator" / "medieval_references.js"
-MODERN_PCA_OUTPUT = ROOT / "calculator" / "modern_pca_references.js"
+MEDIEVAL_OUTPUT = ROOT / "calculator" / "turkish_medieval_references.js"
+MODERN_PCA_OUTPUT = ROOT / "calculator" / "turkish_modern_pca_references.js"
+GLOBAL_MODERN_PCA_OUTPUT = ROOT / "calculator" / "modern_pca_references.js"
 MODERN_PCA_DIRECTORY = ROOT / "data" / "pca"
-MODERN_PCA_MIXED_SOURCE = MODERN_PCA_DIRECTORY / "turkish_modern_pca_mixed_g25.txt"
-MODERN_PCA_MIXED_OUTPUT = ROOT / "calculator" / "mixed_pca_references.js"
+MODERN_PCA_MIXED_SOURCE = MODERN_PCA_DIRECTORY / "turkish_modern_pca_mixed.g25.txt"
+MODERN_PCA_MIXED_OUTPUT = ROOT / "calculator" / "turkish_mixed_pca_references.js"
+GLOBAL_MODERN_PCA_MIXED_SOURCE = MODERN_PCA_DIRECTORY / "modern_pca_mixed.g25.txt"
+GLOBAL_MODERN_PCA_MIXED_OUTPUT = ROOT / "calculator" / "mixed_pca_references.js"
 
 
 def read_rows(path: Path, category: str) -> list[list]:
@@ -37,11 +40,13 @@ def read_rows(path: Path, category: str) -> list[list]:
     return rows
 
 
-def read_modern_pcas(modern_rows: list[list], directory: Path = MODERN_PCA_DIRECTORY) -> list[dict]:
-    config = json.loads((directory / "turkish_pca_config.txt").read_text(encoding="utf-8"))
+def read_modern_pcas(modern_rows: list[list], directory: Path = MODERN_PCA_DIRECTORY,
+                     config_name: str = "turkish_pca_config.txt", label_anchors: bool = False) -> list[dict]:
+    config = json.loads((directory / config_name).read_text(encoding="utf-8"))
     if not isinstance(config, dict) or not isinstance(config.get("modern"), list):
         raise ValueError("PCA config must contain a modern list")
     modern_by_coordinates = {tuple(row[2:]): row[1] for row in modern_rows}
+    modern_by_label = {row[1]: row for row in modern_rows}
     result = []
     ids = set()
     for entry in config["modern"]:
@@ -52,16 +57,22 @@ def read_modern_pcas(modern_rows: list[list], directory: Path = MODERN_PCA_DIREC
             raise ValueError(f"Duplicate modern PCA id: {entry['id']}")
         ids.add(entry["id"])
         filename = entry["file"]
-        if Path(filename).name != filename or not filename.endswith("_g25.txt"):
+        if Path(filename).name != filename or not filename.endswith(".g25.txt"):
             raise ValueError(f"Invalid PCA filename: {filename}")
         rows = read_rows(directory / filename, "modern")
         if len(rows) < 3:
             raise ValueError(f"{filename}: PCA needs at least three references")
         anchors = []
         for row in rows:
-            label = modern_by_coordinates.get(tuple(row[2:]))
-            if label is None:
-                raise ValueError(f"{filename}: {row[1]} is not in the Turkish modern dataset")
+            if label_anchors:
+                label = row[1].split(":", 1)[-1]
+                source = modern_by_label.get(label)
+                if source is None or source[2:] != row[2:]:
+                    raise ValueError(f"{filename}: {row[1]} does not match the global modern dataset")
+            else:
+                label = modern_by_coordinates.get(tuple(row[2:]))
+                if label is None:
+                    raise ValueError(f"{filename}: {row[1]} is not in the Turkish modern dataset")
             anchors.append(label)
         result.append({"id": entry["id"], "title": entry["title"],
                        "references": rows, "referenceAnchors": anchors,
@@ -69,10 +80,16 @@ def read_modern_pcas(modern_rows: list[list], directory: Path = MODERN_PCA_DIREC
     return result
 
 
-def rebuild_mixed_pca(pcas: list[dict], output: Path = MODERN_PCA_MIXED_SOURCE) -> int:
+def read_global_modern_pcas(modern_rows: list[list], directory: Path = MODERN_PCA_DIRECTORY) -> list[dict]:
+    """Load the editable global PCA files and validate their source coordinates."""
+    return read_modern_pcas(modern_rows, directory, "pca_config.txt", label_anchors=True)
+
+
+def rebuild_mixed_pca(pcas: list[dict], output: Path = MODERN_PCA_MIXED_SOURCE,
+                      excluded_ids: frozenset[str] = frozenset({"istanbul"})) -> int:
     lines = []
     for pca in pcas:
-        if pca["id"] == "istanbul":
+        if pca["id"] in excluded_ids:
             continue
         groups = {}
         for row in pca["references"]:
@@ -91,18 +108,40 @@ def rebuild_mixed_pca(pcas: list[dict], output: Path = MODERN_PCA_MIXED_SOURCE) 
     return len(lines)
 
 
+def write_mixed_bundle(rows: list[list], output: Path, symbol: str) -> None:
+    if len(rows) < 3:
+        raise ValueError("Mixed PCA needs at least three references")
+    output.write_text(
+        f"window.{symbol} = "
+        + json.dumps({"id": "mixed", "title": "Mixed PCA", "references": rows,
+                      "referenceAnchors": []}, ensure_ascii=False, separators=(",", ":")) + ";\n",
+        encoding="utf-8",
+    )
+    print(f"Bundled {len(rows)} mixed PCA references into {output}")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--turkish", action="store_true", help="Rebuild only the Turkish modern, ancient, medieval and PCA bundles")
     args = parser.parse_args()
     if not args.turkish:
-        rows = read_rows(ROOT / "data" / "modern_g25.txt", "modern")
-        rows += read_rows(ROOT / "data" / "ancient_g25.txt", "ancient")
+        global_modern_rows = read_rows(ROOT / "data" / "modern_g25.txt", "modern")
+        rows = global_modern_rows + read_rows(ROOT / "data" / "ancient_g25.txt", "ancient")
         OUTPUT.write_text(
             "window.G25_REFERENCES = " + json.dumps(rows, ensure_ascii=False, separators=(",", ":")) + ";\n",
             encoding="utf-8",
         )
         print(f"Bundled {len(rows)} references into {OUTPUT}")
+        global_pcas = read_global_modern_pcas(global_modern_rows)
+        GLOBAL_MODERN_PCA_OUTPUT.write_text(
+            "window.G25_MODERN_PCAS = "
+            + json.dumps(global_pcas, ensure_ascii=False, separators=(",", ":")) + ";\n",
+            encoding="utf-8",
+        )
+        print(f"Bundled {len(global_pcas)} global modern PCA into {GLOBAL_MODERN_PCA_OUTPUT}")
+        rebuild_mixed_pca(global_pcas, GLOBAL_MODERN_PCA_MIXED_SOURCE, frozenset())
+        write_mixed_bundle(read_rows(GLOBAL_MODERN_PCA_MIXED_SOURCE, "modern"),
+                           GLOBAL_MODERN_PCA_MIXED_OUTPUT, "G25_MODERN_MIXED_PCA")
     turkish_rows = read_rows(ROOT / "data" / "turkish_modern_g25.txt", "modern")
     turkish_rows += read_rows(ROOT / "data" / "turkish_ancient_g25.txt", "ancient")
     TURKISH_OUTPUT.write_text(
@@ -112,28 +151,21 @@ def main() -> None:
     print(f"Bundled {len(turkish_rows)} Turkish modern and ancient references into {TURKISH_OUTPUT}")
     modern_pcas = read_modern_pcas([row for row in turkish_rows if row[0] == "modern"])
     MODERN_PCA_OUTPUT.write_text(
-        "window.G25_MODERN_PCAS = "
+        "window.G25_TURKISH_MODERN_PCAS = "
         + json.dumps(modern_pcas, ensure_ascii=False, separators=(",", ":")) + ";\n",
         encoding="utf-8",
     )
     print(f"Bundled {len(modern_pcas)} Turkish modern PCA into {MODERN_PCA_OUTPUT}")
     rebuild_mixed_pca(modern_pcas)
     mixed_rows = read_rows(MODERN_PCA_MIXED_SOURCE, "modern")
-    if len(mixed_rows) < 3:
-        raise ValueError("Mixed PCA needs at least three references")
-    MODERN_PCA_MIXED_OUTPUT.write_text(
-        "window.G25_MODERN_MIXED_PCA = "
-        + json.dumps({"id": "mixed", "title": "Mixed PCA", "references": mixed_rows,
-                      "referenceAnchors": []}, ensure_ascii=False, separators=(",", ":")) + ";\n",
-        encoding="utf-8",
-    )
-    print(f"Bundled {len(mixed_rows)} mixed PCA references into {MODERN_PCA_MIXED_OUTPUT}")
+    write_mixed_bundle(mixed_rows, MODERN_PCA_MIXED_OUTPUT,
+                       "G25_TURKISH_MODERN_MIXED_PCA")
     medieval_rows = {
         "early": read_rows(ROOT / "data" / "turkish_early_medieval_g25.txt", "medieval"),
         "late": read_rows(ROOT / "data" / "turkish_late_medieval_g25.txt", "medieval"),
     }
     MEDIEVAL_OUTPUT.write_text(
-        "window.G25_MEDIEVAL_REFERENCES = " + json.dumps(medieval_rows, ensure_ascii=False, separators=(",", ":")) + ";\n",
+        "window.G25_TURKISH_MEDIEVAL_REFERENCES = " + json.dumps(medieval_rows, ensure_ascii=False, separators=(",", ":")) + ";\n",
         encoding="utf-8",
     )
     print(f"Bundled {len(medieval_rows['early'])} early and {len(medieval_rows['late'])} late Turkish medieval references into {MEDIEVAL_OUTPUT}")

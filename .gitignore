@@ -1,9 +1,11 @@
-# Keep the curated Turkish sources alongside their browser bundle.
+# Keep the editable PCA and Turkish source files alongside their browser bundles.
 data/*
 !data/pca/
 data/pca/*
 !data/pca/turkish_pca_config.txt
-!data/pca/turkish_modern_pca*_g25.txt
+!data/pca/pca_config.txt
+!data/pca/modern_pca*.g25.txt
+!data/pca/turkish_modern_pca*.g25.txt
 !data/turkish_modern_g25.txt
 !data/turkish_ancient_g25.txt
 !data/turkish_early_medieval_g25.txt

@@ -87,7 +87,7 @@ test("modern PCA limits each group to four samples at every group count", () => 
 });
 
 test("modern PCA recovers the four-sample eastern Mediterranean mixture", () => {
-  const bundle = fs.readFileSync(path.join(__dirname, "modern_pca_references.js"), "utf8");
+  const bundle = fs.readFileSync(path.join(__dirname, "turkish_modern_pca_references.js"), "utf8");
   const pcas = JSON.parse(bundle.slice(bundle.indexOf("=") + 1).trim().replace(/;$/, ""));
   const references = pcas.find((pca) => pca.id === "guney-anadolu").references;
   const target = { values: [
@@ -140,7 +140,7 @@ test("modern group limit refits selected groups", () => {
 });
 
 test("modern group cap can use nearby Kayseri after the İç Anadolu groups merge", () => {
-  const lines = fs.readFileSync(path.join(__dirname, "../data/pca/turkish_modern_pca7_g25.txt"), "utf8")
+  const lines = fs.readFileSync(path.join(__dirname, "../data/pca/turkish_modern_pca7.g25.txt"), "utf8")
     .trim().split(/\r?\n/);
   const references = lines.map((line) => {
     const [label, ...values] = line.split(",");

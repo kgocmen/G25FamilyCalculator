@@ -5,6 +5,20 @@ function G25ModernPcaModule(root) {
     return row[1].split(":", 1)[0] === "Türk_İstanbul";
   }
 
+  function selectFitReferences(target, references, nearestMatches, perGroup = 12) {
+    const groups = new Map();
+    for (const row of references) {
+      const name = row[1].split(":", 1)[0];
+      if (!groups.has(name)) groups.set(name, []);
+      groups.get(name).push(row);
+    }
+    const selected = new Set();
+    for (const rows of groups.values()) {
+      for (const match of nearestMatches(target, rows, perGroup)) selected.add(rows[match.id]);
+    }
+    return references.filter((row) => selected.has(row));
+  }
+
   function selectModernPca(target, modernReferences, pcas, nearestMatches, selectedId = "auto",
     referencesForPca = (pca) => pca.references, rankedPcas = null) {
     const eligibleReferences = modernReferences.filter((row) => !isIstanbulReference(row));
@@ -48,7 +62,7 @@ function G25ModernPcaModule(root) {
       Number.isFinite(mixedFitDistance) && mixedFitDistance < closestFitDistance;
   }
 
-  const api = { selectModernPca, rankModernPcas, defaultGroupFit,
+  const api = { selectModernPca, rankModernPcas, selectFitReferences, defaultGroupFit,
     shouldAutoSelectMixed, isIstanbulReference };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else {
