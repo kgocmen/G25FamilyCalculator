@@ -5,6 +5,10 @@ function G25MedievalModule(root) {
   const MAX_SAMPLES_PER_GROUP = 4;
 
   function groupName(label, groupStyle) {
+    if (groupStyle === "deep") {
+      const colon = label.lastIndexOf(":");
+      return colon < 0 ? label : label.slice(0, colon).trim();
+    }
     if (groupStyle === "modern" || groupStyle === "mixed") {
       const colon = label.indexOf(":");
       return colon < 0 ? label.split("_", 1)[0] : label.slice(0, colon);
@@ -113,7 +117,7 @@ function G25MedievalModule(root) {
         label,
         referenceIndex: index,
         ethnicity: groupName(label, groupStyle),
-        sample: colon < 0 ? label : label.slice(colon + 1),
+        sample: colon < 0 ? label : label.slice(groupStyle === "deep" ? label.lastIndexOf(":") + 1 : colon + 1).trim(),
         weight: weight / total,
       };
     }).sort((a, b) => b.weight - a.weight || a.label.localeCompare(b.label));
@@ -159,7 +163,7 @@ function G25MedievalModule(root) {
   }
 
   function fitAdmixture(target, references, groupLimit = 5, groupStyle = "colon") {
-    if (groupStyle !== "colon" && groupStyle !== "modern" && groupStyle !== "mixed") {
+    if (groupStyle !== "colon" && groupStyle !== "modern" && groupStyle !== "mixed" && groupStyle !== "deep") {
       throw new Error("Unknown ancestry grouping.");
     }
     const allowedLimits = groupStyle === "colon" ? [3, 4, 5] : [1, 2, 3, 4, 5];
@@ -170,7 +174,13 @@ function G25MedievalModule(root) {
     const unrestricted = fitWithSampleCap(target, references, groupStyle);
     if (unrestricted.groups.length <= groupLimit) return unrestricted;
     const referenceGroup = (row) => groupName(Array.isArray(row) ? row[1] : row.label, groupStyle);
-    const names = [...new Set(references.map(referenceGroup))].sort();
+    // The unrestricted deep fit has already examined every eligible reference.
+    // Limit the subset search to its contributing subregions; deep maps can have
+    // dozens of subregions, making an all-combinations search impractical.
+    const names = groupStyle === "deep"
+      ? unrestricted.groups.map((group) => group.ethnicity).slice(0, 8).sort()
+      : [...new Set(references.map(referenceGroup))].sort();
+    if (names.length <= groupLimit) return unrestricted;
     let best = null;
     // Every smaller group set is contained in a set of the requested size.
     // Fitting the requested-size sets therefore also covers smaller fits.
@@ -197,7 +207,42 @@ function G25MedievalModule(root) {
     return best;
   }
 
-  const api = { fitAdmixture };
+  function fitDeepAdmixture(target, references, groupLimit = null) {
+    if (!target || !Array.isArray(target.values) || target.values.length !== DIMENSIONS ||
+        !target.values.every(Number.isFinite)) {
+      throw new Error("The input needs 25 finite G25 coordinates.");
+    }
+    if (!Array.isArray(references) || !references.length) throw new Error("References are unavailable.");
+    // Every eligible row can qualify. As with the regular modern PCA fit,
+    // retain the closest samples per group before solving the mixture.
+    const bySubregion = new Map();
+    references.forEach((row, index) => {
+      const label = Array.isArray(row) ? row[1] : row.label;
+      const values = Array.isArray(row) ? row.slice(2) : row.values;
+      if (!Array.isArray(values) || values.length !== DIMENSIONS || !values.every(Number.isFinite)) {
+        throw new Error("A reference has invalid G25 coordinates.");
+      }
+      const name = groupName(label, "deep");
+      const distance = values.reduce((sum, value, dimension) =>
+        sum + (value - target.values[dimension]) ** 2, 0);
+      if (!bySubregion.has(name)) bySubregion.set(name, []);
+      bySubregion.get(name).push({ row, index, distance });
+    });
+    const included = new Set([...bySubregion.values()].flatMap((rows) =>
+      rows.sort((a, b) => a.distance - b.distance || a.index - b.index)
+        .slice(0, MAX_SAMPLES_PER_GROUP).map(({ index }) => index)));
+    const selected = references.map((row, index) => ({ row, index }))
+      .filter(({ index }) => included.has(index));
+    const fit = groupLimit === null
+      ? fitWithSampleCap(target, selected.map(({ row }) => row), "deep")
+      : fitAdmixture(target, selected.map(({ row }) => row), groupLimit, "deep");
+    fit.components.forEach((component) => {
+      component.referenceIndex = selected[component.referenceIndex].index;
+    });
+    return fit;
+  }
+
+  const api = { fitAdmixture, fitDeepAdmixture };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else {
     root.G25Medieval = api;

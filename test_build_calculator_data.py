@@ -57,6 +57,36 @@ class ReadRowsTests(unittest.TestCase):
                 encoding="utf-8")
             shared = read_modern_pcas(modern, path)
             self.assertEqual([pca["anchorLabels"] for pca in shared], [["Sample"], ["Sample"]])
+            (path / "turkish_pca_config.txt").write_text(
+                '{"modern":[{"id":"regional","title":"Region","file":"regional.g25.txt"},'
+                '{"id":"other","title":"Other","file":"regional.g25.txt"}]}',
+                encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "Duplicate modern PCA file"):
+                read_modern_pcas(modern, path)
+            (path / "turkish_pca_config.txt").write_text(
+                '{"modern":[{"id":"regional","title":"Region","file":"regional.g25.txt"}]}',
+                encoding="utf-8")
+            (path / "regional_deep.g25.txt").write_text(
+                f"Group: Inner: One,{coordinates}\n", encoding="utf-8")
+            self.assertEqual(read_modern_pcas(modern, path)[0]["deepReferenceAnchors"], ["Sample"])
+            (path / "regional_deep.g25.txt").write_text(
+                f"Other: Inner: One,{coordinates}\n", encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "unknown main PCA group"):
+                read_modern_pcas(modern, path)
+
+            (path / "regional_deep.g25.txt").write_text(
+                f"Group: Inner: One,{coordinates}\n"
+                f"deprecated: Old region: Retired,{','.join(['1'] * 25)}\n"
+                f"Deprecated: Another retired,{','.join(['2'] * 25)}\n",
+                encoding="utf-8")
+            active = read_modern_pcas(modern, path)[0]
+            self.assertEqual([row[1] for row in active["deepReferences"]],
+                             ["Group: Inner: One"])
+            self.assertEqual(active["deepReferenceAnchors"], ["Sample"])
+            (path / "regional_deep.g25.txt").write_text(
+                f"deprecated: Old region: Retired,{','.join(['1'] * 25)}\n",
+                encoding="utf-8")
+            self.assertNotIn("deepReferences", read_modern_pcas(modern, path)[0])
 
     def test_mixed_pca_rebuilds_from_regular_maps_without_istanbul(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -96,24 +126,86 @@ class ReadRowsTests(unittest.TestCase):
             self.assertEqual({row[1].split(":", 1)[0] for row in rows},
                              {pca["title"].replace(" ", "_") for pca in pcas})
 
-    def test_global_pca7_has_current_groups_and_source_coordinates(self):
+    def test_global_west_asia_and_turkic_maps_have_current_groups(self):
         modern = read_rows(ROOT / "data" / "modern_g25.txt", "modern")
         by_label = {row[1]: row for row in modern}
-        west_asia = read_global_modern_pcas(modern)[6]["references"]
+        pcas = read_global_modern_pcas(modern)
+        west_asia = pcas[6]["references"]
         self.assertEqual(list(dict.fromkeys(row[1].split(":", 1)[0] for row in west_asia)),
-                         ["North Caucasus", "Turk Anatolia", "Turk East Anatolia",
-                          "Turk Azerbaijan", "Iranic West", "Armenian", "Georgia"])
+                         ["North Caucasus", "Iranic West", "Armenian", "Georgia",
+                          "Arabian Peninsula", "Levant", "Mesopotamia"])
         for group, prefix in (("North Caucasus", "Avar_"),
-                              ("Turk Anatolia", "Turkish_"),
-                              ("Turk East Anatolia", "Turkish_"),
-                              ("Turk Azerbaijan", "Azeri_"),
                               ("Iranic West", "Kurdish_"),
                               ("Armenian", "Armenian_"),
-                              ("Georgia", "Georgian_")):
+                              ("Georgia", "Georgian_"),
+                              ("Arabian Peninsula", "Saudi_Arab_"),
+                              ("Levant", "Palestinian_Arab_"),
+                              ("Mesopotamia", "Iraqi_Arab_")):
             self.assertTrue(any(row[1].startswith(f"{group}:{prefix}") for row in west_asia))
         self.assertEqual(len({row[1] for row in west_asia}), len(west_asia))
         for row in west_asia:
             self.assertEqual(row[2:], by_label[row[1].split(":", 1)[1]][2:])
+        turkic = pcas[11]["references"]
+        groups = {}
+        for row in turkic:
+            group, label = row[1].split(":", 1)
+            groups.setdefault(group, set()).add(label)
+        self.assertEqual(list(groups), ["Turk East", "Turk Anatolia", "Turk Iraq",
+                                        "Turk Balkans", "Turk Island",
+                                        "Turk Azerbaijan", "Turk Iran", "Turk Yoruk Cepni"])
+        self.assertIn("Turkish_Artvin_(n=7)", groups["Turk East"])
+        self.assertGreaterEqual(len(groups["Turk Balkans"]), 4)
+        self.assertGreaterEqual(len(groups["Turk Island"]), 4)
+        self.assertIn("Turkish_East_Thrace_Edirne_(n=2)", groups["Turk Balkans"])
+        self.assertIn("Turkish_North_Macedonia_(n=15)", groups["Turk Balkans"])
+        self.assertIn("Turkish_Cyprus_(n=33)", groups["Turk Island"])
+        self.assertIn("Turkish_Dodecanese_(n=2)", groups["Turk Island"])
+        self.assertIn("Greek_Crete_Muslim_(Cretan_Turk)_(n=8)", groups["Turk Island"])
+        self.assertIn("Iraqi_Turkmen_(n=18)", groups["Turk Iraq"])
+        self.assertIn("Azeri_Iran_East_Azerbaijan_Tabriz_(n=6)", groups["Turk Iran"])
+        self.assertIn("Azeri_Azerbaijan_(n=6)", groups["Turk Azerbaijan"])
+        self.assertIn("Turkish_Manisa_Yörük_(n=9)", groups["Turk Yoruk Cepni"])
+        self.assertEqual({row[1].split(":", 1)[1] for row in west_asia} &
+                         {row[1].split(":", 1)[1] for row in turkic},
+                         {"Iraqi_Turkmen_(n=18)", "Turkish_Cyprus_(n=33)"})
+
+    def test_global_pca12_deep_covers_turkish_azeri_and_related_populations(self):
+        modern = read_rows(ROOT / "data" / "modern_g25.txt", "modern")
+        source = {row[1]: row[2:] for row in modern}
+        pca12 = read_rows(ROOT / "data" / "pca" / "modern_pca12.g25.txt", "modern")
+        anchors = {row[1].split(":", 1)[1]: row[1].split(":", 1)[0] for row in pca12}
+        deep = read_rows(ROOT / "data" / "pca" / "modern_pca12_deep.g25.txt", "modern")
+        deprecated = [row for row in deep if row[1].split(":", 1)[0].strip().casefold() == "deprecated"]
+        active_deep = [row for row in deep if row[1].split(":", 1)[0].strip().casefold() != "deprecated"]
+        pcas = read_global_modern_pcas(modern)
+        self.assertEqual(pcas[11]["deepReferences"], active_deep)
+        self.assertEqual(pcas[11]["deepReferenceAnchors"],
+                         [row[1].split(": ")[-1] for row in active_deep])
+        self.assertTrue(all("deepReferences" not in pca for pca in pcas[:11]))
+        labels = set()
+        for row in active_deep:
+            parts = row[1].split(": ")
+            self.assertEqual(len(parts), 3, row[1])
+            group, subregion, label = parts
+            self.assertTrue(group and subregion)
+            self.assertNotIn(label, labels)
+            labels.add(label)
+            self.assertEqual(row[2:], source[label], label)
+            if label in anchors:
+                self.assertEqual(group, anchors[label], label)
+        self.assertTrue(set(anchors) <= labels)
+        self.assertTrue(any(row[1].startswith("Turk Balkans: Thrace: ") for row in deep))
+        self.assertTrue(any(row[1].startswith("Turk Island: Cyprus: ") for row in deep))
+        self.assertTrue(any(row[1].startswith("Turk Island: Aegean Islands: ") for row in deep))
+        self.assertTrue(any(row[1].startswith("Turk Island: Crete: ") for row in deep))
+        related = {"Iraqi_Turkmen_(n=18)", "Karapapakh_Turkey_Ardahan_(n=3)",
+                   "Karapapakh_Turkey_Iğdır_(n=1)", "Karapapakh_Turkey_Kars_(n=3)",
+                   "Khamseh_Turkic_(n=1)", "Khorasani_Turk_(n=2)",
+                   "Qashqai_(n=1)", "Turkmen_Golestan_(n=8)"}
+        expected = {label for label in source if label.startswith(("Turkish_", "Azeri_"))}
+        expected.add("Greek_Crete_Muslim_(Cretan_Turk)_(n=8)")
+        deprecated_labels = {row[1].rsplit(":", 1)[-1].strip() for row in deprecated}
+        self.assertEqual(labels, (expected | related) - deprecated_labels)
 
     def test_global_modern_maps_have_requested_regions_and_valid_anchors(self):
         modern = read_rows(ROOT / "data" / "modern_g25.txt", "modern")
@@ -121,9 +213,9 @@ class ReadRowsTests(unittest.TestCase):
         pcas = read_global_modern_pcas(modern)
         self.assertEqual([pca["title"] for pca in pcas],
                          ["Europe", "South Asia", "Central Asia and Siberia",
-                          "Sub-Saharan Africa", "North Africa", "Middle East", "West Asia",
+                          "Sub-Saharan Africa", "North Africa", "Jewish", "West Asia and Caucasus",
                           "East Asia", "Southeast Asia", "Australia and Pacific",
-                          "Indigenous America"])
+                          "Indigenous America", "West Turkistan"])
         europe = pcas[0]
         groups = list(dict.fromkeys(row[1].split(":", 1)[0] for row in europe["references"]))
         self.assertEqual(groups, ["French", "Iberia", "Italy", "Germanic", "Scandinavian",
@@ -178,6 +270,8 @@ class ReadRowsTests(unittest.TestCase):
                             for row in pcas[4]["references"]))
         self.assertTrue(any(row[1].startswith("Jewish communities:Ashkenazi_Jew_")
                             for row in pcas[5]["references"]))
+        self.assertEqual({row[1].split(":", 1)[0] for row in pcas[5]["references"]},
+                         {"Jewish communities"})
         self.assertTrue(any(row[1].startswith("Sinic:Han_")
                             for row in pcas[7]["references"]))
         self.assertTrue(any(row[1].startswith("Mainland Tai:Thai_")

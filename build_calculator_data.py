@@ -49,6 +49,7 @@ def read_modern_pcas(modern_rows: list[list], directory: Path = MODERN_PCA_DIREC
     modern_by_label = {row[1]: row for row in modern_rows}
     result = []
     ids = set()
+    filenames = set()
     for entry in config["modern"]:
         if not isinstance(entry, dict) or not all(isinstance(entry.get(key), str) and entry[key]
                                                    for key in ("id", "title", "file")):
@@ -59,6 +60,9 @@ def read_modern_pcas(modern_rows: list[list], directory: Path = MODERN_PCA_DIREC
         filename = entry["file"]
         if Path(filename).name != filename or not filename.endswith(".g25.txt"):
             raise ValueError(f"Invalid PCA filename: {filename}")
+        if filename in filenames:
+            raise ValueError(f"Duplicate modern PCA file: {filename}")
+        filenames.add(filename)
         rows = read_rows(directory / filename, "modern")
         if len(rows) < 3:
             raise ValueError(f"{filename}: PCA needs at least three references")
@@ -74,9 +78,47 @@ def read_modern_pcas(modern_rows: list[list], directory: Path = MODERN_PCA_DIREC
                 if label is None:
                     raise ValueError(f"{filename}: {row[1]} is not in the Turkish modern dataset")
             anchors.append(label)
-        result.append({"id": entry["id"], "title": entry["title"],
-                       "references": rows, "referenceAnchors": anchors,
-                       "anchorLabels": list(dict.fromkeys(anchors))})
+        pca = {"id": entry["id"], "title": entry["title"],
+               "references": rows, "referenceAnchors": anchors,
+               "anchorLabels": list(dict.fromkeys(anchors))}
+        deep_path = directory / filename.replace(".g25.txt", "_deep.g25.txt")
+        if deep_path.exists():
+            deep_rows = read_rows(deep_path, "modern")
+            if not deep_rows:
+                raise ValueError(f"{deep_path.name}: deep PCA needs references")
+            main_groups = {row[1].split(":", 1)[0].strip() for row in rows}
+            active_deep_rows = []
+            deep_anchors = []
+            deep_labels = set()
+            for row in deep_rows:
+                parts = [part.strip() for part in row[1].split(":")]
+                if len(parts) < 2 or any(not part for part in parts):
+                    raise ValueError(f"{deep_path.name}: expected Group: Subgroup: Population")
+                # Keep archived rows in the source file without shipping them to the calculator.
+                if parts[0].casefold() == "deprecated":
+                    continue
+                if len(parts) < 3:
+                    raise ValueError(f"{deep_path.name}: expected Group: Subgroup: Population")
+                if parts[0] not in main_groups:
+                    raise ValueError(f"{deep_path.name}: unknown main PCA group {parts[0]}")
+                if row[1] in deep_labels:
+                    raise ValueError(f"{deep_path.name}: duplicate deep reference {row[1]}")
+                deep_labels.add(row[1])
+                label = parts[-1]
+                if label_anchors:
+                    source = modern_by_label.get(label)
+                    if source is None or source[2:] != row[2:]:
+                        raise ValueError(f"{deep_path.name}: {row[1]} does not match the global modern dataset")
+                else:
+                    label = modern_by_coordinates.get(tuple(row[2:]))
+                    if label is None:
+                        raise ValueError(f"{deep_path.name}: {row[1]} is not in the Turkish modern dataset")
+                active_deep_rows.append(row)
+                deep_anchors.append(label)
+            if active_deep_rows:
+                pca["deepReferences"] = active_deep_rows
+                pca["deepReferenceAnchors"] = deep_anchors
+        result.append(pca)
     return result
 
 

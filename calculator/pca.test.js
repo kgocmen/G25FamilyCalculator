@@ -70,6 +70,15 @@ test("modern PCA uses prepared group names", () => {
     ["Türk_Anadolu", "Rum_Helen", "Ermeni"]);
 });
 
+test("deep PCA colours references by subregion", () => {
+  const references = [reference("Turk Anatolia: Inner: Sample A", -1, 0),
+    reference("Turk Anatolia: Inner: Sample B", 1, 0),
+    reference("Turk Anatolia: Aegean: Sample C", 0, 1)];
+  const projected = projectPca({ values: Array(25).fill(0) }, references, [], "deep");
+  assert.deepEqual(projected.points.map((point) => point.ethnicity),
+    ["Turk Anatolia: Inner", "Turk Anatolia: Inner", "Turk Anatolia: Aegean"]);
+});
+
 test("mixed PCA colours map points by the ethnicity after the colon", () => {
   const references = [reference("Batı_Anadolu:Türk_Orta_Karadeniz", -1, 0),
     reference("İç_Anadolu:Türk_Doğu_İç_Anadolu", 1, 0),

@@ -5,23 +5,23 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#14243b">
   <title>G25 Family Calculator</title>
-  <link rel="stylesheet" href="style.css?v=20261022-1">
+  <link rel="stylesheet" href="style.css?v=20261023-3">
   <script defer src="references.js?v=20261022-1"></script>
   <script defer src="turkish_references.js?v=20261022-1"></script>
-  <script defer src="modern_pca_references.js?v=20261022-4"></script>
-  <script defer src="mixed_pca_references.js?v=20261022-1"></script>
+  <script defer src="modern_pca_references.js?v=20261023-2"></script>
+  <script defer src="mixed_pca_references.js?v=20261023-2"></script>
   <script defer src="turkish_modern_pca_references.js?v=20261022-2"></script>
   <script defer src="turkish_mixed_pca_references.js?v=20261022-2"></script>
   <script defer src="turkish_medieval_references.js?v=20261022-2"></script>
   <script defer src="core.js?v=20261017-21"></script>
   <script defer src="mixture.js?v=20261015-5"></script>
-  <script defer src="medieval.js?v=20261021-1"></script>
+  <script defer src="medieval.js?v=20261023-2"></script>
   <script defer src="visualise.js?v=20261020-9"></script>
   <script defer src="clusters.js?v=20261020-1"></script>
-  <script defer src="pca.js?v=20261021-1"></script>
-  <script defer src="modern_pca.js?v=20261022-2"></script>
+  <script defer src="pca.js?v=20261023-1"></script>
+  <script defer src="modern_pca.js?v=20261023-1"></script>
   <script defer src="pca_layout.js?v=20261016-2"></script>
-  <script defer src="app.js?v=20261022-3"></script>
+  <script defer src="app.js?v=20261023-3"></script>
 </head>
 <body>
   <main class="shell">
@@ -213,6 +213,11 @@
               <div id="modern-pca-options" class="modern-pca-options" role="listbox" aria-label="Modern PCA"></div>
             </details>
           </div>
+          <label id="modern-deep-filter" class="match-filter deep-analysis-switch switch-label" hidden>
+            <span>Deep analysis</span>
+            <input id="modern-deep-toggle" class="switch-input" type="checkbox" role="switch" aria-label="Deep analysis">
+            <span class="switch-track" aria-hidden="true"></span>
+          </label>
           <label id="medieval-group-filter" class="match-filter medieval-group-filter">Max groups
             <select id="medieval-group-limit" aria-label="Maximum ancestry groups">
               <option value="3">3 groups</option>
@@ -220,7 +225,7 @@
               <option value="5" selected>5 groups</option>
             </select>
           </label>
-          <label id="modern-group-filter" class="match-filter medieval-group-filter" hidden>Max groups
+          <label id="modern-group-filter" class="match-filter medieval-group-filter" hidden><span id="modern-group-label">Max groups</span>
             <select id="modern-group-limit" aria-label="Maximum modern ancestry groups">
               <option value="auto" selected>Auto</option>
               <option value="1">1 group</option>

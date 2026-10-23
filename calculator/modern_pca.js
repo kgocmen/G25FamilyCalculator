@@ -19,6 +19,12 @@ function G25ModernPcaModule(root) {
     return references.filter((row) => selected.has(row));
   }
 
+  function selectDeepReferences(mainFit, deepReferences) {
+    const activeGroups = new Set((mainFit?.groups || [])
+      .filter((group) => group.weight > 0).map((group) => group.ethnicity));
+    return deepReferences.filter((row) => activeGroups.has(row[1].split(":", 1)[0].trim()));
+  }
+
   function selectModernPca(target, modernReferences, pcas, nearestMatches, selectedId = "auto",
     referencesForPca = (pca) => pca.references, rankedPcas = null) {
     const eligibleReferences = modernReferences.filter((row) => !isIstanbulReference(row));
@@ -57,12 +63,12 @@ function G25ModernPcaModule(root) {
     return selected;
   }
 
-  function shouldAutoSelectMixed(closestFitDistance, mixedFitDistance) {
-    return Number.isFinite(closestFitDistance) && closestFitDistance > 2 &&
-      Number.isFinite(mixedFitDistance) && mixedFitDistance < closestFitDistance;
+  function shouldAutoSelectMixed(bestRegularFitDistance, mixedFitDistance) {
+    return Number.isFinite(bestRegularFitDistance) && bestRegularFitDistance > 2 &&
+      Number.isFinite(mixedFitDistance) && mixedFitDistance < bestRegularFitDistance * 0.75;
   }
 
-  const api = { selectModernPca, rankModernPcas, selectFitReferences, defaultGroupFit,
+  const api = { selectModernPca, rankModernPcas, selectFitReferences, selectDeepReferences, defaultGroupFit,
     shouldAutoSelectMixed, isIstanbulReference };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else {

@@ -4,7 +4,7 @@ const path = require("node:path");
 const test = require("node:test");
 const { nearestMatches } = require("./core.js");
 const { selectModernPca, rankModernPcas, defaultGroupFit,
-  shouldAutoSelectMixed, isIstanbulReference, selectFitReferences } = require("./modern_pca.js");
+  shouldAutoSelectMixed, isIstanbulReference, selectFitReferences, selectDeepReferences } = require("./modern_pca.js");
 
 const row = (label, first) => ["modern", label, first, ...Array(24).fill(0)];
 const target = (first) => ({ label: "Input", values: [first, ...Array(24).fill(0)] });
@@ -44,6 +44,36 @@ test("large regional maps fit nearest samples from every group", () => {
     row("B:Far", -0.9), row("B:Near", -0.1), row("B:Middle", -0.2)];
   assert.deepEqual(selectFitReferences(target(0), references, nearestMatches, 2)
     .map((reference) => reference[1]), ["A:Near", "A:Middle", "B:Near", "B:Middle"]);
+});
+
+test("deep references use only groups present in the main PCA fit", () => {
+  const references = [row("Turk Anatolia: Inner: Sample A", 0),
+    row("Turk Anatolia: Aegean: Sample B", 0.1),
+    row("Turk East: Highlands: Sample C", 0.2),
+    row("Turk Anatolia Extended: Inner: Sample D", 0.3)];
+  assert.deepEqual(selectDeepReferences({ groups: [
+    { ethnicity: "Turk Anatolia", weight: 1 },
+    { ethnicity: "Turk East", weight: 0 },
+  ] }, references).map((reference) => reference[1]),
+  ["Turk Anatolia: Inner: Sample A", "Turk Anatolia: Aegean: Sample B"]);
+  assert.deepEqual(selectDeepReferences({ groups: [
+    { ethnicity: "Turk Anatolia", weight: 0.6 },
+    { ethnicity: "Turk East", weight: 0.4 },
+  ] }, references).map((reference) => reference[1]),
+  references.slice(0, 3).map((reference) => reference[1]));
+});
+
+test("global PCA bundles include deep references only for maps with a deep file", () => {
+  const bundle = fs.readFileSync(path.join(__dirname, "modern_pca_references.js"), "utf8");
+  const pcas = JSON.parse(bundle.slice(bundle.indexOf("=") + 1).trim().replace(/;$/, ""));
+  const pca = pcas.find((entry) => entry.id === "global-anatolian-turks-and-azerbaijanis");
+  const source = fs.readFileSync(path.join(__dirname, "../data/pca/modern_pca12_deep.g25.txt"), "utf8")
+    .trim().split(/\r?\n/).map((line) => line.split(",", 1)[0])
+    .filter((label) => label.split(":", 1)[0].trim().toLowerCase() !== "deprecated");
+  assert.deepEqual(pca.deepReferences.map((reference) => reference[1]), source);
+  assert.equal(pca.deepReferenceAnchors.length, source.length);
+  assert.ok(pcas.filter((entry) => entry.id !== pca.id)
+    .every((entry) => !entry.deepReferences));
 });
 
 test("reports the closest population independently of the best-fitting PCA", () => {
@@ -149,9 +179,12 @@ test("default group count advances only after a 25 percent fit improvement", () 
   assert.equal(defaultGroupFit([]), null);
 });
 
-test("mixed overrides auto only above two and with a strictly better auto fit", () => {
-  assert.equal(shouldAutoSelectMixed(2.001, 2), true);
+test("mixed overrides auto only above two and below 75 percent of the best regular fit", () => {
+  assert.equal(shouldAutoSelectMixed(2.001, 1.5), true);
+  assert.equal(shouldAutoSelectMixed(2.001, 2), false);
   assert.equal(shouldAutoSelectMixed(2, 1), false);
+  assert.equal(shouldAutoSelectMixed(3, 2.24), true);
+  assert.equal(shouldAutoSelectMixed(3, 2.25), false);
   assert.equal(shouldAutoSelectMixed(3, 3), false);
   assert.equal(shouldAutoSelectMixed(3, 3.1), false);
   assert.equal(shouldAutoSelectMixed(Infinity, 1), false);

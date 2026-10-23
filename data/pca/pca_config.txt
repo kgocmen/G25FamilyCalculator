@@ -26,13 +26,13 @@
       "file": "modern_pca5.g25.txt"
     },
     {
-      "id": "global-middle-east",
-      "title": "Middle East",
+      "id": "global-jewish",
+      "title": "Jewish",
       "file": "modern_pca6.g25.txt"
     },
     {
-      "id": "global-west-asia",
-      "title": "West Asia",
+      "id": "global-west-asia-and-caucasus",
+      "title": "West Asia and Caucasus",
       "file": "modern_pca7.g25.txt"
     },
     {
@@ -54,6 +54,11 @@
       "id": "global-indigenous-america",
       "title": "Indigenous America",
       "file": "modern_pca11.g25.txt"
+    },
+    {
+      "id": "global-anatolian-turks-and-azerbaijanis",
+      "title": "West Turkistan",
+      "file": "modern_pca12.g25.txt"
     }
   ]
 }
