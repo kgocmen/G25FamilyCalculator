@@ -67,13 +67,16 @@ test("deep mode keeps the main selection and shows whole-result subregion percen
   let source = fs.readFileSync(path.join(__dirname, "app.js"), "utf8");
   source = source.replace("  function renderMedievalPca(", "  function unusedRenderMedievalPca(");
   source = source.replace("  render();\n})();",
-    "  function renderMedievalPca(rows) { window.lastPcaRows = rows; window.plotCount = (window.plotCount || 0) + 1; }\n  window.testApi = { state, renderMedievalBreakdown, renderMedievalFit, renderDeepFit, blacklist, allowedPcaReferences, allowedDeepPcaReferences };\n  render();\n})();");
+    "  function renderMedievalPca(rows) { window.lastPcaRows = rows; window.plotCount = (window.plotCount || 0) + 1; }\n  window.testApi = { state, render, renderMedievalBreakdown, renderMedievalFit, renderDeepFit, blacklist, allowedPcaReferences, allowedDeepPcaReferences };\n  render();\n})();");
   vm.runInNewContext(source, { window, document, Worker, URL, Blob, sessionStorage });
-  const { state, renderMedievalBreakdown } = window.testApi;
-  state.mode = 1;
+  const { state, render } = window.testApi;
+  state.mode = 10;
   state.analysisView = "modern";
   state.single = { label: "Target", values: [0.6, ...Array(24).fill(0)] };
-  renderMedievalBreakdown();
+  render();
+  assert.equal(document.querySelector("#period-tabs").hidden, false);
+  assert.equal(document.querySelector("#medieval-breakdown-panel").hidden, false);
+  assert.equal(document.querySelector("#matches-panel").hidden, true);
   const ordinary = document.querySelector("#modern-pca-options").children
     .find((option) => option.children[0].textContent === "Ordinary");
   ordinary.listeners.click();

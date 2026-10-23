@@ -370,6 +370,7 @@ body:has(#population-panel[open]) { overflow: hidden; }
   .section-head h2 { font-size: 18px; }
   .mode-switch { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; margin-top: 16px; }
   .mode-button { min-height: 44px; padding: 9px 6px; font-size: 12px; }
+  .mode-button[data-mode="10"] { grid-column: 1 / -1; }
   .family-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; }
   .family-tab { min-height: 44px; padding: 8px 5px; font-size: 11px; }
   .person-row { padding: 12px 10px; }

@@ -19,7 +19,7 @@ class Element {
   insertCell() { const e=new Element(); this.append(e); return e; }
 }
 const elements=new Map();
-const modeButtons=['1','0','9','family'].map((mode) => Object.assign(new Element(), {dataset:{mode}}));
+const modeButtons=['1','0','9','family','10'].map((mode) => Object.assign(new Element(), {dataset:{mode}}));
 const familyTabs=['2','4','8'].map((mode) => Object.assign(new Element(),
   {dataset:{familyMode:mode},id:`family-tab-${mode}`}));
 const document={ querySelector(s) { if(!elements.has(s)) elements.set(s,new Element()); return elements.get(s); },
@@ -63,6 +63,15 @@ assert.equal(api.state.mode,4);
 assert.equal(document.querySelector('#family-tabs').hidden,false);
 assert.equal(familyTabs[1]['aria-selected'],'true');
 assert.equal(document.querySelector('#family-inputs')['aria-labelledby'],familyTabs[1].id);
+modeButtons[4].listeners.click();
+assert.equal(api.state.mode,10);
+assert.equal(document.querySelector('#period-tabs').hidden,false);
+assert.equal(document.querySelector('#family-tabs').hidden,true);
+assert.equal(document.querySelector('#modern-analysis-tab')['aria-selected'],'true');
+modeButtons[0].listeners.click();
+assert.equal(document.querySelector('#period-tabs').hidden,true);
+assert.equal(document.querySelector('#inputs-title').textContent,'Analyse');
+modeButtons[3].listeners.click();
 familyTabs[0].listeners.click();
 assert.equal(api.state.slots[4][0].label,'Saved grandparent');
 let preventedTabKey=false;
@@ -109,6 +118,24 @@ for(const mode of [2,4,8]) {
   assert.equal(button().textContent,'Optimise');
 }
 api.state.mode=4;
+api.state.offspring=row('Child',.5);
+api.state.slots[4]=[row('Locked grandparent',.2),null,null,null];
+api.familyLocks[4]=[true,false,false,false];
+api.render();
+assert.equal(button().disabled,false);
+api.optimiseFamily();
+const partialJob=lastWorker;
+const partialData=partialJob.data;
+assert.equal(partialData.ancestors.filter(Boolean).length,1);
+partialJob.onmessage({data:{result:core.optimiseFamily(partialData.offspring,
+  partialData.ancestors,partialData.locks,partialData.references,partialData.male)}});
+assert.equal(api.state.slots[4][0].label,'Locked grandparent');
+assert.ok(api.state.slots[4].every(Boolean));
+assert.equal(button().textContent,'Revert');
+api.optimiseFamily();
+assert.equal(api.state.slots[4].filter(Boolean).length,1);
+assert.equal(api.state.slots[4][0].label,'Locked grandparent');
+api.state.mode=4;
 api.familyLocks[4].fill(false);
 api.state.slots[4][0]=row('Paste1',.2,undefined); delete api.state.slots[4][0].source;
 api.state.slots[4][1]=row('Paste2',.3,undefined); delete api.state.slots[4][1].source;
@@ -153,6 +180,9 @@ const familySearch = lastWorker;
 api.state.mode = 1;
 api.state.single = row('Sample', .4);
 api.render();
+assert.equal(document.querySelector('#period-tabs').hidden, true);
+assert.equal(document.querySelector('#matches-panel').hidden, false);
+assert.equal(document.querySelector('#medieval-breakdown-panel').hidden, true);
 assert.equal(familySearch.terminated, true);
 assert.equal(lastWorker.data.modernReferences.length, 1);
 assert.equal(lastWorker.data.references[0][1], 'Low');

@@ -73,14 +73,49 @@ test("three and four unlocked slots match exhaustive search, including unequal m
     [true, true, true, false, false, false, false, false], references), /Lock at least 4/);
 });
 
-test("optimisation permits repeated populations and rejects incomplete or insufficiently locked families", () => {
+test("optimisation fills missing contributors and preserves the filled locked contributors", () => {
+  const references = [person("Low", 1), person("Middle", 3), person("High", 8)];
+  const cases = [
+    { ancestors: [null, null], locks: [false, false], male: true },
+    { ancestors: [person("Locked", 2), null, null, null], locks: [true, false, false, false], male: true },
+    { ancestors: [...Array.from({ length: 4 }, (_, index) => person(`Locked${index}`, index + 1)),
+      null, null, null, null], locks: [true, true, true, true, false, false, false, false], male: false },
+  ];
+  const child = person("Child", 4);
+  for (const { ancestors, locks, male } of cases) {
+    const free = ancestors.map((row, index) => row && locks[index] ? -1 : index)
+      .filter((index) => index >= 0);
+    let expected = Infinity;
+    const trial = [...ancestors];
+    function visit(slot) {
+      if (slot === free.length) {
+        expected = Math.min(expected, core.calculate(child, trial, male).distance);
+        return;
+      }
+      for (const row of references) {
+        trial[free[slot]] = row;
+        visit(slot + 1);
+      }
+    }
+    visit(0);
+    const result = core.optimiseFamily(child, ancestors, locks, references, male);
+    assert.ok(Math.abs(result.distance - expected) < 1e-10);
+    assert.ok(result.ancestors.every(Boolean));
+    locks.forEach((locked, index) => {
+      if (locked) assert.equal(result.ancestors[index], ancestors[index]);
+    });
+    assert.ok(ancestors.some((row) => row === null));
+  }
+});
+
+test("optimisation permits repeated populations and rejects insufficiently locked families", () => {
   const child = person("Child", 3);
   const ancestors = [person("A", 1), person("B", 9)];
   const result = core.optimiseFamily(child, ancestors, [false, false], [person("Only", 3)]);
   assert.equal(result.distance, 0);
   assert.deepEqual(result.ancestors.map((row) => row.label), ["Only", "Only"]);
   assert.throws(() => core.optimiseFamily(null, ancestors, [], []), /Fill/);
-  assert.throws(() => core.optimiseFamily(child, [ancestors[0], null], [], []), /Fill/);
+  assert.throws(() => core.optimiseFamily(child, [ancestors[0], null, null, null], [], []), /Lock/);
   assert.throws(() => core.optimiseFamily(child, [...ancestors, ...ancestors], [false, false, false, false], []), /Lock/);
   assert.throws(() => core.optimiseFamily(child, ancestors, [], [{ ...person("Old", 3), category: "ancient" }]), /No modern/);
 });

@@ -395,11 +395,11 @@
   }
 
   function optimiseFamily(offspring, ancestors, locks, references, male = false) {
-    if (!offspring || !validateVector(offspring.values) || ancestors.some((row) => !row || !validateVector(row.values))) {
-      throw new Error("Fill the child and every contributor before optimising.");
+    if (!offspring || !validateVector(offspring.values) || ancestors.some((row) => row && !validateVector(row.values))) {
+      throw new Error("Fill the child and use valid contributor coordinates before optimising.");
     }
     const weights = ancestorWeights(ancestors.length, male);
-    const unlocked = ancestors.map((row, index) => row.source !== "reference" || locks[index] ? -1 : index)
+    const unlocked = ancestors.map((row, index) => row && (row.source !== "reference" || locks[index]) ? -1 : index)
       .filter((index) => index >= 0);
     const minimumLocks = { 2: 0, 4: 1, 8: 4 }[ancestors.length];
     if (minimumLocks === undefined || ancestors.length - unlocked.length < minimumLocks) {

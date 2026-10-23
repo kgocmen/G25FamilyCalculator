@@ -26,7 +26,7 @@
     mode: 2,
     familyMode: 2,
     turkish: false,
-    analysisView: "results",
+    analysisView: "modern",
     medievalGroupLimit: 5,
     modernGroupLimit: "auto",
     modernPcaId: "auto",
@@ -494,14 +494,14 @@
       familyMessage = "";
     }
     const ancestors = state.slots[mode];
-    const complete = state.offspring && ancestors.every(Boolean);
+    const hasChild = Boolean(state.offspring);
     const lockedCount = ancestors.filter((item, index) => item &&
       (item.source !== "reference" || familyLocks[mode][index])).length;
     const button = $("#family-optimise");
     button.textContent = familyJob ? "Optimising…" : familyReverts[mode] ? "Revert" : "Optimise";
-    button.disabled = Boolean(familyJob) || !complete || lockedCount < ({ 2: 0, 4: 1, 8: 4 }[mode]);
+    button.disabled = Boolean(familyJob) || !hasChild || lockedCount < ({ 2: 0, 4: 1, 8: 4 }[mode]);
     const status = $("#family-optimise-status");
-    status.textContent = familyMessage || (!complete ? ""
+    status.textContent = familyMessage || (!hasChild ? ""
       : lockedCount < ({ 2: 0, 4: 1, 8: 4 }[mode]) ? `Lock at least ${{ 2: 0, 4: 1, 8: 4 }[mode]} of ${mode} contributors to optimise.` : "");
     status.hidden = !status.textContent;
   }
@@ -1007,11 +1007,11 @@
     if (mode !== 9) cancelVisualiseClusters();
     renderFamilyOptimise();
     renderFamilyAccordions();
-    if (mode !== 1) cancelMedieval();
+    if (mode !== 10) cancelMedieval();
     references = allowedReferences(activeReferenceRows());
     renderBlacklist();
     $("#turkish-toggle").checked = state.turkish;
-    $("#analysis-tabs").hidden = mode !== 1 || !state.single;
+    $("#period-tabs").hidden = mode !== 10;
     $("#early-medieval-tab").hidden = !state.turkish;
     $("#late-medieval-tab").hidden = !state.turkish;
     $("#medieval-breakdown-panel").hidden = true;
@@ -1035,28 +1035,37 @@
       button.tabIndex = active ? 0 : -1;
       if (active) $("#family-inputs").setAttribute("aria-labelledby", button.id);
     });
-    const singleMode = mode === 1 || mode === 9;
+    for (const [selector, view] of [["#early-medieval-tab", "early"],
+      ["#late-medieval-tab", "late"], ["#modern-analysis-tab", "modern"]]) {
+      const button = $(selector);
+      const active = mode === 10 && state.analysisView === view;
+      button.classList.toggle("active", active);
+      button.setAttribute("aria-selected", String(active));
+      button.tabIndex = active ? 0 : -1;
+    }
+    const singleMode = mode === 1 || mode === 9 || mode === 10;
     $("#single-input").hidden = !singleMode;
     const compareInputs = $("#compare-inputs");
     if (compareInputs) compareInputs.hidden = mode !== 0;
     $("#family-inputs").hidden = mode === 0 || singleMode;
     $("#result-panel").hidden = mode === 0 || singleMode;
     $("#single-ancient-matches-group").hidden = true;
-    $("#calculated-matches-group").hidden = mode === 1;
-    $("#match-filter").hidden = mode === 1;
+    $("#calculated-matches-group").hidden = mode === 1 || mode === 10;
+    $("#match-filter").hidden = mode === 1 || mode === 10;
     $("#analyse-match-filter").hidden = mode !== 1;
-    $("#inputs-title").textContent = mode === 9 ? "Visualise" : mode === 1 ? "Analyse" : mode === 0 ? "Compare" : "Family inputs";
+    $("#inputs-title").textContent = mode === 9 ? "Visualise" : mode === 10 ? "Periodical Breakdown"
+      : mode === 1 ? "Analyse" : mode === 0 ? "Compare" : "Family inputs";
     for (const selector of ["#visualise-category-filter", "#visualise-limit-filter", "#visualise-lock-controls"]) {
       $(selector).hidden = mode !== 9;
     }
-    $("#copy-admixed").hidden = mode !== 9 && !(mode === 1 && isPeriodView() &&
+    $("#copy-admixed").hidden = mode !== 9 && !(isPeriodView() &&
       (state.turkish || state.analysisView === "modern"));
     $("#medieval-breakdown-list").classList.toggle("visualise-breakdown", mode === 9);
     if (mode === 9) {
       renderVisualise();
       return;
     }
-    if (mode === 1) {
+    if (mode === 1 || mode === 10) {
       $("#suggestions-panel").hidden = true;
       suggestionTarget = null;
       renderSingle();
@@ -1105,7 +1114,7 @@
     const maternalShare = Number((weights[0] * 100).toFixed(2));
     const paternalShare = Number((weights[mode / 2] * 100).toFixed(2));
     $("#male-weight-note").textContent = mode === 4
-      ? `Maternal ${maternalShare}% each · Paternal ${paternalShare}% each`
+      ? `Maternal ${maternalShare}% · Paternal ${paternalShare}%`
       : `Mother ${maternalShare}% · Father ${paternalShare}%`;
 
     let message;
@@ -1267,7 +1276,8 @@
   }
 
   function isPeriodView() {
-    return state.analysisView === "early" || state.analysisView === "late" || state.analysisView === "modern";
+    return state.mode === 10 && (state.analysisView === "early" ||
+      state.analysisView === "late" || state.analysisView === "modern");
   }
 
   function visualiseWorkerMain() {
@@ -1567,21 +1577,11 @@
   }
 
   function updateAnalysisView() {
-    const periodView = state.mode === 1 && isPeriodView() &&
+    const periodView = isPeriodView() &&
       (state.turkish || state.analysisView === "modern");
     $("#copy-admixed").hidden = state.mode !== 9 && !periodView;
-    const available = state.mode === 1 && Boolean(state.single) && (periodView || references.length > 0);
-    for (const [selector, active] of [
-      ["#analysis-results-tab", !periodView],
-      ["#early-medieval-tab", periodView && state.analysisView === "early"],
-      ["#late-medieval-tab", periodView && state.analysisView === "late"],
-      ["#modern-analysis-tab", periodView && state.analysisView === "modern"],
-    ]) {
-      const button = $(selector);
-      button.classList.toggle("active", active);
-      button.setAttribute("aria-selected", String(active));
-      button.tabIndex = active ? 0 : -1;
-    }
+    const available = (state.mode === 1 || state.mode === 10) && Boolean(state.single) &&
+      (periodView || references.length > 0);
     for (const selector of ["#matches-panel", "#relaxed-estimates-panel", "#parent-estimates-panel", "#grandparent-estimates-panel"]) {
       $(selector).hidden = !available || periodView;
     }
@@ -1801,7 +1801,7 @@
         }
       };
       worker.onmessage = ({ data }) => {
-        if (data.requestId !== medievalRequest || state.mode !== 1 ||
+        if (data.requestId !== medievalRequest || state.mode !== 10 ||
             !isPeriodView()) return;
         if (data.kind === "deep") {
           if (data.error) status.textContent = `Deep analysis: ${data.error}`;
@@ -3015,7 +3015,7 @@
   }
 
   document.querySelectorAll(".mode-button").forEach((button) => {
-    if (button.dataset.mode !== "family" && ![0, 1, 9].includes(Number(button.dataset.mode))) {
+    if (button.dataset.mode !== "family" && ![0, 1, 9, 10].includes(Number(button.dataset.mode))) {
       button.hidden = true;
       return;
     }
@@ -3191,19 +3191,19 @@
     modernMixedDirty = true;
     modernPcaFitDistances.clear();
     state.modernPcaId = "auto";
-    if (!state.turkish) state.analysisView = "results";
+    if (!state.turkish) state.analysisView = "modern";
     updateSelectedReferences(activeReferenceRows());
     render();
   });
-  const analysisTabViews = ["results", "early", "late", "modern"];
-  const analysisTabSelectors = ["#analysis-results-tab", "#early-medieval-tab", "#late-medieval-tab", "#modern-analysis-tab"];
+  const analysisTabViews = ["early", "late", "modern"];
+  const analysisTabSelectors = ["#early-medieval-tab", "#late-medieval-tab", "#modern-analysis-tab"];
   for (const [index, selector] of analysisTabSelectors.entries()) {
     const view = analysisTabViews[index];
     const button = $(selector);
     button.addEventListener("click", () => {
       if (state.analysisView === view) return;
       state.analysisView = view;
-      renderSingle();
+      render();
     });
     button.addEventListener("keydown", (event) => {
       if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
