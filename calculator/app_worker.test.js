@@ -153,6 +153,46 @@ test("deep analysis jointly refits parent percentages", () => {
   assert.ok(Math.abs(deep.fit.distance) < 1e-6);
 });
 
+test("mixed deep analysis fits source groups from their own files and jointly refits them", () => {
+  const references = [row("Southeast_Europe:Albanian", 0, 0),
+    row("Southeast_Europe:Balkan Slav", 1, 0),
+    row("West_Asia_and_Caucasus:North Caucasus", 0, 1)];
+  const result = calculate({ target: { values: [0.3, 0.3, ...Array(23).fill(0)] },
+    references, selectedPcaId: "mixed", displayedPcaId: "mixed", groupStyle: "mixed",
+    groupLimit: 2, modernPcas: null, deepAnalysis: true, deepGroupLimit: 1,
+    deepPcas: [
+      { id: "southeast", title: "Southeast Europe", references: [
+        row("Albanian: North: Albanian_A", -0.2, 0),
+        row("Balkan Slav: South: Bulgarian_A", 1, 0),
+        row("Greek: Island: Greek_A", 0.3, 0.3),
+      ] },
+      { id: "caucasus", title: "West Asia and Caucasus", references: [
+        row("North Caucasus: Highlands: Abkhazian_A", 0, 1.2),
+        row("Levant: Coast: Levantine_A", 0.3, 0.3),
+      ] },
+    ] });
+  const deep = result.messages.find((message) => message.kind === "deep");
+  assert.equal(deep.error, undefined);
+  assert.equal(deep.pcaId, "mixed");
+  assert.equal(deep.referenceCount, 3);
+  assert.deepEqual([...deep.groups], ["Southeast_Europe", "West_Asia_and_Caucasus"]);
+  assert.deepEqual(deep.references.map((reference) => reference[1]), [
+    "Southeast_Europe:Albanian: North: Albanian_A",
+    "Southeast_Europe:Balkan Slav: South: Bulgarian_A",
+    "West_Asia_and_Caucasus:North Caucasus: Highlands: Abkhazian_A",
+  ]);
+  const southeast = deep.results.find((entry) => entry.ethnicity === "Southeast_Europe");
+  assert.deepEqual(new Set(southeast.sourceGroups.map((entry) => entry.ethnicity)),
+    new Set(["Albanian", "Balkan Slav"]));
+  assert.ok(Math.abs(deep.fit.groups.reduce((sum, group) => sum + group.weight, 0) - 1) < 1e-9);
+  assert.ok(Math.abs(southeast.sourceGroups.reduce((sum, group) => sum + group.weight, 0) -
+    southeast.weight) < 1e-9);
+  assert.ok(Math.abs(result.fit.groups.find((group) => group.ethnicity === "Southeast_Europe").weight - 0.7) < 1e-6);
+  assert.ok(Math.abs(southeast.weight - 0.75) < 1e-6);
+  assert.ok(Math.abs(southeast.sourceGroups.find((group) => group.ethnicity === "Albanian").weight - 0.375) < 1e-6);
+  assert.ok(Math.abs(deep.fit.distance) < 1e-6);
+});
+
 test("automatic PCA stays regular even when the combined references fit better", () => {
   const result = calculate();
   assert.equal(result.pca.id, "first");
@@ -166,6 +206,21 @@ test("mixed becomes the automatic PCA when its auto fit beats a closest PCA abov
   assert.equal(result.pca.id, "mixed");
   assert.ok(result.pcaFitDistances.find((entry) => entry.id === "first").distance > 2);
   assert.ok(result.fit.distance < result.pcaFitDistances.find((entry) => entry.id === "first").distance);
+});
+
+test("automatic Mixed selection continues into deep analysis", () => {
+  const mixed = { id: "mixed", title: "Mixed", references: [
+    row("First:Group0", 0), row("Second:Group1", 1), row("Third:Group2", 2),
+  ] };
+  const result = calculate({ groupLimit: "auto", modernPcas: [...pcas, mixed],
+    deepAnalysis: true, deepGroupLimit: "auto", deepPcas: [
+      { id: "first", title: "First", references: [row("Group0: Inner: A", 0)] },
+    ] });
+  assert.equal(result.pca.id, "mixed");
+  const deep = result.messages.find((message) => message.kind === "deep");
+  assert.equal(deep.error, undefined);
+  assert.equal(deep.pcaId, "mixed");
+  assert.deepEqual([...deep.groups], ["First"]);
 });
 
 test("mixed does not override a regular PCA whose fit is under two", () => {

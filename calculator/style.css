@@ -335,6 +335,7 @@ body:has(#population-panel[open]) { overflow: hidden; }
 .deep-subregion > summary::before { content: "▸"; color: #607286; }
 .deep-subregion[open] > summary::before { content: "▾"; }
 .deep-subregion > summary strong { margin-left: auto; }
+.deep-source-group > .deep-subregion { margin: 0 10px 8px; background: #fff; }
 .deep-subregion .breakdown-samples { margin: 0; padding: 0 14px 10px 26px; }
 .modern-pca-chooser { position: relative; min-width: 0; }
 .modern-pca-chooser summary { display: flex; align-items: center; gap: 12px; min-height: 36px; padding: 8px 10px; border: 1px solid #cbd8e2; border-radius: 8px; background: #fff; cursor: pointer; list-style: none; font-size: 13px; }

@@ -25,6 +25,29 @@ function G25ModernPcaModule(root) {
     return deepReferences.filter((row) => activeGroups.has(row[1].split(":", 1)[0].trim()));
   }
 
+  function selectMixedDeepReferences(mainFit, deepPcas) {
+    const active = new Set((mainFit?.components || []).filter((part) => part.weight > 0)
+      .map((part) => part.label));
+    return deepPcas.flatMap((pca) => {
+      const prefix = `${pca.title.replaceAll(" ", "_")}:`;
+      return pca.references.filter((row) => active.has(`${prefix}${row[1].split(":", 1)[0].trim()}`))
+        .map((row) => [row[0], `${prefix}${row[1]}`, ...row.slice(2)]);
+    });
+  }
+
+  function selectMixedMainReferences(results, pcas) {
+    const fitted = new Map((results || []).map((result) => [result.ethnicity,
+      new Set((result.sourceGroups || []).filter((group) => group.weight > 0)
+        .map((group) => group.ethnicity))]));
+    return pcas.flatMap((pca) => {
+      const title = pca.title.replaceAll(" ", "_");
+      const groups = fitted.get(title);
+      if (!groups) return [];
+      return pca.references.filter((row) => groups.has(row[1].split(":", 1)[0].trim()))
+        .map((row) => [row[0], `${title}:${row[1]}`, ...row.slice(2)]);
+    });
+  }
+
   function selectModernPca(target, modernReferences, pcas, nearestMatches, selectedId = "auto",
     referencesForPca = (pca) => pca.references, rankedPcas = null) {
     const eligibleReferences = modernReferences.filter((row) => !isIstanbulReference(row));
@@ -68,7 +91,8 @@ function G25ModernPcaModule(root) {
       Number.isFinite(mixedFitDistance) && mixedFitDistance < bestRegularFitDistance * 0.75;
   }
 
-  const api = { selectModernPca, rankModernPcas, selectFitReferences, selectDeepReferences, defaultGroupFit,
+  const api = { selectModernPca, rankModernPcas, selectFitReferences, selectDeepReferences,
+    selectMixedDeepReferences, selectMixedMainReferences, defaultGroupFit,
     shouldAutoSelectMixed, isIstanbulReference };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else {

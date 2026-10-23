@@ -1,8 +1,8 @@
 {
   "modern": [
     {
-      "id": "global-europe",
-      "title": "Europe",
+      "id": "global-southwest-europe",
+      "title": "Southwest Europe",
       "file": "modern_pca1.g25.txt"
     },
     {
@@ -59,6 +59,26 @@
       "id": "global-anatolian-turks-and-azerbaijanis",
       "title": "West Turkistan",
       "file": "modern_pca12.g25.txt"
+    },
+    {
+      "id": "global-north-europe",
+      "title": "North Europe",
+      "file": "modern_pca13.g25.txt"
+    },
+    {
+      "id": "global-balto-slavic",
+      "title": "Balto-Slavic",
+      "file": "modern_pca14.g25.txt"
+    },
+    {
+      "id": "global-southeast-europe",
+      "title": "Southeast Europe",
+      "file": "modern_pca15.g25.txt"
+    },
+    {
+      "id": "global-arabian-peninsula",
+      "title": "Arabian Peninsula",
+      "file": "modern_pca16.g25.txt"
     }
   ]
 }

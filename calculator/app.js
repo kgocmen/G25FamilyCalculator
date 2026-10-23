@@ -198,6 +198,9 @@
 
   function allowedPcaReferences(pca) {
     return pca.references.filter((row, index) => {
+      if (pca.id === "mixed" && excludedGroupKeys.has(populationKey({
+        category: row[0], label: row[1].slice(row[1].indexOf(":") + 1).trim(), group: true,
+      }))) return false;
       const keys = [populationKey(row)];
       if (pca.referenceAnchors?.[index]) {
         keys.push(populationKey({ category: "modern", label: pca.referenceAnchors[index] }));
@@ -257,6 +260,18 @@
     const button = makeButton("−", () => changeBlacklist(item, !excluded));
     button.className = "exclude-population";
     button.setAttribute("aria-label", `${excluded ? "Restore" : "Blacklist"} ${item.label}`);
+    return button;
+  }
+
+  function excludeGroupButton(label, category) {
+    const button = makeButton("−", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      changeBlacklist({ label, category, group: true }, true);
+    });
+    button.className = "exclude-population exclude-group";
+    button.setAttribute("aria-label", `Blacklist entire ${label.replaceAll("_", " ")} group`);
+    button.title = "Blacklist every sample in this group";
     return button;
   }
 
@@ -593,6 +608,63 @@
         const sendSelection = (fit, pca) => {
           send("selected", { fit, pca });
           if (!data.deepAnalysis) return;
+          if ((pca?.id || data.displayedPcaId) === "mixed") {
+            try {
+              const references = self.G25ModernPca.selectMixedDeepReferences(fit, data.deepPcas || []);
+              const mainReferences = pca?.references || data.references;
+              const selectedSubregions = new Set();
+              const selectedLimits = new Map();
+              for (const component of fit.components) {
+                const rows = references.filter((row) =>
+                  row[1].startsWith(`${component.label}:`));
+                if (!rows.length) throw new Error(`No included deep references for ${component.label}.`);
+                const groupTarget = { values: data.target.values.map((value, dimension) => {
+                  const other = fit.components.filter((part) => part !== component)
+                    .reduce((sum, part) => sum + part.weight *
+                      mainReferences[part.referenceIndex][dimension + 2], 0);
+                  return (value - other) / component.weight;
+                }) };
+                const chosen = data.deepGroupLimit === "auto"
+                  ? self.G25ModernPca.defaultGroupFit(fitSeries(rows, "deep",
+                    (groupLimit) => send("deepProgress", { ethnicity: component.label, groupLimit }),
+                    null, null, groupTarget))
+                  : { groupLimit: data.deepGroupLimit,
+                    fit: self.G25Medieval.fitDeepAdmixture(groupTarget, rows, data.deepGroupLimit) };
+                chosen.fit.groups.forEach((part) => selectedSubregions.add(part.ethnicity));
+                selectedLimits.set(component.label, chosen.groupLimit);
+              }
+              const selectedRows = references.filter((row) =>
+                selectedSubregions.has(row[1].slice(0, row[1].lastIndexOf(":")).trim()));
+              const joint = self.G25Medieval.fitDeepAdmixture(data.target, selectedRows);
+              const byMap = new Map();
+              for (const subregion of joint.groups) {
+                const [map, sourceGroup] = subregion.ethnicity.split(":").map((part) => part.trim());
+                if (!byMap.has(map)) byMap.set(map,
+                  { ethnicity: map, weight: 0, samples: [], sourceGroups: new Map() });
+                const parent = byMap.get(map);
+                parent.weight += subregion.weight;
+                parent.samples.push(...subregion.samples);
+                if (!parent.sourceGroups.has(sourceGroup)) parent.sourceGroups.set(sourceGroup,
+                  { ethnicity: sourceGroup, weight: 0, subregions: [],
+                    groupLimit: selectedLimits.get(`${map}:${sourceGroup}`) });
+                const source = parent.sourceGroups.get(sourceGroup);
+                source.weight += subregion.weight;
+                source.subregions.push(subregion);
+              }
+              const groups = [...byMap.values()].map((parent) => ({
+                ethnicity: parent.ethnicity, weight: parent.weight, samples: parent.samples,
+              })).sort((a, b) => b.weight - a.weight || a.ethnicity.localeCompare(b.ethnicity));
+              const results = groups.map((group) => ({ ethnicity: group.ethnicity,
+                weight: group.weight, sourceGroups: [...byMap.get(group.ethnicity).sourceGroups.values()]
+                  .sort((a, b) => b.weight - a.weight || a.ethnicity.localeCompare(b.ethnicity)) }));
+              send("deep", { fit: { ...joint, groups }, results, pcaId: "mixed",
+                referenceCount: references.length, groups: groups.map((group) => group.ethnicity),
+                references });
+            } catch (error) {
+              send("deep", { error: error.message });
+            }
+            return;
+          }
           const deep = data.deepPcas?.find((entry) => entry.id === (pca?.id || data.displayedPcaId));
           if (!deep) return;
           const mainReferences = pca?.references || data.references;
@@ -1535,14 +1607,18 @@
     const selectedId = deep ? state.deepPcaId : state.modernPcaId;
     $("#modern-pca-label").textContent = deep ? "Deep PCA" : "PCA";
     const mixedPca = activeMixedPca();
-    if (!deep && !modernMixedPca && mixedPca) {
+    if (!modernMixedPca && mixedPca) {
       const included = allowedPcaReferences(mixedPca);
       modernMixedPca = included.length >= 3 ? { ...mixedPca, references: included } : null;
     }
     if (state.modernPcaId === "mixed" && !modernMixedPca) state.modernPcaId = "auto";
     options.replaceChildren();
-    const choices = deep ? activeModernPcas().filter((pca) => pca.deepReferences?.length &&
-      allowedPcaReferences(pca).length >= 3 && allowedDeepPcaReferences(pca).length)
+    const choices = deep ? [
+      ...activeModernPcas().filter((pca) => pca.deepReferences?.length &&
+        allowedPcaReferences(pca).length >= 3 && allowedDeepPcaReferences(pca).length),
+      ...(modernMixedPca && activeModernPcas().some((pca) =>
+        allowedDeepPcaReferences(pca).length) ? [modernMixedPca] : []),
+    ]
       : modernMixedPca ? [...activeModernPcas(), modernMixedPca] : activeModernPcas();
     if (deep && selectedId !== "auto" && !choices.some((pca) => pca.id === selectedId)) {
       state.deepPcaId = "auto";
@@ -1557,7 +1633,7 @@
       pca.id !== "mixed" && Number.isFinite(distance));
     const closestFit = modernPcaFitDistances.get(automatic?.pca.id);
     const mixedFit = modernPcaFitDistances.get("mixed");
-    const autoMixed = !deep && !modernMixedDirty && modernMixedPca &&
+    const autoMixed = !modernMixedDirty && choices.some((pca) => pca.id === "mixed") &&
       window.G25ModernPca.shouldAutoSelectMixed(
         bestRegularModernFitDistance(), mixedFit?.distance);
     const autoFit = autoMixed ? mixedFit : closestFit;
@@ -1611,7 +1687,8 @@
       const available = Number.isFinite(geneticDistance);
       const position = distances.length > 1 ? distances.indexOf(geneticDistance) / (distances.length - 1) : 0;
       const fitDistance = modernPcaFitDistances.get(pca.id);
-      addOption(pca.id, pca.title, available ? modernPcaColor(position) : "#687585",
+      addOption(pca.id, pca.id === "mixed" ? "Mixed" : pca.title,
+        available ? modernPcaColor(position) : "#687585",
         geneticDistance, fitDistance);
     }
     const selected = entries.get(currentSelectedId) || entries.get("auto");
@@ -1631,9 +1708,11 @@
     distance.hidden = true;
     deepFilter.hidden = true;
     const availableDeep = activeModernPcas().some((pca) =>
-      (state.modernPcaId === "auto" || pca.id === state.modernPcaId) &&
+      (state.modernPcaId === "auto" || state.modernPcaId === "mixed" ||
+        pca.id === state.modernPcaId) &&
       pca.deepReferences?.length && allowedPcaReferences(pca).length >= 3 &&
-      allowedDeepPcaReferences(pca).length);
+      allowedDeepPcaReferences(pca).length) &&
+      (state.modernPcaId !== "mixed" || Boolean(activeMixedPca()));
     const isModern = state.analysisView === "modern";
     if (isModern && state.deepAnalysis && !availableDeep) state.deepAnalysis = false;
     $("#modern-deep-toggle").checked = state.deepAnalysis;
@@ -1669,16 +1748,16 @@
         allowedPcaReferences, rankedPcas);
       closestModern = closest;
       const mixedFit = modernPcaFitDistances.get("mixed");
-      const selectedMixed = !state.deepAnalysis && modernMixedPca && (state.modernPcaId === "mixed" ||
-        state.modernPcaId === "auto" && !modernMixedDirty &&
+      const selectedMixed = modernMixedPca && (selectedPcaId === "mixed" ||
+        selectedPcaId === "auto" && !modernMixedDirty &&
           window.G25ModernPca.shouldAutoSelectMixed(
             bestRegularModernFitDistance(), mixedFit?.distance));
       displayedPcaId = selectedMixed ? "mixed" : pca?.id || null;
       periodReferences = selectedMixed ? modernMixedPca.references : pca ? regularPcaReferences(pca) : [];
       const hasPlot = periodReferences.length >= 3;
       period = selectedMixed ? "Mixed" : pca ? pca.title : "Modern";
-      $("#medieval-breakdown-title").textContent = displayedPcaId ? `Modern · ${period}${selectedMixed ? " PCA" : ""}` : "Modern";
-      $("#pca-heading-title").textContent = selectedMixed ? `${period} PCA` : pca ? `${pca.title} PCA` : "Custom PCA";
+      $("#medieval-breakdown-title").textContent = displayedPcaId ? `Modern · ${period}` : "Modern";
+      $("#pca-heading-title").textContent = selectedMixed ? "Mixed" : pca ? `${pca.title} PCA` : "Custom PCA";
       const label = closest ? closest.label.replaceAll("_", " ") : null;
       const closestNote = $("#modern-closest-population");
       closestNote.textContent = closest ? `Closest population: ${label} · Distance ${closest.distance.toFixed(3)}` : "";
@@ -1689,7 +1768,8 @@
       else status.textContent = "No modern references are available.";
       $("#pca-section").hidden = !hasPlot;
       $("#ancestry-composition-title").hidden = !hasPlot;
-      if (hasPlot) renderMedievalPca(periodReferences, period, true, closest,
+      if (hasPlot && selectedMixed && state.deepAnalysis) showPendingMixedPca();
+      else if (hasPlot) renderMedievalPca(periodReferences, period, true, closest,
         false, { groupStyle: selectedMixed ? "mixed" : "modern" });
       else {
         $("#medieval-pca-plot").replaceChildren();
@@ -1754,11 +1834,12 @@
           return;
         }
         if (data.pca && data.pca.id !== displayedPcaId) {
-          $("#medieval-breakdown-title").textContent = `Modern · ${data.pca.title}`;
-          $("#pca-heading-title").textContent = `${data.pca.title} PCA`;
+          $("#medieval-breakdown-title").textContent = `Modern · ${data.pca.id === "mixed" ? "Mixed" : data.pca.title}`;
+          $("#pca-heading-title").textContent = data.pca.id === "mixed" ? "Mixed" : `${data.pca.title} PCA`;
           const fullPca = activeModernPcas().find((pca) => pca.id === data.pca.id);
-          renderMedievalPca(fullPca ? regularPcaReferences(fullPca) : data.pca.references,
-            data.pca.title, true, closestModern,
+          if (data.pca.id === "mixed" && state.deepAnalysis) showPendingMixedPca();
+          else renderMedievalPca(fullPca ? regularPcaReferences(fullPca) : data.pca.references,
+            data.pca.id === "mixed" ? "Mixed" : data.pca.title, true, closestModern,
             false, { groupStyle: data.pca.id === "mixed" ? "mixed" : "modern" });
         }
         renderMedievalFit(data.fit, isModern);
@@ -1781,18 +1862,29 @@
         deepGroupLimit: state.deepGroupLimit,
         deepPcas: isModern && state.deepAnalysis ? activeModernPcas()
           .filter((pca) => pca.deepReferences?.length)
-          .map((pca) => ({ id: pca.id, references: allowedDeepPcaReferences(pca) })) : [],
+          .map((pca) => ({ id: pca.id, title: pca.title,
+            references: allowedDeepPcaReferences(pca) })) : [],
         closestPcaId, closestPcaIds,
         modernPcas: scanModernPcas ? [
           ...(state.deepAnalysis ? rankedPcas.map(({ pca }) => pca) : activeModernPcas()).map((pca) => ({
             id: pca.id, title: pca.title, references: pcaFitReferences(pca),
           })),
-          ...(!state.deepAnalysis && modernMixedPca ? [modernMixedPca] : []),
+          ...(modernMixedPca ? [modernMixedPca] : []),
         ] : null });
     } catch (error) {
       cancelMedieval();
       status.textContent = `Analysis could not start: ${error.message}`;
     }
+  }
+
+  function showPendingMixedPca() {
+    if (pcaTooltip) pcaTooltip.remove();
+    pcaTooltip = null;
+    $("#medieval-pca-plot").replaceChildren();
+    $("#medieval-pca-plot").textContent = "Calculating fitted groups…";
+    $("#medieval-pca-legend").replaceChildren();
+    for (const suffix of ["in", "out", "reset"]) $("#pca-zoom-" + suffix).disabled = true;
+    $("#pca-zoom-level").textContent = "100%";
   }
 
   function renderMedievalPca(periodReferences, period, isModern, closest = null, sparse = false, options = {}) {
@@ -2373,14 +2465,7 @@
       name.textContent = group.ethnicity.replaceAll("_", " ");
       const share = document.createElement("strong");
       share.textContent = formatPercent(groupUnits[groupIndex]);
-      const excludeGroup = makeButton("−", (event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        changeBlacklist({ label: group.ethnicity, category: isModern ? "modern" : "medieval", group: true }, true);
-      });
-      excludeGroup.className = "exclude-population exclude-group";
-      excludeGroup.setAttribute("aria-label", `Blacklist entire ${group.ethnicity.replaceAll("_", " ")} group`);
-      excludeGroup.title = "Blacklist every sample in this group";
+      const excludeGroup = excludeGroupButton(group.ethnicity, isModern ? "modern" : "medieval");
       summary.append(name, share, excludeGroup);
       const bar = document.createElement("div");
       bar.className = "breakdown-bar";
@@ -2411,51 +2496,109 @@
   }
 
   function renderDeepFit(data) {
-    const pca = activeModernPcas().find((entry) => entry.id === data.pcaId);
+    const pca = data.pcaId === "mixed" ? modernMixedPca
+      : activeModernPcas().find((entry) => entry.id === data.pcaId);
     $("#medieval-breakdown-list").replaceChildren();
     renderMedievalFit(data.fit, true, true);
     const parents = [...$("#medieval-breakdown-list").children];
     const mainUnits = allocatePercentUnits(data.results.map((result) => result.weight), 1000);
-    for (const [resultIndex, result] of data.results.entries()) {
-      const parent = parents.find((item) => item.dataset.deepGroup === result.ethnicity);
-      const nested = parent?.querySelector(".deep-breakdown");
-      if (!nested) continue;
-      nested.replaceChildren();
-      const note = document.createElement("p");
-      note.className = "deep-breakdown-note";
-      note.textContent = `Subregions within ${result.ethnicity.replaceAll("_", " ")}`;
-      nested.append(note);
-      const groupUnits = allocatePercentUnits(result.fit.groups.map((group) => group.weight),
-        mainUnits[resultIndex]);
-      result.fit.groups.forEach((group, groupIndex) => {
-        const details = document.createElement("details");
-        details.className = "deep-subregion";
-        const summary = document.createElement("summary");
-        const name = document.createElement("span");
-        name.className = "breakdown-name";
-        name.textContent = group.ethnicity.slice(result.ethnicity.length + 1).trim().replaceAll("_", " ");
-        const share = document.createElement("strong");
-        share.textContent = formatPercent(groupUnits[groupIndex]);
-        summary.append(name, share);
-        const samples = document.createElement("ul");
-        samples.className = "breakdown-samples";
-        const sampleUnits = allocatePercentUnits(group.samples.map((sample) => sample.weight), groupUnits[groupIndex]);
-        group.samples.forEach((component, index) => {
-          const item = document.createElement("li");
-          const label = document.createElement("span");
-          label.textContent = component.sample.replaceAll("_", " ");
-          const weight = document.createElement("strong");
-          weight.textContent = formatPercent(sampleUnits[index]);
-          item.append(label, weight, excludeButton({ label: component.label, category: "modern" }));
-          samples.append(item);
+    if (data.pcaId === "mixed") {
+      for (const [resultIndex, result] of data.results.entries()) {
+        const parent = parents.find((item) => item.dataset.deepGroup === result.ethnicity);
+        const nested = parent?.querySelector(".deep-breakdown");
+        if (!nested) continue;
+        nested.replaceChildren();
+        const groupUnits = allocatePercentUnits(result.sourceGroups.map((group) => group.weight),
+          mainUnits[resultIndex]);
+        result.sourceGroups.forEach((source, sourceIndex) => {
+          const sourceDetails = document.createElement("details");
+          sourceDetails.className = "deep-subregion deep-source-group";
+          const sourceSummary = document.createElement("summary");
+          const sourceName = document.createElement("span");
+          sourceName.className = "breakdown-name";
+          sourceName.textContent = source.ethnicity.replaceAll("_", " ");
+          const sourceShare = document.createElement("strong");
+          sourceShare.textContent = formatPercent(groupUnits[sourceIndex]);
+          sourceSummary.append(sourceName, sourceShare,
+            excludeGroupButton(source.ethnicity, "modern"));
+          sourceDetails.append(sourceSummary);
+          const subregionUnits = allocatePercentUnits(source.subregions.map((part) => part.weight),
+            groupUnits[sourceIndex]);
+          source.subregions.forEach((part, partIndex) => {
+            const details = document.createElement("details");
+            details.className = "deep-subregion";
+            const summary = document.createElement("summary");
+            const name = document.createElement("span");
+            name.className = "breakdown-name";
+            name.textContent = part.ethnicity.split(":").slice(2).join(":").trim().replaceAll("_", " ");
+            const share = document.createElement("strong");
+            share.textContent = formatPercent(subregionUnits[partIndex]);
+            summary.append(name, share);
+            const samples = document.createElement("ul");
+            samples.className = "breakdown-samples";
+            const sampleUnits = allocatePercentUnits(part.samples.map((sample) => sample.weight),
+              subregionUnits[partIndex]);
+            part.samples.forEach((component, index) => {
+              const item = document.createElement("li");
+              const label = document.createElement("span");
+              label.textContent = component.sample.replaceAll("_", " ");
+              const weight = document.createElement("strong");
+              weight.textContent = formatPercent(sampleUnits[index]);
+              item.append(label, weight, excludeButton({
+                label: component.label.slice(component.label.indexOf(":") + 1), category: "modern",
+              }));
+              samples.append(item);
+            });
+            details.append(summary, samples);
+            sourceDetails.append(details);
+          });
+          nested.append(sourceDetails);
         });
-        details.append(summary, samples);
-        nested.append(details);
-      });
+      }
+    } else {
+      for (const [resultIndex, result] of data.results.entries()) {
+        const parent = parents.find((item) => item.dataset.deepGroup === result.ethnicity);
+        const nested = parent?.querySelector(".deep-breakdown");
+        if (!nested) continue;
+        nested.replaceChildren();
+        const note = document.createElement("p");
+        note.className = "deep-breakdown-note";
+        note.textContent = `Subregions within ${result.ethnicity.replaceAll("_", " ")}`;
+        nested.append(note);
+        const groupUnits = allocatePercentUnits(result.fit.groups.map((group) => group.weight),
+          mainUnits[resultIndex]);
+        result.fit.groups.forEach((group, groupIndex) => {
+          const details = document.createElement("details");
+          details.className = "deep-subregion";
+          const summary = document.createElement("summary");
+          const name = document.createElement("span");
+          name.className = "breakdown-name";
+          name.textContent = group.ethnicity.slice(result.ethnicity.length + 1).trim().replaceAll("_", " ");
+          const share = document.createElement("strong");
+          share.textContent = formatPercent(groupUnits[groupIndex]);
+          summary.append(name, share);
+          const samples = document.createElement("ul");
+          samples.className = "breakdown-samples";
+          const sampleUnits = allocatePercentUnits(group.samples.map((sample) => sample.weight), groupUnits[groupIndex]);
+          group.samples.forEach((component, index) => {
+            const item = document.createElement("li");
+            const label = document.createElement("span");
+            label.textContent = component.sample.replaceAll("_", " ");
+            const weight = document.createElement("strong");
+            weight.textContent = formatPercent(sampleUnits[index]);
+            item.append(label, weight, excludeButton({ label: component.label, category: "modern" }));
+            samples.append(item);
+          });
+          details.append(summary, samples);
+          nested.append(details);
+        });
+      }
     }
     $("#medieval-breakdown-status").textContent =
       `Deep analysis · ${data.groups.length} main ${data.groups.length === 1 ? "group" : "groups"} · ${data.referenceCount} references`;
-    const references = pca ? window.G25ModernPca.selectDeepReferences(
+    const references = data.pcaId === "mixed" ? window.G25ModernPca.selectMixedMainReferences(
+      data.results, activeModernPcas().map((entry) => ({ title: entry.title,
+        references: regularPcaReferences(entry) }))) : pca ? window.G25ModernPca.selectDeepReferences(
       { groups: data.groups.map((ethnicity) => ({ ethnicity, weight: 1 })) },
       allowedDeepPcaReferences(pca)) : [];
     if (references.length < 3) {
@@ -2463,8 +2606,8 @@
       $("#medieval-pca-legend").replaceChildren();
       return;
     }
-    $("#pca-heading-title").textContent = `${pca.title} · Deep PCA`;
-    renderMedievalPca(references, `${pca.title} deep`, true, null, false,
+    $("#pca-heading-title").textContent = data.pcaId === "mixed" ? "Mixed · Deep" : `${pca.title} · Deep PCA`;
+    renderMedievalPca(references, `${data.pcaId === "mixed" ? "Mixed" : pca.title} deep`, true, null, false,
       { groupStyle: "deep" });
   }
 

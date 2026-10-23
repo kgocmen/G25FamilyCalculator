@@ -4,7 +4,8 @@ const path = require("node:path");
 const test = require("node:test");
 const { nearestMatches } = require("./core.js");
 const { selectModernPca, rankModernPcas, defaultGroupFit,
-  shouldAutoSelectMixed, isIstanbulReference, selectFitReferences, selectDeepReferences } = require("./modern_pca.js");
+  shouldAutoSelectMixed, isIstanbulReference, selectFitReferences, selectDeepReferences,
+  selectMixedDeepReferences, selectMixedMainReferences } = require("./modern_pca.js");
 
 const row = (label, first) => ["modern", label, first, ...Array(24).fill(0)];
 const target = (first) => ({ label: "Input", values: [first, ...Array(24).fill(0)] });
@@ -63,17 +64,84 @@ test("deep references use only groups present in the main PCA fit", () => {
   references.slice(0, 3).map((reference) => reference[1]));
 });
 
+test("mixed deep references come from each fitted source group only", () => {
+  const fit = { components: [
+    { label: "Southeast_Europe:Albanian", weight: 0.4 },
+    { label: "Southeast_Europe:Balkan Slav", weight: 0.3 },
+    { label: "West_Asia_and_Caucasus:North Caucasus", weight: 0.3 },
+  ] };
+  const pcas = [
+    { title: "Southeast Europe", references: [
+      row("Albanian: North: Albanian_A", 0),
+      row("Balkan Slav: South: Bulgarian_A", 1),
+      row("Greek: Island: Greek_A", 2),
+    ] },
+    { title: "West Asia and Caucasus", references: [
+      row("North Caucasus: Highlands: Abkhazian_A", 3),
+      row("Levant: Coast: Levantine_A", 4),
+    ] },
+  ];
+  assert.deepEqual(selectMixedDeepReferences(fit, pcas).map((reference) => reference[1]), [
+    "Southeast_Europe:Albanian: North: Albanian_A",
+    "Southeast_Europe:Balkan Slav: South: Bulgarian_A",
+    "West_Asia_and_Caucasus:North Caucasus: Highlands: Abkhazian_A",
+  ]);
+});
+
+test("mixed deep plots use fitted population rows from the main PCA files", () => {
+  const results = [
+    { ethnicity: "Southeast_Europe", sourceGroups: [
+      { ethnicity: "Albanian", weight: 0.2 },
+      { ethnicity: "Slavic Balkans", weight: 0.5 },
+    ] },
+    { ethnicity: "West_Asia_and_Caucasus", sourceGroups: [
+      { ethnicity: "North Caucasus", weight: 0.3 },
+    ] },
+  ];
+  const pcas = [
+    { title: "Southeast Europe", references: [
+      row("Albanian:Albanian_Gheg", 0), row("Greek:Greek_Attica", 0.1),
+      row("Slavic Balkans:Bulgarian", 1), row("Albanian:Albanian_Tosk", 0.2),
+    ] },
+    { title: "West Asia and Caucasus", references: [
+      row("North Caucasus:Abkhazian", 2), row("Levant:Lebanese", 3),
+    ] },
+  ];
+  assert.deepEqual(selectMixedMainReferences(results, pcas).map((reference) => reference[1]), [
+    "Southeast_Europe:Albanian:Albanian_Gheg",
+    "Southeast_Europe:Slavic Balkans:Bulgarian",
+    "Southeast_Europe:Albanian:Albanian_Tosk",
+    "West_Asia_and_Caucasus:North Caucasus:Abkhazian",
+  ]);
+  assert.deepEqual(selectMixedMainReferences(results, [{ title: "Doğu Anadolu", references: [
+    row("Türk_Doğu:Türk_Artvin", 1), row("Ermeni:Ermeni", 2),
+  ] }]).map((reference) => reference[1]), []);
+  assert.deepEqual(selectMixedMainReferences([{
+    ethnicity: "Doğu_Anadolu", sourceGroups: [{ ethnicity: "Türk_Doğu", weight: 1 }],
+  }], [{ title: "Doğu Anadolu", references: [
+    row("Türk_Doğu:Türk_Artvin", 1), row("Ermeni:Ermeni", 2),
+  ] }]).map((reference) => reference[1]), ["Doğu_Anadolu:Türk_Doğu:Türk_Artvin"]);
+});
+
 test("global PCA bundles include deep references only for maps with a deep file", () => {
   const bundle = fs.readFileSync(path.join(__dirname, "modern_pca_references.js"), "utf8");
   const pcas = JSON.parse(bundle.slice(bundle.indexOf("=") + 1).trim().replace(/;$/, ""));
-  const pca = pcas.find((entry) => entry.id === "global-anatolian-turks-and-azerbaijanis");
-  const source = fs.readFileSync(path.join(__dirname, "../data/pca/modern_pca12_deep.g25.txt"), "utf8")
-    .trim().split(/\r?\n/).map((line) => line.split(",", 1)[0])
-    .filter((label) => label.split(":", 1)[0].trim().toLowerCase() !== "deprecated");
-  assert.deepEqual(pca.deepReferences.map((reference) => reference[1]), source);
-  assert.equal(pca.deepReferenceAnchors.length, source.length);
-  assert.ok(pcas.filter((entry) => entry.id !== pca.id)
-    .every((entry) => !entry.deepReferences));
+  const config = JSON.parse(fs.readFileSync(path.join(__dirname,
+    "../data/pca/pca_config.txt"), "utf8"));
+  assert.deepEqual(pcas.map((pca) => pca.id), config.modern.map((entry) => entry.id));
+  for (const [index, entry] of config.modern.entries()) {
+    const deepPath = path.join(__dirname, "../data/pca",
+      entry.file.replace(/\.g25\.txt$/, "_deep.g25.txt"));
+    if (!fs.existsSync(deepPath)) {
+      assert.equal(pcas[index].deepReferences, undefined);
+      continue;
+    }
+    const source = fs.readFileSync(deepPath, "utf8").trim().split(/\r?\n/)
+      .map((line) => line.split(",", 1)[0])
+      .filter((label) => label.split(":", 1)[0].trim().toLowerCase() !== "deprecated");
+    assert.deepEqual(pcas[index].deepReferences.map((reference) => reference[1]), source);
+    assert.equal(pcas[index].deepReferenceAnchors.length, source.length);
+  }
 });
 
 test("reports the closest population independently of the best-fitting PCA", () => {
