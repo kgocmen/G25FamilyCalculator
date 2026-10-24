@@ -19,7 +19,7 @@ class Element {
   insertCell() { const e=new Element(); this.append(e); return e; }
 }
 const elements=new Map();
-const modeButtons=['1','0','9','family','10'].map((mode) => Object.assign(new Element(), {dataset:{mode}}));
+const modeButtons=['1','0','9','family','10','11'].map((mode) => Object.assign(new Element(), {dataset:{mode}}));
 const familyTabs=['2','4','8'].map((mode) => Object.assign(new Element(),
   {dataset:{familyMode:mode},id:`family-tab-${mode}`}));
 const document={ querySelector(s) { if(!elements.has(s)) elements.set(s,new Element()); return elements.get(s); },
@@ -326,4 +326,23 @@ assert.equal(bulk.hidden, false);
 search.value = '-';
 search.listeners.input();
 assert.equal(bulk.textContent, 'Blacklist all 1 match');
+
+// Raw Data is isolated from family and comparison results, and preserves their inputs.
+api.state.mode = 0;
+api.state.compare = [row('A', .2), row('B', .4)];
+document.querySelector('#remaining-step').value = '5';
+api.render();
+const previousParents = JSON.stringify(api.state.slots[2]);
+modeButtons[5].listeners.click();
+assert.equal(api.state.mode, 11);
+assert.equal(document.querySelector('#raw-workspace').hidden, false);
+for (const id of ['family-inputs', 'family-tabs', 'single-input', 'period-tabs', 'result-panel', 'matches-panel', 'remaining-admixture-panel', 'metrics-group']) {
+  assert.equal(document.querySelector('#' + id).hidden, true);
+}
+assert.equal(document.querySelector('#inputs-title').textContent, 'Raw Data');
+api.state.mode = 2;
+api.render();
+assert.equal(document.querySelector('#raw-workspace').hidden, true);
+assert.equal(document.querySelector('#family-inputs').hidden, false);
+assert.equal(JSON.stringify(api.state.slots[2]), previousParents);
 });

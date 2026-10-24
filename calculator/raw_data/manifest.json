@@ -1,0 +1,77 @@
+{
+  "version": 1,
+  "models": {
+    "k36": {
+      "file": "k36.bin.gz",
+      "snps": 165688,
+      "components": [
+        "Amerindian",
+        "Arabian",
+        "Armenian",
+        "Basque",
+        "Central_African",
+        "Central_Euro",
+        "East_African",
+        "East_Asian",
+        "East_Balkan",
+        "East_Central_Asian",
+        "East_Central_Euro",
+        "East_Med",
+        "Eastern_Euro",
+        "Fennoscandian",
+        "French",
+        "Iberian",
+        "Indo-Chinese",
+        "Italian",
+        "Malayan",
+        "Near_Eastern",
+        "North_African",
+        "North_Atlantic",
+        "North_Caucasian",
+        "North_Sea",
+        "Northeast_African",
+        "Oceanian",
+        "Omotic",
+        "Pygmy",
+        "Siberian",
+        "South_Asian",
+        "South_Central_Asian",
+        "South_Chinese",
+        "Volga-Ural",
+        "West_African",
+        "West_Caucasian",
+        "West_Med"
+      ],
+      "bytes": 19822120,
+      "sha256": "ff840ac4687755caa504f4644e759ad2e52b9c9b32c05d4da1896eb488fa24a3",
+      "sourceSha256": {
+        "eurogenes.alleles": "795d8037d8b384ecdb1cf4837a135ce302a66e47da22fd5e0313217edc4e4c0f",
+        "eurogenes.36.F": "daff10b73090a706479a53e0bf535c32ec98db22a049f00859a45130bd5370b4"
+      }
+    },
+    "k12b": {
+      "file": "k12b.bin.gz",
+      "snps": 166770,
+      "components": [
+        "Gedrosia",
+        "Siberian",
+        "Northwest_African",
+        "Southeast_Asian",
+        "Atlantic_Med",
+        "North_European",
+        "South_Asian",
+        "East_African",
+        "Southwest_Asian",
+        "East_Asian",
+        "Caucasus",
+        "Sub_Saharan"
+      ],
+      "bytes": 7095324,
+      "sha256": "b9110554ef21723b90fdb848bc4aa1c341c185ead05c425d5676e6fb3d3118ca",
+      "sourceSha256": {
+        "K12b.alleles": "7d421454138bf999af69204579552200a71279f0ab68041d81a6925b004ea548",
+        "K12b.12.F": "4570adb5faef88dbe5b211845879e3be9d459cb9a45dfdff5d5ab8a2ec5ce3fd"
+      }
+    }
+  }
+}

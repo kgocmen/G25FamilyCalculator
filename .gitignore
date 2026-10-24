@@ -13,4 +13,5 @@ data/pca/*
 *.py
 !build_calculator_data.py
 !test_build_calculator_data.py
+!build_raw_models.py
 __pycache__/

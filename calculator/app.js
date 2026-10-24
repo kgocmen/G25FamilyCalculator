@@ -1049,6 +1049,7 @@
     if (compareInputs) compareInputs.hidden = mode !== 0;
     $("#family-inputs").hidden = mode === 0 || singleMode;
     $("#result-panel").hidden = mode === 0 || singleMode;
+    $("#raw-workspace").hidden = mode !== 11;
     $("#single-ancient-matches-group").hidden = true;
     $("#calculated-matches-group").hidden = mode === 1 || mode === 10;
     $("#match-filter").hidden = mode === 1 || mode === 10;
@@ -1061,6 +1062,16 @@
     $("#copy-admixed").hidden = mode !== 9 && !(isPeriodView() &&
       (state.turkish || state.analysisView === "modern"));
     $("#medieval-breakdown-list").classList.toggle("visualise-breakdown", mode === 9);
+    if (mode === 11) {
+      cancelMixtures();
+      suggestionTarget = null;
+      $("#inputs-title").textContent = "Raw Data";
+      for (const selector of ["#family-inputs", "#result-panel", "#matches-panel", "#suggestions-panel",
+        "#relaxed-estimates-panel", "#parent-estimates-panel", "#grandparent-estimates-panel", "#metrics-group", "#remaining-admixture-panel"]) {
+        $(selector).hidden = true;
+      }
+      return;
+    }
     if (mode === 9) {
       renderVisualise();
       return;
@@ -3015,7 +3026,7 @@
   }
 
   document.querySelectorAll(".mode-button").forEach((button) => {
-    if (button.dataset.mode !== "family" && ![0, 1, 9, 10].includes(Number(button.dataset.mode))) {
+    if (button.dataset.mode !== "family" && ![0, 1, 9, 10, 11].includes(Number(button.dataset.mode))) {
       button.hidden = true;
       return;
     }
@@ -3045,6 +3056,7 @@
     tabs[next].focus();
   });
   $("#clear-all").addEventListener("click", () => {
+    rawDataUI?.reset();
     state.single = null;
     visualiseLocks.clear();
     state.compare = [null, null];
@@ -3264,5 +3276,15 @@
     if (admixedOutput) copyText(admixedOutput, event.currentTarget);
   });
   rebuildGroupExclusions();
+  const rawDataUI = window.G25RawDataUI?.init((sample) => {
+    state.single = sample;
+    state.mode = 1;
+    visualiseLocks.clear();
+    state.modernPcaId = "auto";
+    modernMixedDirty = true;
+    modernMixedPca = null;
+    modernPcaFitDistances.clear();
+    render();
+  });
   render();
 })();
