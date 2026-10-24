@@ -22,7 +22,7 @@
   <script defer src="modern_pca.js?v=20261023-3"></script>
   <script defer src="pca_layout.js?v=20261024-6"></script>
   <script defer src="raw_data_ui.js?v=20261024-4"></script>
-  <script defer src="app.js?v=20261024-6"></script>
+  <script defer src="app.js?v=20261024-7"></script>
 </head>
 <body>
   <main class="shell">
@@ -40,7 +40,7 @@
     <section class="panel input-panel" aria-labelledby="inputs-title">
       <div class="section-head">
         <div>
-          <h2 id="inputs-title">Family inputs</h2>
+          <h2 id="inputs-title">Family</h2>
           <p id="inputs-intro" class="legacy-copy" hidden></p>
         </div>
         <div class="input-head-actions">
@@ -53,7 +53,7 @@
         <button class="mode-button" type="button" data-mode="0" aria-pressed="false">Compare</button>
         <button class="mode-button" type="button" data-mode="9" aria-pressed="false">Visualise</button>
         <button class="mode-button active" type="button" data-mode="family" aria-pressed="true" aria-controls="family-tabs">Family</button>
-        <button class="mode-button" type="button" data-mode="10" aria-pressed="false" aria-controls="period-tabs">Periodical Breakdown</button>
+        <button class="mode-button" type="button" data-mode="10" aria-pressed="false" aria-controls="period-tabs">Breakdown</button>
         <button class="mode-button" type="button" data-mode="11" aria-pressed="false" aria-controls="raw-workspace">Raw Data</button>
       </div>
       <div id="family-tabs" class="family-tabs" role="tablist" aria-label="Family generation">
@@ -61,7 +61,7 @@
         <button id="family-tab-grandparents" class="family-tab" type="button" role="tab" data-family-mode="4" aria-selected="false" aria-controls="family-inputs">4 grandparents</button>
         <button id="family-tab-great-grandparents" class="family-tab" type="button" role="tab" data-family-mode="8" aria-selected="false" aria-controls="family-inputs">8 great-grandparents</button>
       </div>
-      <div id="period-tabs" class="analysis-tabs" role="tablist" aria-label="Periodical breakdown" hidden>
+      <div id="period-tabs" class="analysis-tabs" role="tablist" aria-label="Breakdown" hidden>
         <button id="early-medieval-tab" class="analysis-tab" type="button" role="tab" aria-selected="false" aria-controls="medieval-breakdown-panel">Early Medieval</button>
         <button id="late-medieval-tab" class="analysis-tab" type="button" role="tab" aria-selected="false" aria-controls="medieval-breakdown-panel">Late Medieval</button>
         <button id="modern-analysis-tab" class="analysis-tab active" type="button" role="tab" aria-selected="true" aria-controls="medieval-breakdown-panel">Modern</button>

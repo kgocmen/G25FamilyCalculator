@@ -1062,8 +1062,8 @@
     $("#calculated-matches-group").hidden = mode === 1 || mode === 10;
     $("#match-filter").hidden = mode === 1 || mode === 10;
     $("#analyse-match-filter").hidden = mode !== 1;
-    $("#inputs-title").textContent = mode === 9 ? "Visualise" : mode === 10 ? "Periodical Breakdown"
-      : mode === 1 ? "Analyse" : mode === 0 ? "Compare" : "Family inputs";
+    $("#inputs-title").textContent = mode === 9 ? "Visualise" : mode === 10 ? "Breakdown"
+      : mode === 1 ? "Analyse" : mode === 0 ? "Compare" : "Family";
     for (const selector of ["#visualise-category-filter", "#visualise-limit-filter", "#visualise-lock-controls"]) {
       $(selector).hidden = mode !== 9;
     }
