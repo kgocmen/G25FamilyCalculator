@@ -36,11 +36,13 @@ p { margin: 0; }
 .raw-input-grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 20px; margin: 24px 0 18px; }
 .raw-field { display: grid; align-content: start; gap: 9px; color: #365a72; font-size: 13px; font-weight: 700; min-width: 0; }
 .raw-field input { width: 100%; min-width: 0; padding: 12px; border: 1px solid #cbd8e2; border-radius: 9px; background: #f8fafc; color: #14243b; }
-.raw-field small { color: #718092; font-weight: 400; line-height: 1.5; }
 .raw-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .raw-status { color: #365a72; font-size: 13px; line-height: 1.6; margin: 16px 0 0; overflow-wrap: anywhere; }
 #raw-progress { width: 100%; height: 6px; margin-top: 20px; accent-color: #176e8d; }
-.raw-result-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; align-items: start; }
+.raw-model-tabs.analysis-tabs { margin: 24px 0 0; flex-wrap: wrap; }
+.raw-result.raw-model-panel { margin-top: 14px; }
+.raw-model-panel .section-head { flex-wrap: wrap; }
+.raw-g25-footer { display: flex; justify-content: flex-end; margin-top: 14px; }
 .raw-result { min-width: 0; border-top: 1px solid #dce4eb; margin-top: 25px; padding-top: 24px; }
 .raw-result h2 { font-size: 18px; }
 .raw-g25-result .section-head { flex-wrap: wrap; }
@@ -50,12 +52,8 @@ p { margin: 0; }
 .raw-component { position: relative; isolation: isolate; display: flex; justify-content: space-between; gap: 12px; overflow: hidden; padding: 8px 10px; border-radius: 5px; background: #f3f6f9; font-size: 12px; }
 .raw-component strong { color: #176e8d; font-variant-numeric: tabular-nums; }
 .raw-component-bar { position: absolute; inset: 0 auto 0 0; z-index: -1; background: #dcedf2; }
-.raw-research { margin-top: 26px; border-top: 1px solid #dce4eb; padding-top: 20px; color: #5b6d80; font-size: 13px; line-height: 1.7; }
-.raw-research summary { cursor: pointer; font-weight: 750; color: #176e8d; }
-.raw-research p, .raw-research ul { margin-top: 14px; }
-.raw-research a { color: #176e8d; }
 @media (max-width: 640px) {
-  .raw-input-grid, .raw-result-grid { grid-template-columns: 1fr; }
+  .raw-input-grid { grid-template-columns: 1fr; }
   .raw-actions .primary-button { white-space: normal; }
 }
 .analysis-tabs { display: flex; gap: 8px; margin: 3px 0 17px; }

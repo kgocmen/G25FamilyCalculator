@@ -5,9 +5,29 @@
   function init(onAnalyse) {
     const $ = (id) => document.getElementById(id);
     let worker = null, results = {}, inputStats = null, g25 = null;
+    const modelIds = ["k12b", "k36"], settledModels = new Set(), copyTimers = new WeakMap();
+    let selectedModel = "k12b";
     const cleanName = () => ($("raw-sample-name").value.trim() || "Sample").replace(/[\r\n,\t]/g, "_").slice(0, 120);
     const line = () => `${cleanName()}_simulated_scaled,${g25.map((v) => v.toFixed(6)).join(",")}`;
-    const message = (text) => { $("raw-status").textContent = text; };
+    const message = (text) => { $("raw-status").textContent = text; $("raw-status").hidden = !text; };
+
+    function selectModel(id) {
+      selectedModel = id;
+      for (const model of modelIds) {
+        const active = model === id, tab = $("raw-" + model + "-tab");
+        tab.classList.toggle("active", active);
+        tab.setAttribute("aria-selected", String(active));
+        tab.tabIndex = active ? 0 : -1;
+        $("raw-" + model).hidden = !active;
+      }
+    }
+    function showModels() {
+      $("raw-model-results").hidden = false;
+      selectModel(selectedModel);
+    }
+    function stopPendingModels(text) {
+      for (const id of modelIds) if (!settledModels.has(id)) $("raw-" + id + "-status").textContent = text;
+    }
 
     function busy(value) {
       $("raw-run").disabled = value || !$("raw-file").files.length;
@@ -18,14 +38,15 @@
     }
     function clearResults() {
       results = {}; inputStats = null; g25 = null;
-      for (const id of ["raw-k36", "raw-k12b", "raw-g25", "raw-summary"]) $(id).hidden = true;
+      settledModels.clear();
+      for (const id of ["raw-model-results", "raw-g25", "raw-summary"]) $(id).hidden = true;
+      selectModel("k12b");
       for (const id of ["k36", "k12b"]) {
         $("raw-" + id + "-status").textContent = "";
         $("raw-" + id + "-components").replaceChildren();
-        $("raw-" + id + "-copy").disabled = true;
+        for (const format of ["row", "table"]) $("raw-" + id + "-copy-" + format).disabled = true;
       }
       $("raw-g25-line").value = "";
-      $("raw-g25-method").textContent = "";
       $("raw-export").disabled = true;
     }
     function cancel() {
@@ -38,11 +59,17 @@
       $("raw-file").value = "";
       $("raw-sample-name").value = "";
       busy(false);
-      message("Choose your extracted MyHeritage CSV or TXT file to begin.");
+      message("");
     }
-    function profile(id) {
+    function profile(id, format) {
       const result = results[id];
-      return result.components.map((name, i) => `${name}\t${(result.fit.proportions[i] * 100).toFixed(4)}`).join("\n");
+      if (format === "row") {
+        return `${cleanName()}_${id === "k36" ? "K36" : "K12b"},${result.fit.proportions.map((v) => (v * 100).toFixed(4)).join(",")}`;
+      }
+      return result.components.map((name, i) => {
+        const percentage = (result.fit.proportions[i] * 100).toFixed(2);
+        return `${name}\t${Number(percentage) === 0 ? "-" : percentage + "%"}`;
+      }).join("\n");
     }
     async function copy(text, button) {
       try {
@@ -53,14 +80,18 @@
           const copied = document.execCommand("copy"); field.remove();
           if (!copied) throw new Error("Clipboard access was blocked.");
         }
+        const label = button.dataset.copyLabel || button.textContent;
+        button.dataset.copyLabel = label;
+        clearTimeout(copyTimers.get(button));
         button.textContent = "Copied";
-        setTimeout(() => { button.textContent = "Copy"; }, 1800);
+        copyTimers.set(button, setTimeout(() => { button.textContent = label; }, 1800));
       } catch (_) { message("Clipboard access was blocked. Select the G25 row to copy it, or download the results."); }
     }
     function showResult(data) {
       results[data.id] = data;
+      settledModels.add(data.id);
       const prefix = "raw-" + data.id;
-      $(prefix).hidden = false;
+      showModels();
       const low = data.stats.matched < 40000;
       $(prefix + "-status").textContent = `${data.stats.matched.toLocaleString()} / ${data.stats.total.toLocaleString()} SNPs used (${(data.stats.coverage * 100).toFixed(1)}%). ` +
         (data.fit.converged ? `Fit converged in ${data.fit.iterations} iterations.` : "Fit did not converge; proportions are provisional and G25 is unavailable.") +
@@ -76,13 +107,12 @@
         row.append(label, value, bar); fragment.append(row);
       });
       $(prefix + "-components").replaceChildren(fragment);
-      $(prefix + "-copy").disabled = false;
+      for (const format of ["row", "table"]) $(prefix + "-copy-" + format).disabled = false;
       $("raw-export").disabled = false;
       if (data.g25) {
         g25 = data.g25;
         $("raw-g25").hidden = false;
         $("raw-g25-line").value = line();
-        $("raw-g25-method").textContent = `Method: ${data.regression.name}. Published coefficients; this is a simulated coordinate estimate.`;
       } else if (data.id === "k36" && data.regressionError) {
         $(prefix + "-status").textContent += ` G25 regression unavailable: ${data.regressionError}`;
       }
@@ -92,7 +122,7 @@
       const file = $("raw-file").files[0];
       if (file && !$("raw-sample-name").value) $("raw-sample-name").value = file.name.replace(/\.[^.]+$/, "").slice(0, 120);
       busy(false);
-      message(file ? `${file.name} selected. Ready to calculate.` : "Choose your extracted MyHeritage CSV or TXT file to begin.");
+      message(file ? `${file.name} selected. Ready to calculate.` : "");
     });
     $("raw-sample-name").addEventListener("input", () => { if (g25) $("raw-g25-line").value = line(); });
     $("raw-run").addEventListener("click", () => {
@@ -108,6 +138,7 @@
         worker = new Worker(new URL("raw_dna_worker.js?v=20261024-3", document.baseURI));
         const current = worker;
         busy(true); message("Starting local DNA analysis…");
+        for (const id of modelIds) $("raw-" + id + "-status").textContent = `Calculating ${id === "k36" ? "K36" : "K12b"}…`;
         worker.onmessage = ({ data }) => {
           if (current !== worker) return;
           if (data.type === "status") message(data.message);
@@ -120,23 +151,37 @@
           }
           if (data.type === "result") showResult(data);
           if (data.type === "model-error") {
-            $("raw-" + data.id).hidden = false;
+            settledModels.add(data.id);
+            showModels();
             $("raw-" + data.id + "-status").textContent = data.message;
           }
-          if (data.type === "error") { cancel(); message(data.message); }
+          if (data.type === "error") { cancel(); stopPendingModels("Calculation stopped."); message(data.message); }
           if (data.type === "done") {
             cancel();
             const complete = results.k36?.fit.converged && results.k12b?.fit.converged && g25;
             message(complete ? "Analysis complete. Your DNA stayed in this browser." : "Processing finished. Review the result notes below.");
           }
         };
-        worker.onerror = () => { cancel(); message("The DNA worker could not finish. Reload the page and try again."); };
+        worker.onerror = () => { cancel(); stopPendingModels("Calculation stopped."); message("The DNA worker could not finish. Reload the page and try again."); };
         worker.postMessage({ file });
       } catch (error) { cancel(); message(error.message); }
     });
-    $("raw-cancel").addEventListener("click", () => { cancel(); message("Calculation cancelled. Completed results remain below."); });
+    $("raw-cancel").addEventListener("click", () => { cancel(); stopPendingModels("Calculation cancelled."); message("Calculation cancelled. Completed results remain below."); });
     $("raw-reset").addEventListener("click", reset);
-    for (const id of ["k36", "k12b"]) $("raw-" + id + "-copy").addEventListener("click", (event) => copy(profile(id), event.currentTarget));
+    for (const id of modelIds) {
+      $("raw-" + id + "-tab").addEventListener("click", () => selectModel(id));
+      for (const format of ["row", "table"]) $("raw-" + id + "-copy-" + format).addEventListener("click", (event) => copy(profile(id, format), event.currentTarget));
+    }
+    $("raw-model-tabs").addEventListener("keydown", (event) => {
+      let index = modelIds.indexOf(selectedModel);
+      if (event.key === "ArrowLeft" || event.key === "ArrowRight") index = 1 - index;
+      else if (event.key === "Home") index = 0;
+      else if (event.key === "End") index = 1;
+      else return;
+      event.preventDefault();
+      selectModel(modelIds[index]);
+      $("raw-" + selectedModel + "-tab").focus();
+    });
     $("raw-g25-copy").addEventListener("click", (event) => copy(line(), event.currentTarget));
     $("raw-analyse").addEventListener("click", () => onAnalyse({ label: `${cleanName()}_simulated_scaled`, values: g25.slice(), source: "raw-regression" }));
     $("raw-export").addEventListener("click", () => {

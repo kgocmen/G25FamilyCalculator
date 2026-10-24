@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#14243b">
   <title>G25 Family Calculator</title>
-  <link rel="stylesheet" href="style.css?v=20261024-2">
+  <link rel="stylesheet" href="style.css?v=20261024-4">
   <script defer src="references.js?v=20261022-1"></script>
   <script defer src="turkish_references.js?v=20261022-1"></script>
   <script defer src="modern_pca_references.js?v=20261023-3"></script>
@@ -21,7 +21,7 @@
   <script defer src="pca.js?v=20261023-1"></script>
   <script defer src="modern_pca.js?v=20261023-3"></script>
   <script defer src="pca_layout.js?v=20261016-2"></script>
-  <script defer src="raw_data_ui.js?v=20261024-3"></script>
+  <script defer src="raw_data_ui.js?v=20261024-4"></script>
   <script defer src="app.js?v=20261024-2"></script>
 </head>
 <body>
@@ -68,11 +68,10 @@
       </div>
       <div id="raw-workspace" hidden aria-busy="false">
         <p class="raw-intro">MyHeritage DNA → Eurogenes K36 &amp; Dodecad K12b → simulated G25</p>
-        <p class="method-note">Your DNA is processed in this browser and is never uploaded or saved. Public reference models download when you calculate (about 27 MB).</p>
+        <p class="method-note">Your DNA is processed in this browser and is never uploaded or saved.</p>
         <div class="raw-input-grid">
           <label class="raw-field">MyHeritage raw DNA file
             <input id="raw-file" type="file" accept=".csv,.txt,.tsv,text/csv,text/plain">
-            <small>Extract your MyHeritage ZIP and select the CSV or TXT inside.</small>
           </label>
           <label class="raw-field">Sample name
             <input id="raw-sample-name" type="text" maxlength="120" placeholder="Sample" autocomplete="off">
@@ -85,44 +84,39 @@
           <button id="raw-export" class="text-button" type="button" disabled>Download results</button>
         </div>
         <progress id="raw-progress" aria-label="Calculating ancestry" hidden></progress>
-        <p id="raw-status" class="raw-status" role="status" aria-live="polite">Choose your extracted MyHeritage CSV or TXT file to begin.</p>
+        <p id="raw-status" class="raw-status" role="status" aria-live="polite" hidden></p>
         <p id="raw-summary" class="method-note" hidden></p>
         <section id="raw-g25" class="raw-result raw-g25-result" aria-labelledby="raw-g25-title" hidden>
           <div class="section-head">
             <div><h2 id="raw-g25-title">Simulated G25 <span class="badge">Scaled · regression estimate</span></h2>
-              <p>Estimated from K36 proportions. This is an approximation, with less individual detail than a direct G25 projection.</p></div>
-            <div class="raw-actions"><button id="raw-g25-copy" class="text-button" type="button">Copy</button>
-              <button id="raw-analyse" class="primary-button" type="button">Use in Analyse</button></div>
+              <p>Estimated from K36 proportions.</p></div>
+            <button id="raw-g25-copy" class="text-button" type="button">Copy</button>
           </div>
           <textarea id="raw-g25-line" rows="4" readonly spellcheck="false" aria-label="Simulated scaled G25 coordinates"></textarea>
-          <p id="raw-g25-method" class="method-note"></p>
+          <div class="raw-g25-footer"><button id="raw-analyse" class="primary-button" type="button">Use in Analyse</button></div>
         </section>
-        <div class="raw-result-grid">
-          <section id="raw-k36" class="raw-result" aria-labelledby="raw-k36-title" hidden>
-            <div class="section-head"><h2 id="raw-k36-title">Eurogenes K36</h2><button id="raw-k36-copy" class="text-button" type="button" disabled>Copy</button></div>
-            <p id="raw-k36-status" class="method-note"></p>
-            <div id="raw-k36-components" class="raw-components"></div>
-          </section>
-          <section id="raw-k12b" class="raw-result" aria-labelledby="raw-k12b-title" hidden>
-            <div class="section-head"><h2 id="raw-k12b-title">Dodecad K12b</h2><button id="raw-k12b-copy" class="text-button" type="button" disabled>Copy</button></div>
+        <div id="raw-model-results" hidden>
+          <div id="raw-model-tabs" class="analysis-tabs raw-model-tabs" role="tablist" aria-label="Raw DNA results">
+            <button id="raw-k12b-tab" class="analysis-tab active" type="button" role="tab" aria-selected="true" aria-controls="raw-k12b">K12b</button>
+            <button id="raw-k36-tab" class="analysis-tab" type="button" role="tab" aria-selected="false" aria-controls="raw-k36" tabindex="-1">K36</button>
+          </div>
+          <section id="raw-k12b" class="raw-result raw-model-panel" role="tabpanel" aria-labelledby="raw-k12b-tab">
+            <div class="section-head"><h2 id="raw-k12b-title">Dodecad K12b</h2>
+              <div class="raw-actions"><button id="raw-k12b-copy-row" class="text-button" type="button" disabled>Copy row</button>
+                <button id="raw-k12b-copy-table" class="text-button" type="button" disabled>Copy table</button></div>
+            </div>
             <p id="raw-k12b-status" class="method-note"></p>
             <div id="raw-k12b-components" class="raw-components"></div>
           </section>
+          <section id="raw-k36" class="raw-result raw-model-panel" role="tabpanel" aria-labelledby="raw-k36-tab" hidden>
+            <div class="section-head"><h2 id="raw-k36-title">Eurogenes K36</h2>
+              <div class="raw-actions"><button id="raw-k36-copy-row" class="text-button" type="button" disabled>Copy row</button>
+                <button id="raw-k36-copy-table" class="text-button" type="button" disabled>Copy table</button></div>
+            </div>
+            <p id="raw-k36-status" class="method-note"></p>
+            <div id="raw-k36-components" class="raw-components"></div>
+          </section>
         </div>
-        <details class="raw-research">
-          <summary>Research, methods &amp; sources</summary>
-          <p>The CSV is a list of SNP genotypes. Each calculator matches autosomal rsIDs to its own published allele-frequency panel and estimates nonnegative proportions summing to 100% by maximizing the diploid binomial likelihood. K36 uses 165,688 reference SNPs; K12b uses 166,770. They are fitted independently from your DNA.</p>
-          <p>We support quoted MyHeritage CSV and tab-separated files with either a combined genotype or two allele columns. Missing calls, indels, sex chromosomes and conflicting duplicate rsIDs are excluded. Matching uses rsID rather than genomic position; unambiguous strand complements are aligned to the model alleles. Coverage is reported separately for each model. At least 10,000 matched SNPs are required here; below 40,000, results are marked as low coverage.</p>
-          <p>G25 uses Vbknethio’s published K36 regression, including all 25 intercepts and the original component order. Full-precision K36 fractions are converted to percentages totaling 100 before applying the coefficients. The output is already scaled. The implementation is checked against the author’s horizontal and vertical converters. This checks agreement with the published formula; it does not establish accuracy against a direct G25 projection. The earlier custom regression and its validation statistics are documented separately as legacy data.</p>
-          <p>Component names describe similarity to model clusters; they do not directly measure recent ancestors. Results can differ from GEDmatch because SNP coverage, allele handling and numerical fitting differ.</p>
-          <ul>
-            <li><a href="https://www.myheritage.com/help/en/articles/12852246-how-should-i-interpret-my-raw-dna-data" target="_blank" rel="noopener noreferrer">MyHeritage: raw data columns and forward-strand reporting</a></li>
-            <li><a href="https://bga101.blogspot.com/2013/03/eurogenes-k36-at-gedmatch.html" target="_blank" rel="noopener noreferrer">Davidski / Eurogenes: original K36 description</a> · <a href="https://github.com/teepean/BAM-Analysis-Kit/tree/master/ref/admixture" target="_blank" rel="noopener noreferrer">K36 model source mirror</a></li>
-            <li><a href="https://dodecad.blogspot.com/2012/01/k12b-and-k7b-calculators.html" target="_blank" rel="noopener noreferrer">Dienekes Pontikos / Dodecad Ancestry Project: K12b</a> · <a href="https://github.com/wegene-llc/radmixture" target="_blank" rel="noopener noreferrer">WeGene radmixture: K12b data and allele conventions</a>. K12b data are for noncommercial use under the <a href="raw_data/DODECAD-LICENSE.txt">source terms</a>.</li>
-            <li><a href="https://allelocator.ovh/K36vertical.html" target="_blank" rel="noopener noreferrer">Vbknethio: published K36-to-G25 regression</a> · <a href="https://allelocator.ovh/K36vertical.js" target="_blank" rel="noopener noreferrer">Original coefficient source</a>. G25 coordinate system by Davidski / Eurogenes.</li>
-            <li><a href="raw_data/README.md">Reproducible build, file provenance and validation details</a></li>
-          </ul>
-        </details>
       </div>
       <div id="single-input" hidden>
         <div id="single-row"></div>
