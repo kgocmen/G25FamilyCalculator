@@ -67,6 +67,7 @@
   let medievalWorkerUrl = null;
   let medievalRequest = 0;
   let pcaTooltip = null;
+  const pcaInputLabelOffsets = new Map();
   let modernMixedPca = null;
   let modernMixedDirty = true;
   const modernPcaFitDistances = new Map();
@@ -2217,6 +2218,8 @@
     });
     const targetX = projection.target ? plotX(projection.target.x) : null;
     const targetY = projection.target ? plotY(projection.target.y) : null;
+    const inputLabelLine = projection.target ? add(plotLayer, "line", {
+      class: "pca-input-label-line", "aria-hidden": "true" }) : null;
     const marker = projection.target ? add(plotLayer, "circle", {
       cx: targetX, cy: targetY, r: 11, class: "pca-target" }) : null;
     if (marker) bindTooltip(marker, `Input: ${projection.target.label}`);
@@ -2224,8 +2227,13 @@
       add(plotLayer, "text", { "text-anchor": "middle", fill: groupColor(group),
         class: "pca-group-label", "aria-hidden": "true" }, group.replaceAll("_", " "))]));
     const inputName = projection.target?.label || "Input";
-    const inputLabel = marker ? add(plotLayer, "text", { class: "pca-you-label",
-      "aria-hidden": "true" }, inputName) : null;
+    const inputLabelGroup = marker ? add(plotLayer, "g", { class: "pca-input-label", tabindex: "0",
+      role: "group", "aria-roledescription": "draggable label",
+      "aria-label": `${inputName}. Drag to move this label, or use arrow keys. Home resets its position.` }) : null;
+    if (inputLabelGroup) add(inputLabelGroup, "title", {}, inputName);
+    const inputLabelBackground = marker ? add(inputLabelGroup, "rect", { rx: 5, height: 24 }) : null;
+    const inputLabel = marker ? add(inputLabelGroup, "text", { class: "pca-you-label",
+      x: 8, y: 16, "aria-hidden": "true" }, inputName) : null;
     container.append(svg);
     const fitInputLabel = (maxWidth) => {
       inputLabel.textContent = inputName;
@@ -2241,6 +2249,14 @@
       inputLabel.textContent = `${inputName.slice(0, low)}…`;
       return inputLabel.getComputedTextLength();
     };
+    const inputLabelWidth = marker ? fitInputLabel(204) + 16 : 0;
+    if (inputLabelBackground) inputLabelBackground.setAttribute("width", inputLabelWidth);
+    const inputLabelKey = marker ? core.formatLine(inputName, state.single.values) : null;
+    const defaultInputLabelOffset = {
+      x: bounds.right - targetX >= inputLabelWidth + 28 ? 24 : -inputLabelWidth - 24, y: -12,
+    };
+    let inputLabelOffset = pcaInputLabelOffsets.get(inputLabelKey) || defaultInputLabelOffset;
+    let inputLabelBox = null, labelDrag = null;
     const zoomIn = $(zoomPrefix + "in");
     const zoomOut = $(zoomPrefix + "out");
     const zoomReset = $(zoomPrefix + "reset");
@@ -2326,21 +2342,18 @@
         const target = screen({ x: targetX, y: targetY });
         marker.setAttribute("cx", target.x);
         marker.setAttribute("cy", target.y);
-        const rightSpace = bounds.right - target.x - 24;
-        const leftSpace = target.x - bounds.left - 24;
-        const youRight = rightSpace >= leftSpace;
-        const inputLabelWidth = fitInputLabel(Math.max(rightSpace, leftSpace));
-        const youX = target.x + (youRight ? 19 : -19);
-        const youY = target.y < bounds.top + 36 ? target.y + 27 : target.y - 15;
-        inputLabel.setAttribute("x", youX);
-        inputLabel.setAttribute("y", youY);
-        inputLabel.setAttribute("text-anchor", youRight ? "start" : "end");
-        inputLabel.style.display = visible(target) ? "" : "none";
+        inputLabelBox = window.G25PcaLayout.inputLabelLayout(target, inputLabelOffset,
+          { width: inputLabelWidth, height: 24 }, bounds);
+        inputLabelGroup.setAttribute("transform", `translate(${inputLabelBox.left} ${inputLabelBox.top})`);
+        inputLabelGroup.style.display = visible(target) ? "" : "none";
+        inputLabelLine.style.display = visible(target) && inputLabelBox.line ? "" : "none";
+        if (inputLabelBox.line) for (const [name, value] of Object.entries(inputLabelBox.line)) {
+          inputLabelLine.setAttribute(name, value);
+        }
         if (visible(target)) {
           occupiedLabels.push({ left: target.x - 17, right: target.x + 17,
             top: target.y - 17, bottom: target.y + 17 });
-          occupiedLabels.push({ left: youRight ? youX : youX - inputLabelWidth,
-            right: youRight ? youX + inputLabelWidth : youX, top: youY - 15, bottom: youY + 4 });
+          occupiedLabels.push(inputLabelBox);
         }
       }
       for (const { x, y } of centroidMarkers) {
@@ -2402,6 +2415,56 @@
       return { x: (event.clientX - rect.left) * width / rect.width,
         y: (event.clientY - rect.top) * height / rect.height };
     };
+    if (inputLabelGroup) {
+      const targetPosition = () => ({ x: targetX * scale + panX, y: targetY * scale + panY });
+      const labelOffset = () => {
+        const target = targetPosition();
+        return { x: inputLabelBox.left - target.x, y: inputLabelBox.top - target.y };
+      };
+      const moveLabel = (offset) => {
+        inputLabelOffset = offset;
+        hideTooltip();
+        updateZoom();
+        inputLabelOffset = labelOffset();
+        pcaInputLabelOffsets.set(inputLabelKey, inputLabelOffset);
+      };
+      inputLabelGroup.addEventListener("pointerdown", (event) => {
+        if (event.button !== 0 || event.isPrimary === false) return;
+        event.preventDefault();
+        event.stopPropagation();
+        labelDrag = { id: event.pointerId, point: svgPosition(event), offset: labelOffset() };
+        inputLabelGroup.focus({ preventScroll: true });
+        inputLabelGroup.setPointerCapture(event.pointerId);
+        inputLabelGroup.classList.add("is-dragging");
+      });
+      inputLabelGroup.addEventListener("pointermove", (event) => {
+        if (!labelDrag || event.pointerId !== labelDrag.id) return;
+        event.preventDefault();
+        event.stopPropagation();
+        const point = svgPosition(event);
+        moveLabel({ x: labelDrag.offset.x + point.x - labelDrag.point.x,
+          y: labelDrag.offset.y + point.y - labelDrag.point.y });
+      });
+      const stopLabelDrag = (event) => {
+        if (!labelDrag || event.pointerId !== labelDrag.id) return;
+        labelDrag = null;
+        inputLabelGroup.classList.remove("is-dragging");
+        if (inputLabelGroup.hasPointerCapture(event.pointerId)) inputLabelGroup.releasePointerCapture(event.pointerId);
+      };
+      for (const type of ["pointerup", "pointercancel", "lostpointercapture"]) {
+        inputLabelGroup.addEventListener(type, stopLabelDrag);
+      }
+      inputLabelGroup.addEventListener("keydown", (event) => {
+        const steps = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
+        const step = steps[event.key];
+        if (!step && event.key !== "Home") return;
+        event.preventDefault();
+        event.stopPropagation();
+        const offset = labelOffset(), amount = event.shiftKey ? 20 : 4;
+        moveLabel(step ? { x: offset.x + step[0] * amount, y: offset.y + step[1] * amount }
+          : defaultInputLabelOffset);
+      });
+    }
     const zoomButtonAnchor = () => {
       if (!marker) return center;
       const x = targetX * scale + panX;
@@ -2426,7 +2489,7 @@
     }, { passive: false });
     svg.addEventListener("pointerdown", (event) => {
       if (scale <= 1 || event.button !== 0 ||
-          event.target.closest(".pca-reference, .pca-neighbor, .pca-modern, .pca-target, .pca-centroid, .pca-representative, .pca-custom")) return;
+          event.target.closest(".pca-reference, .pca-neighbor, .pca-modern, .pca-target, .pca-centroid, .pca-representative, .pca-custom, .pca-input-label")) return;
       const { x, y } = svgPosition(event);
       if (x < bounds.left || x > bounds.right || y < bounds.top || y > bounds.bottom) return;
       drag = { id: event.pointerId, x: event.clientX, y: event.clientY };
@@ -3103,6 +3166,7 @@
   });
   $("#clear-all").addEventListener("click", () => {
     rawDataUI?.reset();
+    pcaInputLabelOffsets.clear();
     state.single = null;
     visualiseLocks.clear();
     state.compare = [null, null];

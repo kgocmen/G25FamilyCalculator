@@ -17,7 +17,21 @@ function G25PcaLayoutModule(root) {
     return [...lower.slice(0, -1), ...upper.slice(0, -1)];
   }
 
-  const api = { convexHull };
+  function inputLabelLayout(target, offset, size, bounds, radius = 11) {
+    const clamp = (value, low, high) => Math.max(low, Math.min(high, value));
+    const left = clamp(target.x + offset.x, bounds.left + 4, bounds.right - size.width - 4);
+    const top = clamp(target.y + offset.y, bounds.top + 4, bounds.bottom - size.height - 4);
+    const right = left + size.width, bottom = top + size.height;
+    const end = { x: clamp(target.x, left, right), y: clamp(target.y, top, bottom) };
+    const distance = Math.hypot(end.x - target.x, end.y - target.y);
+    return { left, top, right, bottom, line: distance <= radius ? null : {
+      x1: target.x + (end.x - target.x) * radius / distance,
+      y1: target.y + (end.y - target.y) * radius / distance,
+      x2: end.x, y2: end.y,
+    } };
+  }
+
+  const api = { convexHull, inputLabelLayout };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.G25PcaLayout = api;
 }

@@ -177,8 +177,14 @@ p { margin: 0; }
 .pca-cluster-line { stroke-opacity: .27; stroke-width: 18; stroke-linecap: round; }
 .pca-target { fill: #111; stroke: #fff; stroke-width: 2.5; cursor: help; }
 .pca-modern { fill: #d63270; stroke: #fff; stroke-width: 2; cursor: help; }
-.pca-group-label, .pca-you-label { font-size: 12px; font-weight: 800; stroke: #fbfdfe; stroke-width: 4px; stroke-linejoin: round; paint-order: stroke fill; pointer-events: none; }
-.pca-you-label { fill: #111; font-size: 15px; letter-spacing: .04em; }
+.pca-group-label { font-size: 12px; font-weight: 800; stroke: #fbfdfe; stroke-width: 4px; stroke-linejoin: round; paint-order: stroke fill; pointer-events: none; }
+.pca-input-label-line { stroke: #526a80; stroke-width: 1.2; pointer-events: none; }
+.pca-input-label { cursor: grab; touch-action: none; user-select: none; outline: none; }
+.pca-input-label.is-dragging { cursor: grabbing; }
+.pca-input-label rect { fill: #fff; fill-opacity: .96; stroke: #b9cbd7; stroke-width: 1; }
+.pca-input-label:focus-visible { outline: none; }
+.pca-input-label:focus-visible rect { stroke: #176e8d; stroke-width: 2.5; }
+.pca-you-label { fill: #14243b; font-size: 12px; font-weight: 650; pointer-events: none; }
 .pca-tooltip { position: fixed; z-index: 1000; max-width: min(480px, calc(100vw - 16px)); padding: 9px 12px; border-radius: 8px; background: #14243b; color: white; box-shadow: 0 8px 24px rgba(11, 37, 60, .25); font-size: 12px; line-height: 1.4; overflow-wrap: anywhere; pointer-events: none; }
 .pca-tooltip[hidden] { display: none; }
 .pca-legend { display: flex; flex-wrap: wrap; gap: 9px 15px; margin-top: 12px; }
