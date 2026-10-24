@@ -73,5 +73,10 @@
         "K12b.12.F": "4570adb5faef88dbe5b211845879e3be9d459cb9a45dfdff5d5ab8a2ec5ce3fd"
       }
     }
+  },
+  "regression": {
+    "file": "k36_g25_vbknethio.json",
+    "id": "vbknethio-k36-scaled-05339d34",
+    "sha256": "4274a52dc1a94f00acfd255166e3944f124a5cf3382efb7df5060ed8d4c1b924"
   }
 }

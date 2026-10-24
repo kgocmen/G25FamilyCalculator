@@ -1,5 +1,5 @@
 "use strict";
-importScripts("raw_dna.js?v=20261024-1");
+importScripts("raw_dna.js?v=20261024-3");
 
 self.onmessage = async ({ data }) => {
   const send = (type, payload = {}) => self.postMessage({ type, ...payload });
@@ -9,7 +9,7 @@ self.onmessage = async ({ data }) => {
     const { calls, stats } = G25RawDNA.parse(await data.file.text());
     send("parsed", { stats });
     const readJson = async (file) => {
-      const response = await fetch(new URL(`raw_data/${file}`, self.location.href));
+      const response = await fetch(new URL(`raw_data/${file}`, self.location.href), { cache: "no-cache" });
       if (!response.ok) throw new Error(`Could not load ${file}. Check your connection and try again.`);
       return response.json();
     };
@@ -42,12 +42,16 @@ self.onmessage = async ({ data }) => {
         let g25 = null, regression = null, regressionError = null;
         if (id === "k36" && fit.converged) {
           try {
-            regression = await readJson("k36_g25.json");
+            if (!manifest.regression?.file) throw new Error("The regression manifest is outdated. Reload the page and try again.");
+            regression = await readJson(manifest.regression.file);
+            if (regression.id !== manifest.regression.id) throw new Error("The regression version does not match its manifest. Reload the page.");
             g25 = G25RawDNA.regress(fit.proportions, regression, info.components);
           } catch (error) { regressionError = error.message; }
         }
         send("result", { id, components: info.components, fit, stats: matched.stats, g25,
-          regression: regression ? { id: regression.id, validation: regression.validation } : null, regressionError });
+          regression: regression ? { id: regression.id, name: regression.name, source: regression.source,
+            sourceSha256: regression.sourceSha256, input: regression.input, output: regression.output,
+            method: regression.method, validation: regression.validation } : null, regressionError });
       } catch (error) { send("model-error", { id, message: error.message }); }
     }
     calls.clear();

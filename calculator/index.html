@@ -21,7 +21,7 @@
   <script defer src="pca.js?v=20261023-1"></script>
   <script defer src="modern_pca.js?v=20261023-3"></script>
   <script defer src="pca_layout.js?v=20261016-2"></script>
-  <script defer src="raw_data_ui.js?v=20261024-1"></script>
+  <script defer src="raw_data_ui.js?v=20261024-3"></script>
   <script defer src="app.js?v=20261024-2"></script>
 </head>
 <body>
@@ -95,6 +95,7 @@
               <button id="raw-analyse" class="primary-button" type="button">Use in Analyse</button></div>
           </div>
           <textarea id="raw-g25-line" rows="4" readonly spellcheck="false" aria-label="Simulated scaled G25 coordinates"></textarea>
+          <p id="raw-g25-method" class="method-note"></p>
         </section>
         <div class="raw-result-grid">
           <section id="raw-k36" class="raw-result" aria-labelledby="raw-k36-title" hidden>
@@ -112,13 +113,13 @@
           <summary>Research, methods &amp; sources</summary>
           <p>The CSV is a list of SNP genotypes. Each calculator matches autosomal rsIDs to its own published allele-frequency panel and estimates nonnegative proportions summing to 100% by maximizing the diploid binomial likelihood. K36 uses 165,688 reference SNPs; K12b uses 166,770. They are fitted independently from your DNA.</p>
           <p>We support quoted MyHeritage CSV and tab-separated files with either a combined genotype or two allele columns. Missing calls, indels, sex chromosomes and conflicting duplicate rsIDs are excluded. Matching uses rsID rather than genomic position; unambiguous strand complements are aligned to the model alleles. Coverage is reported separately for each model. At least 10,000 matched SNPs are required here; below 40,000, results are marked as low coverage.</p>
-          <p>G25 is estimated from the full-precision K36 fractions using an ordinary least squares regression fitted to 1,119 matching modern samples from 137 populations. The output is already scaled. A reproducible 80/20 individual holdout (223 test samples) gave a median Euclidean error of 0.02934 and a 95th percentile of 0.06881 in scaled coordinates, before the ×100 distance display used elsewhere in this calculator. These are aggregate validation errors, not a personal confidence interval. Populations can occur in both splits; this does not measure performance on unseen populations, and error from raw-DNA fitting adds further uncertainty.</p>
+          <p>G25 uses Vbknethio’s published K36 regression, including all 25 intercepts and the original component order. Full-precision K36 fractions are converted to percentages totaling 100 before applying the coefficients. The output is already scaled. The implementation is checked against the author’s horizontal and vertical converters. This checks agreement with the published formula; it does not establish accuracy against a direct G25 projection. The earlier custom regression and its validation statistics are documented separately as legacy data.</p>
           <p>Component names describe similarity to model clusters; they do not directly measure recent ancestors. Results can differ from GEDmatch because SNP coverage, allele handling and numerical fitting differ.</p>
           <ul>
             <li><a href="https://www.myheritage.com/help/en/articles/12852246-how-should-i-interpret-my-raw-dna-data" target="_blank" rel="noopener noreferrer">MyHeritage: raw data columns and forward-strand reporting</a></li>
             <li><a href="https://bga101.blogspot.com/2013/03/eurogenes-k36-at-gedmatch.html" target="_blank" rel="noopener noreferrer">Davidski / Eurogenes: original K36 description</a> · <a href="https://github.com/teepean/BAM-Analysis-Kit/tree/master/ref/admixture" target="_blank" rel="noopener noreferrer">K36 model source mirror</a></li>
             <li><a href="https://dodecad.blogspot.com/2012/01/k12b-and-k7b-calculators.html" target="_blank" rel="noopener noreferrer">Dienekes Pontikos / Dodecad Ancestry Project: K12b</a> · <a href="https://github.com/wegene-llc/radmixture" target="_blank" rel="noopener noreferrer">WeGene radmixture: K12b data and allele conventions</a>. K12b data are for noncommercial use under the <a href="raw_data/DODECAD-LICENSE.txt">source terms</a>.</li>
-            <li><a href="https://genoplot.com/discussions/topic/28494/r-and-shell-scripts-for-admixture-calculators?page=3" target="_blank" rel="noopener noreferrer">Nganasankhan: paired K36/G25 data and linear-regression method</a>, using scaled G25 references by Davidski / Eurogenes.</li>
+            <li><a href="https://allelocator.ovh/K36vertical.html" target="_blank" rel="noopener noreferrer">Vbknethio: published K36-to-G25 regression</a> · <a href="https://allelocator.ovh/K36vertical.js" target="_blank" rel="noopener noreferrer">Original coefficient source</a>. G25 coordinate system by Davidski / Eurogenes.</li>
             <li><a href="raw_data/README.md">Reproducible build, file provenance and validation details</a></li>
           </ul>
         </details>

@@ -25,6 +25,7 @@
         $("raw-" + id + "-copy").disabled = true;
       }
       $("raw-g25-line").value = "";
+      $("raw-g25-method").textContent = "";
       $("raw-export").disabled = true;
     }
     function cancel() {
@@ -81,6 +82,7 @@
         g25 = data.g25;
         $("raw-g25").hidden = false;
         $("raw-g25-line").value = line();
+        $("raw-g25-method").textContent = `Method: ${data.regression.name}. Published coefficients; this is a simulated coordinate estimate.`;
       } else if (data.id === "k36" && data.regressionError) {
         $(prefix + "-status").textContent += ` G25 regression unavailable: ${data.regressionError}`;
       }
@@ -103,7 +105,7 @@
         message("Open this calculator through its hosted site or a local web server to process raw DNA."); return;
       }
       try {
-        worker = new Worker(new URL("raw_dna_worker.js?v=20261024-1", document.baseURI));
+        worker = new Worker(new URL("raw_dna_worker.js?v=20261024-3", document.baseURI));
         const current = worker;
         busy(true); message("Starting local DNA analysis…");
         worker.onmessage = ({ data }) => {
@@ -138,7 +140,7 @@
     $("raw-g25-copy").addEventListener("click", (event) => copy(line(), event.currentTarget));
     $("raw-analyse").addEventListener("click", () => onAnalyse({ label: `${cleanName()}_simulated_scaled`, values: g25.slice(), source: "raw-regression" }));
     $("raw-export").addEventListener("click", () => {
-      const result = { sample: cleanName(), method: "fixed-frequency maximum likelihood; K36 to scaled G25 ordinary least squares",
+      const result = { sample: cleanName(), method: "fixed-frequency maximum likelihood; published Vbknethio K36 to scaled G25 regression",
         simulated: true, inputStats, results, g25: g25 ? line() : null };
       const url = URL.createObjectURL(new Blob([JSON.stringify(result, null, 2)], { type: "application/json" }));
       const link = document.createElement("a"); link.href = url;

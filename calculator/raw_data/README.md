@@ -20,16 +20,24 @@ regression. No DNA is uploaded, persisted, or included in application assets.
   Download `K12b.alleles.RData` and `K12b.12.F.RData`. The binary contains all
   166,770 SNPs and 12 components. See [source license](DODECAD-LICENSE.txt):
   noncommercial use with attribution and a link to the Dodecad Ancestry Project.
-- Nganasankhan's [published regression method and paired data](https://genoplot.com/discussions/topic/28494/r-and-shell-scripts-for-admixture-calculators?page=3):
+- Vbknethio's published [K36-to-G25 converter](https://allelocator.ovh/K36vertical.html)
+  and [coefficient source](https://allelocator.ovh/K36vertical.js). This is the
+  active G25 regression, stored as `k36_g25_vbknethio.json`. The source SHA-256 is
+  `05339d34c09fea4ee68119f7b638df3313a76ec17528a2846255d88948961cb7`.
+  The [horizontal version](https://allelocator.ovh/K36horizontal.js) was separately
+  checked: its coefficients and intercepts are identical. Attribution to
+  Vbknethio, hosted by Allelocator; coordinate system by Davidski / Eurogenes.
+- **Legacy regression only:** Nganasankhan's [published regression method and paired data](https://genoplot.com/discussions/topic/28494/r-and-shell-scripts-for-admixture-calculators?page=3):
   [K36 results](https://drive.google.com/file/d/1diCjHuUS_04ICJU68XjlXLpO-J6DOw1n/view)
   for the Reich 1240K+HO dataset, and
   [modern scaled G25 rows](https://drive.google.com/file/d/1HYrDwxEXv82DvDLoq736pS5ZTGJA4dn5/view)
   by Davidski / Eurogenes. Download these as `training-k36.csv` and `training-g25.csv`.
-  We fit our own coefficients from the exact label intersection; we do not copy
-  coefficients from an undocumented online simulator.
+  These reproduce the earlier custom fit in `k36_g25.json`, which is no longer
+  selected by the application.
 
 Retrieved 2026-10-24. `manifest.json` records SHA-256 digests of source tables and
-compressed browser models. The regression JSON records hashes of its training files.
+compressed browser models, and identifies the active regression file and its hash.
+The published regression records its source hash; the legacy fit records training hashes.
 The K36 mirror does not supply a separate calculator-data license; the mirror is
 provenance, not a claim that these data are MIT licensed. Preserve author attribution.
 
@@ -51,6 +59,12 @@ From the repository root:
 OPENBLAS_NUM_THREADS=1 python build_raw_models.py /path/to/source/files
 node --test calculator/raw_dna.test.js
 ```
+
+Also save the published script as `K36vertical.js` in the source directory.
+The build checks its audited SHA-256, extracts only the numeric equations without
+executing the downloaded script, and verifies the order of all 36 terms in each
+of the 25 equations. A changed source revision is rejected. The legacy training
+files remain required to reproduce the archived custom fit.
 
 `k36.bin.gz` and `k12b.bin.gz` use gzip with a deterministic zero timestamp. The
 decompressed binary consists of an 8-byte `G25RAW01` magic, little-endian uint32
@@ -95,7 +109,40 @@ K36 and K12b are independent fitted profiles; neither is inferred from the other
 Results are not claimed to reproduce GEDmatch exactly. Calculator effects,
 reference coverage, array ascertainment and different numerical methods matter.
 
-## G25 regression and validation
+## Active G25 regression: published Vbknethio formula
+
+The active calculation is:
+
+```text
+percentage[i] = 100 * fraction[i] / sum(fractions)
+PC[j] = intercept[j] + sum_i percentage[i] * coefficient[i,j]
+```
+
+All 900 coefficients and all 25 intercepts come from the published source. The
+25 outputs are already scaled. No additional PCA scale factors, inferred region,
+sample-specific correction, or fitting to a user's comparison row is applied.
+The K36 and K12b SNP-fitting models are independent of this regression selection.
+
+The active model has an explicit `percentages` input unit. This matters because
+the original custom model used fractions and had an implicit intercept. The
+runtime validates model schema, component order, input unit and intercept shape;
+it cannot silently interpret one formula as the other. `manifest.json` selects
+the published model, and exported reports include its ID, source hash and units.
+JSON assets are revalidated on each run to avoid silently reusing an old model.
+
+The conformance fixtures in `vbknethio_reference.json` contain a public example
+from the author's converter and a synthetic input, with expected output evaluated
+by the original JavaScript. Tests cover intercepts and the percentage conversion;
+an additional audit compared the matrix implementation with both original scripts
+over all 36 component basis vectors and synthetic mixtures.
+
+**Conformance is not an independent accuracy estimate.** A source-matching formula
+does not prove proximity to a direct G25 projection, and a small distance from
+another simulator does not establish which estimate is more accurate. No held-out
+accuracy statistics for this published coefficient set are claimed here. The
+statistics below belong exclusively to the inactive custom fit.
+
+## Legacy custom regression and validation (inactive)
 
 The build joins the two training tables on exact population:sample labels,
 yielding **1,119 modern samples from 137 populations**. K36 rows are normalized to

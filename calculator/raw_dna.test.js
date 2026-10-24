@@ -106,3 +106,33 @@ test("regression preserves component order and uses fractions, with no second sc
   assert.throws(() => raw.regress(Array(36).fill(0), regression, regression.components), /sum to zero/);
   assert.throws(() => raw.regress([...q.slice(0, 35), NaN], regression, regression.components), /incompatible/);
 });
+
+test("active regression reproduces the published converter's independent reference outputs", () => {
+  const manifest = require("./raw_data/manifest.json");
+  assert.equal(manifest.regression.file, "k36_g25_vbknethio.json");
+  const bytes = fs.readFileSync(path.join(__dirname, "raw_data", manifest.regression.file));
+  assert.equal(crypto.createHash("sha256").update(bytes).digest("hex"), manifest.regression.sha256);
+  const model = JSON.parse(bytes);
+  const reference = require("./raw_data/vbknethio_reference.json");
+  assert.equal(model.id, manifest.regression.id);
+  assert.equal(model.sourceSha256, reference.sourceSha256);
+  assert.equal(model.validation.independentAccuracyEstimate, null);
+  for (const fixture of reference.cases) {
+    const actual = raw.regress(fixture.percentages.map((v) => v / 100), model, model.components);
+    actual.forEach((v, pc) => assert.ok(Math.abs(v - fixture.expectedScaled[pc]) < 1e-12,
+      `${fixture.name}: PC${pc + 1} differs from the original published formula`));
+  }
+});
+
+test("published regression applies all intercepts once and converts fractions to percentages", () => {
+  const model = require("./raw_data/k36_g25_vbknethio.json");
+  const q = Array(36).fill(0); q[0] = .25; q[35] = .75;
+  const actual = raw.regress(q, model, model.components);
+  actual.forEach((v, pc) => assert.ok(Math.abs(v - (model.intercept[pc] +
+    25 * model.coefficients[0][pc] + 75 * model.coefficients[35][pc])) < 1e-12));
+  assert.throws(() => raw.regress(q, { ...model, input: "fractions" }, model.components), /incompatible/);
+  assert.throws(() => raw.regress(q, { ...model, intercept: undefined }, model.components), /incompatible/);
+  assert.throws(() => raw.regress(q, { ...model, intercept: Array(25).fill(NaN) }, model.components), /incompatible/);
+  assert.throws(() => raw.regress(q, { ...model, output: "unscaled" }, model.components), /incompatible/);
+  assert.throws(() => raw.regress(q, model, [...model.components].reverse()), /component order/);
+});

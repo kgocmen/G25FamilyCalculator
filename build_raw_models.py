@@ -9,6 +9,7 @@ import gzip
 import hashlib
 import json
 from pathlib import Path
+import re
 import struct
 import sys
 
@@ -18,10 +19,40 @@ ROOT = Path(__file__).parent / "calculator" / "raw_data"
 K12B = ["Gedrosia", "Siberian", "Northwest_African", "Southeast_Asian",
         "Atlantic_Med", "North_European", "South_Asian", "East_African",
         "Southwest_Asian", "East_Asian", "Caucasus", "Sub_Saharan"]
+VBN_SOURCE_SHA256 = "05339d34c09fea4ee68119f7b638df3313a76ec17528a2846255d88948961cb7"
 
 
 def digest(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def published_regression(source, components):
+    """Extract the published numeric formula without executing downloaded JavaScript."""
+    path = source / "K36vertical.js"
+    if digest(path) != VBN_SOURCE_SHA256:
+        raise ValueError("The Vbknethio source differs from the audited revision.")
+    script = path.read_text()
+    number = r"[-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[Ee][-+]?\d+)?"
+    coefficients = np.zeros((36, 25))
+    intercept = []
+    for pc in range(25):
+        equation = re.search(r"\bv" + str(pc + 1) + r"\s*=\s*(" + number + r")(.*?);", script)
+        if not equation:
+            raise ValueError(f"Missing published equation for PC{pc + 1}.")
+        terms = re.findall(r"\bcom(\d+)\s*\*\s*(" + number + ")", equation[2])
+        if [int(index) for index, _ in terms] != list(range(1, 37)):
+            raise ValueError(f"Unexpected component order for PC{pc + 1}.")
+        intercept.append(float(equation[1]))
+        for index, value in terms:
+            coefficients[int(index) - 1, pc] = float(value)
+    return {
+        "version": 2, "id": "vbknethio-k36-scaled-05339d34", "name": "Vbknethio K36 regression",
+        "output": "scaled", "input": "percentages", "method": "published affine linear regression",
+        "components": components, "coefficients": coefficients.tolist(), "intercept": intercept,
+        "source": "https://allelocator.ovh/K36vertical.js",
+        "sourcePage": "https://allelocator.ovh/K36vertical.html", "sourceSha256": VBN_SOURCE_SHA256,
+        "validation": {"kind": "published-source conformance", "independentAccuracyEstimate": None},
+    }
 
 
 def build(source):
@@ -85,9 +116,15 @@ def build(source):
                        "p95Distance": float(np.quantile(errors, .95))},
         "sources": {name: digest(source / name) for name in ["training-k36.csv", "training-g25.csv"]},
     }
+    # Keep the original custom OLS fit reproducible as a legacy artifact.
     (ROOT / "k36_g25.json").write_text(json.dumps(regression, separators=(",", ":")) + "\n")
+    active = published_regression(source, components)
+    active_path = ROOT / "k36_g25_vbknethio.json"
+    active_path.write_text(json.dumps(active, separators=(",", ":")) + "\n")
+    manifest["regression"] = {"file": active_path.name, "id": active["id"], "sha256": digest(active_path)}
     (ROOT / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
-    print("regression", regression["trainingSamples"], regression["validation"])
+    print("legacy regression", regression["trainingSamples"], regression["validation"])
+    print("active regression", active["id"])
 
 
 if __name__ == "__main__":

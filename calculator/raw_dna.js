@@ -175,17 +175,24 @@
   }
 
   function regress(proportions, regression, components) {
-    if (regression.output !== "scaled" || regression.components.length !== 36 ||
+    const legacy = regression?.version === 1 && regression.input === "fractions summing to one";
+    const published = regression?.version === 2 && regression.input === "percentages" &&
+      Array.isArray(regression.intercept) && regression.intercept.length === 25 &&
+      regression.intercept.every(Number.isFinite);
+    if ((!legacy && !published) || regression.output !== "scaled" ||
+        !Array.isArray(regression.components) || regression.components.length !== 36 ||
         JSON.stringify(regression.components) !== JSON.stringify(components) ||
-        regression.coefficients.length !== 36 || proportions.length !== 36 ||
+        !Array.isArray(regression.coefficients) || regression.coefficients.length !== 36 ||
+        !Array.isArray(proportions) || proportions.length !== 36 ||
         proportions.some((v) => !Number.isFinite(v) || v < 0) ||
-        regression.coefficients.some((row) => row.length !== 25 || row.some((v) => !Number.isFinite(v)))) {
+        regression.coefficients.some((row) => !Array.isArray(row) || row.length !== 25 || row.some((v) => !Number.isFinite(v)))) {
       throw new Error("The K36 regression model has an incompatible component order or scale.");
     }
     const total = proportions.reduce((a, b) => a + b, 0);
     if (!total) throw new Error("K36 proportions sum to zero.");
+    const scale = published ? 100 : 1;
     return Array.from({ length: 25 }, (_, pc) => proportions.reduce((sum, weight, i) =>
-      sum + weight / total * regression.coefficients[i][pc], 0));
+      sum + weight / total * scale * regression.coefficients[i][pc], published ? regression.intercept[pc] : 0));
   }
 
   const api = { fields, parse, decodeModel, match, simplex, evaluate, fit, regress };
