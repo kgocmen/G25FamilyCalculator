@@ -104,7 +104,32 @@ function G25PcaModule(root) {
     };
   }
 
-  const api = { projectPca };
+  function projectCoordinates(references, xAxis = 1, yAxis = 2, overlays = []) {
+    if (![xAxis, yAxis].every((axis) => Number.isInteger(axis) && axis >= 1 && axis <= DIMENSIONS)) {
+      throw new Error("Choose G25 axes from 1 to 25.");
+    }
+    const position = (row) => {
+      const values = Array.isArray(row) ? row.slice(2) : row.values;
+      const label = Array.isArray(row) ? row[1] : row.label;
+      if (!Array.isArray(values) || values.length !== DIMENSIONS || !values.every(Number.isFinite)) {
+        throw new Error("A reference has invalid G25 coordinates.");
+      }
+      return { label, x: values[xAxis - 1], y: values[yAxis - 1] };
+    };
+    return { points: references.map(position), overlays: overlays.map(position), target: null };
+  }
+
+  function coordinateExtremes(points, count = 5) {
+    const limit = Math.max(5, Math.min(100, Math.round(count) || 5));
+    const extremes = {};
+    for (const axis of ["x", "y"]) {
+      extremes[axis + "Min"] = [...points].sort((a, b) => a[axis] - b[axis]).slice(0, limit);
+      extremes[axis + "Max"] = [...points].sort((a, b) => b[axis] - a[axis]).slice(0, limit);
+    }
+    return extremes;
+  }
+
+  const api = { projectPca, projectCoordinates, coordinateExtremes };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.G25Pca = api;
 }

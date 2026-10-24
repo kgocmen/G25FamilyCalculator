@@ -137,6 +137,24 @@ p { margin: 0; }
 .visualise-neighbor-control input { width: min(250px, 100%); accent-color: #176e8d; }
 .visualise-neighbor-control output { min-width: 26px; color: #173c50; font-variant-numeric: tabular-nums; }
 .cluster-auto-note { color: #71899b; font-weight: 500; }
+.visualise-pc-switch { display: flex; align-items: center; gap: 9px; margin-left: auto; color: #365a72; font-size: 13px; font-weight: 700; white-space: nowrap; }
+.visualise-pc-switch[hidden], .visualise-pc-controls[hidden], .visualise-pc-extremes[hidden] { display: none; }
+#medieval-breakdown-panel .section-head:has(> .visualise-pc-switch:not([hidden])) > div:first-child { flex: 1; }
+#medieval-breakdown-panel .section-head:has(> .visualise-pc-switch:not([hidden])) > .period-controls { display: none; }
+.visualise-pc-controls { display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 14px; }
+.visualise-pc-extremes { margin-top: 24px; }
+.visualise-pc-extremes > .result-count { max-width: 250px; margin-bottom: 20px; }
+.visualise-pc-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px; }
+.visualise-pc-grid section { min-width: 0; }
+.visualise-pc-grid ol { margin: 12px 0 0; padding: 0; list-style: none; counter-reset: pc-row; }
+.visualise-pc-grid li { display: flex; gap: 8px; padding: 9px 0; border-bottom: 1px solid #e5edf2; color: #365a72; font-size: 12px; counter-increment: pc-row; }
+.visualise-pc-grid li::before { content: counter(pc-row) "."; color: #71899b; min-width: 20px; }
+.visualise-pc-grid li span { min-width: 0; overflow-wrap: anywhere; }
+.visualise-pc-grid li strong { margin-left: auto; color: #176e8d; font-variant-numeric: tabular-nums; white-space: nowrap; }
+@media (max-width: 640px) {
+  .visualise-pc-grid { gap: 20px 12px; }
+  .visualise-pc-grid li { flex-wrap: wrap; }
+}
 .pca-scroll { width: 100%; overflow-x: auto; border: 1px solid #dfe7ed; border-radius: 10px; background: #fbfdfe; color: #607286; font-size: 13px; }
 .pca-scroll svg { display: block; width: 100%; min-width: 900px; height: auto; }
 .pca-scroll svg.is-zoomed { cursor: grab; touch-action: none; }

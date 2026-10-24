@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#14243b">
   <title>G25 Family Calculator</title>
-  <link rel="stylesheet" href="style.css?v=20261024-4">
+  <link rel="stylesheet" href="style.css?v=20261024-5">
   <script defer src="references.js?v=20261022-1"></script>
   <script defer src="turkish_references.js?v=20261022-1"></script>
   <script defer src="modern_pca_references.js?v=20261023-3"></script>
@@ -18,11 +18,11 @@
   <script defer src="medieval.js?v=20261023-2"></script>
   <script defer src="visualise.js?v=20261020-9"></script>
   <script defer src="clusters.js?v=20261020-1"></script>
-  <script defer src="pca.js?v=20261023-1"></script>
+  <script defer src="pca.js?v=20261024-5"></script>
   <script defer src="modern_pca.js?v=20261023-3"></script>
   <script defer src="pca_layout.js?v=20261016-2"></script>
   <script defer src="raw_data_ui.js?v=20261024-4"></script>
-  <script defer src="app.js?v=20261024-2"></script>
+  <script defer src="app.js?v=20261024-5"></script>
 </head>
 <body>
   <main class="shell">
@@ -289,6 +289,11 @@
             </select>
           </label>
         </div>
+        <label id="visualise-pc-toggle-control" class="visualise-pc-switch switch-label" hidden>
+          <span>PC view</span>
+          <input id="visualise-pc-toggle" class="switch-input" type="checkbox" role="switch" aria-controls="visualise-pc-controls visualise-pc-extremes">
+          <span class="switch-track" aria-hidden="true"></span>
+        </label>
         <output id="medieval-breakdown-distance" class="breakdown-distance" hidden></output>
       </div>
       <div id="visualise-lock-controls" class="visualise-lock-controls" hidden>
@@ -320,8 +325,23 @@
           <output id="visualise-cluster-value" for="visualise-cluster-count">1</output>
           <span id="visualise-cluster-auto" class="cluster-auto-note"></span>
         </div>
+        <div id="visualise-pc-controls" class="visualise-pc-controls" hidden>
+          <label class="match-filter">X axis <select id="visualise-pc-x" aria-label="X axis G25 coordinate"></select></label>
+          <label class="match-filter">Y axis <select id="visualise-pc-y" aria-label="Y axis G25 coordinate"></select></label>
+        </div>
         <div id="medieval-pca-plot" class="pca-scroll" role="region" tabindex="0" aria-label="PCA plot"></div>
         <div id="medieval-pca-legend" class="pca-legend"></div>
+        <div id="visualise-pc-extremes" class="visualise-pc-extremes" hidden>
+          <label class="result-count"><span>Rows per list <output id="visualise-pc-count-value" for="visualise-pc-count">5</output></span>
+            <input id="visualise-pc-count" type="range" min="5" max="100" step="1" value="5" aria-label="Rows per PC extrema list">
+          </label>
+          <div class="visualise-pc-grid">
+            <section><h3 id="visualise-pc-x-min-title">Minimum X</h3><ol id="visualise-pc-x-min"></ol></section>
+            <section><h3 id="visualise-pc-y-min-title">Minimum Y</h3><ol id="visualise-pc-y-min"></ol></section>
+            <section><h3 id="visualise-pc-x-max-title">Maximum X</h3><ol id="visualise-pc-x-max"></ol></section>
+            <section><h3 id="visualise-pc-y-max-title">Maximum Y</h3><ol id="visualise-pc-y-max"></ol></section>
+          </div>
+        </div>
       </div>
     </section>
 

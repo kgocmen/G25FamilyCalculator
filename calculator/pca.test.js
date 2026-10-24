@@ -1,6 +1,6 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
-const { projectPca } = require("./pca.js");
+const { projectPca, projectCoordinates, coordinateExtremes } = require("./pca.js");
 
 function reference(label, x, y) {
   return ["medieval", label, x, y, ...Array(23).fill(0)];
@@ -123,4 +123,38 @@ test("invalid coordinates are rejected", () => {
   assert.throws(() => projectPca({ values: Array(25).fill(0) }, references.slice(0, 2)), /three/);
   assert.throws(() => projectPca({ values: Array(25).fill(0) }, references,
     [["modern", "Broken", 0]]), /overlay/);
+});
+
+test("PC view reads the original first through twenty-fifth coordinates without centering or rotation", () => {
+  const rows = [1, -1].map((sign) => ["modern", `Sample_${sign}`,
+    ...Array.from({ length: 25 }, (_, i) => sign * (i + 1) / 100)]);
+  const original = JSON.stringify(rows);
+  const overlays = [{ label: "Centroid", values: Array(25).fill(0.125) }];
+  const projection = projectCoordinates(rows, 25, 1, overlays);
+  assert.deepEqual(projection.points, [
+    { label: "Sample_1", x: 0.25, y: 0.01 },
+    { label: "Sample_-1", x: -0.25, y: -0.01 },
+  ]);
+  assert.deepEqual(projection.overlays, [{ label: "Centroid", x: 0.125, y: 0.125 }]);
+  assert.deepEqual(projectCoordinates(rows).points.map(({ x, y }) => [x, y]), [[0.01, 0.02], [-0.01, -0.02]]);
+  assert.deepEqual(projectCoordinates(rows, 7, 7).points.map(({ x, y }) => [x, y]), [[0.07, 0.07], [-0.07, -0.07]]);
+  assert.equal(JSON.stringify(rows), original);
+  for (const axis of [0, 26, 1.5, NaN]) assert.throws(() => projectCoordinates(rows, axis, 2), /1 to 25/);
+  assert.throws(() => projectCoordinates([["modern", "Broken", 0]]), /invalid G25/);
+});
+
+test("PC extrema rank each direction independently and share the five to one hundred row limit", () => {
+  const points = Array.from({ length: 120 }, (_, i) => ({ label: `Sample_${i}`, x: i - 60, y: 60 - i }));
+  const original = JSON.stringify(points);
+  const extremes = coordinateExtremes(points);
+  assert.deepEqual(extremes.xMin.map(({ x }) => x), [-60, -59, -58, -57, -56]);
+  assert.deepEqual(extremes.xMax.map(({ x }) => x), [59, 58, 57, 56, 55]);
+  assert.deepEqual(extremes.yMin.map(({ y }) => y), [-59, -58, -57, -56, -55]);
+  assert.deepEqual(extremes.yMax.map(({ y }) => y), [60, 59, 58, 57, 56]);
+  for (const [requested, expected] of [[1, 5], [37, 37], [100, 100], [150, 100]]) {
+    assert.ok(Object.values(coordinateExtremes(points, requested)).every((list) => list.length === expected));
+  }
+  assert.ok(Object.values(coordinateExtremes(points.slice(0, 1), 100)).every((list) => list.length === 1));
+  assert.ok(Object.values(coordinateExtremes([], 100)).every((list) => list.length === 0));
+  assert.equal(JSON.stringify(points), original);
 });

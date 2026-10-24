@@ -37,6 +37,10 @@
     visualiseLimit: null,
     visualiseNeighborCount: 10,
     visualiseClusterK: null,
+    visualisePcView: false,
+    visualisePcX: 1,
+    visualisePcY: 2,
+    visualisePcCount: 5,
     single: null,
     compare: [null, null],
     offspring: null,
@@ -1017,6 +1021,9 @@
     $("#medieval-breakdown-panel").hidden = true;
     $("#visualise-neighbor-control").hidden = true;
     $("#visualise-cluster-control").hidden = true;
+    $("#visualise-pc-toggle-control").hidden = true;
+    $("#visualise-pc-controls").hidden = true;
+    $("#visualise-pc-extremes").hidden = true;
     $("#closest-count").value = String(state.closestCount);
     $("#closest-count-value").textContent = String(state.closestCount);
     $("#suggestion-count").value = String(state.closestCount);
@@ -1408,7 +1415,40 @@
       list.append(item);
     });
     $("#pca-section").hidden = false;
-    renderMedievalPca(rows, "Only use", false, null, true, { clusterFit: fit });
+    $("#visualise-pc-controls").hidden = !state.visualisePcView;
+    $("#visualise-pc-x").value = String(state.visualisePcX);
+    $("#visualise-pc-y").value = String(state.visualisePcY);
+    $("#pca-heading-title").textContent = state.visualisePcView ? "Only use PC view" : "Only use PCA";
+    renderMedievalPca(rows, "Only use", false, null, true, { clusterFit: fit,
+      pcAxes: state.visualisePcView ? [state.visualisePcX, state.visualisePcY] : null });
+    renderVisualisePcExtremes();
+  }
+
+  function renderVisualisePcExtremes() {
+    const visible = state.mode === 9 && !state.single && state.visualisePcView && visualiseClusterContext;
+    $("#visualise-pc-extremes").hidden = !visible;
+    if (!visible) return;
+    const { points } = window.G25Pca.projectCoordinates(visualiseClusterContext.rows,
+      state.visualisePcX, state.visualisePcY);
+    const extremes = window.G25Pca.coordinateExtremes(points, state.visualisePcCount);
+    $("#visualise-pc-count").value = String(state.visualisePcCount);
+    $("#visualise-pc-count-value").textContent = String(state.visualisePcCount);
+    for (const axis of ["x", "y"]) for (const direction of ["min", "max"]) {
+      const prefix = `#visualise-pc-${axis}-${direction}`;
+      const coordinate = axis === "x" ? state.visualisePcX : state.visualisePcY;
+      $(prefix + "-title").textContent = `${direction === "min" ? "Minimum" : "Maximum"} ${axis.toUpperCase()} · PC${coordinate}`;
+      const fragment = document.createDocumentFragment();
+      for (const point of extremes[axis + (direction === "min" ? "Min" : "Max")]) {
+        const item = document.createElement("li");
+        const name = document.createElement("span");
+        name.textContent = point.label.replaceAll("_", " ");
+        const value = document.createElement("strong");
+        value.textContent = point[axis].toFixed(6);
+        item.append(name, value);
+        fragment.append(item);
+      }
+      $(prefix).replaceChildren(fragment);
+    }
   }
 
   function startVisualiseClusters(rows) {
@@ -1504,6 +1544,8 @@
       $("#medieval-breakdown-title").textContent = "Only use clusters";
       $("#pca-heading-title").textContent = "Only use PCA";
       const selected = onlyUseReferenceRows();
+      $("#visualise-pc-toggle-control").hidden = !selected.length;
+      $("#visualise-pc-toggle").checked = state.visualisePcView;
       if (selected.length) startVisualiseClusters(selected);
       else status.textContent = whitelist.size
         ? "No Only use populations are available with the current reference switches."
@@ -1938,8 +1980,10 @@
         ? clusterFit.clusters.map((cluster, index) => ({ label: `Cluster ${index + 1} centroid`, values: cluster.centroid }))
         : [...closestOverlayRows, ...neighborRows.map(({ row }) => row)];
       baseOverlayCount = overlays.length;
-      projection = window.G25Pca.projectPca(clusterFit ? null : state.single, periodReferences,
-        overlays, options.groupStyle || (isModern ? "modern" : "colon"), sparse, customRows);
+      projection = options.pcAxes
+        ? window.G25Pca.projectCoordinates(periodReferences, ...options.pcAxes, overlays)
+        : window.G25Pca.projectPca(clusterFit ? null : state.single, periodReferences,
+          overlays, options.groupStyle || (isModern ? "modern" : "colon"), sparse, customRows);
       if (clusterFit) projection.points.forEach((point, index) => {
         point.ethnicity = `Cluster ${clusterFit.assignments[index] + 1}`;
       });
@@ -1967,7 +2011,7 @@
     svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
     svg.setAttribute("role", "group");
     svg.setAttribute("aria-label", clusterFit
-      ? `PCA of ${projection.points.length} Only use references in ${clusterFit.k} clusters`
+      ? `${options.pcAxes ? `PC${options.pcAxes[0]} versus PC${options.pcAxes[1]}` : "PCA"} of ${projection.points.length} Only use references in ${clusterFit.k} clusters`
       : `${period} PCA of ${projection.points.length} references and ${projection.target.label}`);
     const tooltip = document.createElement("div");
     tooltip.className = "pca-tooltip";
@@ -2036,9 +2080,11 @@
     add(svg, "rect", { x: bounds.left, y: bounds.top, width: bounds.right - bounds.left,
       height: bounds.bottom - bounds.top, class: "pca-frame" });
     add(svg, "text", { x: (bounds.left + bounds.right) / 2, y: height - 12,
-      "text-anchor": "middle", class: "pca-axis-label" }, `PC1 · ${(projection.explained[0] * 100).toFixed(1)}%`);
+      "text-anchor": "middle", class: "pca-axis-label" }, options.pcAxes
+        ? `PC${options.pcAxes[0]}` : `PC1 · ${(projection.explained[0] * 100).toFixed(1)}%`);
     add(svg, "text", { transform: `translate(17 ${(bounds.top + bounds.bottom) / 2}) rotate(-90)`,
-      "text-anchor": "middle", class: "pca-axis-label" }, `PC2 · ${(projection.explained[1] * 100).toFixed(1)}%`);
+      "text-anchor": "middle", class: "pca-axis-label" }, options.pcAxes
+        ? `PC${options.pcAxes[1]}` : `PC2 · ${(projection.explained[1] * 100).toFixed(1)}%`);
 
     const defs = add(svg, "defs", {});
     const clipId = "pca-plot-clip";
@@ -3083,6 +3129,10 @@
     state.visualiseLimit = null;
     state.visualiseNeighborCount = 10;
     state.visualiseClusterK = null;
+    state.visualisePcView = false;
+    state.visualisePcX = 1;
+    state.visualisePcY = 2;
+    state.visualisePcCount = 5;
     modernMixedPca = null;
     modernMixedDirty = true;
     modernPcaFitDistances.clear();
@@ -3160,6 +3210,27 @@
   $("#visualise-cluster-count").addEventListener("input", (event) => {
     state.visualiseClusterK = Number(event.currentTarget.value);
     renderVisualiseClusters();
+  });
+  $("#visualise-pc-toggle").addEventListener("change", (event) => {
+    state.visualisePcView = event.currentTarget.checked;
+    renderVisualiseClusters();
+  });
+  for (const axis of ["x", "y"]) {
+    const select = $("#visualise-pc-" + axis);
+    for (let coordinate = 1; coordinate <= 25; coordinate += 1) {
+      const option = document.createElement("option");
+      option.value = String(coordinate);
+      option.textContent = `PC${coordinate}`;
+      select.append(option);
+    }
+    select.addEventListener("change", (event) => {
+      state[axis === "x" ? "visualisePcX" : "visualisePcY"] = Number(event.currentTarget.value);
+      renderVisualiseClusters();
+    });
+  }
+  $("#visualise-pc-count").addEventListener("input", (event) => {
+    state.visualisePcCount = Math.max(5, Math.min(100, Number(event.currentTarget.value)));
+    renderVisualisePcExtremes();
   });
   $("#modern-group-limit").addEventListener("change", (event) => {
     const limit = event.currentTarget.value === "auto" ? "auto" : Number(event.currentTarget.value);
