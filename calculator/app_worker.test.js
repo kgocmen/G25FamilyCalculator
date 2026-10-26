@@ -200,19 +200,45 @@ test("automatic PCA stays regular even when the combined references fit better",
   assert.equal(result.pcaFitDistances.length, 3);
 });
 
-test("mixed becomes the automatic PCA when its auto fit beats a closest PCA above two", () => {
-  const result = calculate({ groupLimit: "auto", modernPcas: [...pcas,
+test("above two, auto selects the lowest regular fit instead of the closest PCA", () => {
+  const near = { id: "near", title: "Near", references: [
+    row("Near:A", 0.1), row("Near:B", 0.2), row("Near:C", 0.3),
+  ] };
+  const better = { id: "better", title: "Better", references: [
+    row("West:A", -1), row("East:B", 1), row("East:C", 2),
+  ] };
+  const result = calculate({ groupLimit: "auto", closestPopulationDistance: 2.001,
+    closestPcaId: "near", modernPcas: [near, better] });
+  assert.equal(result.pca.id, "better");
+  assert.ok(result.pcaFitDistances.find((entry) => entry.id === "better").distance <
+    result.pcaFitDistances.find((entry) => entry.id === "near").distance);
+  const lowDistance = calculate({ groupLimit: "auto", closestPopulationDistance: 2,
+    closestPcaId: "near", modernPcas: [near, better] });
+  assert.equal(lowDistance.pca.id, "near");
+});
+
+test("mixed becomes automatic above a closest-population distance of two when its fit wins", () => {
+  const result = calculate({ groupLimit: "auto", closestPopulationDistance: 2.001,
+    modernPcas: [...pcas,
     { id: "mixed", title: "Mixed PCA", references: mixedReferences }] });
   assert.equal(result.pca.id, "mixed");
   assert.ok(result.pcaFitDistances.find((entry) => entry.id === "first").distance > 2);
   assert.ok(result.fit.distance < result.pcaFitDistances.find((entry) => entry.id === "first").distance);
 });
 
+test("below two, the previous mixed override still applies when regular fits exceed two", () => {
+  const result = calculate({ groupLimit: "auto", closestPopulationDistance: 1.999,
+    modernPcas: [...pcas,
+      { id: "mixed", title: "Mixed PCA", references: mixedReferences }] });
+  assert.equal(result.pca.id, "mixed");
+});
+
 test("automatic Mixed selection continues into deep analysis", () => {
   const mixed = { id: "mixed", title: "Mixed", references: [
     row("First:Group0", 0), row("Second:Group1", 1), row("Third:Group2", 2),
   ] };
-  const result = calculate({ groupLimit: "auto", modernPcas: [...pcas, mixed],
+  const result = calculate({ groupLimit: "auto", closestPopulationDistance: 2.001,
+    modernPcas: [...pcas, mixed],
     deepAnalysis: true, deepGroupLimit: "auto", deepPcas: [
       { id: "first", title: "First", references: [row("Group0: Inner: A", 0)] },
     ] });
@@ -223,7 +249,7 @@ test("automatic Mixed selection continues into deep analysis", () => {
   assert.deepEqual([...deep.groups], ["First"]);
 });
 
-test("mixed does not override a regular PCA whose fit is under two", () => {
+test("below two, auto stays with the closest population despite better fit elsewhere", () => {
   const closest = { id: "closest", title: "Closest", references: [
     row("Closest:A", 0.03), row("Closest:B", 0.04), row("Closest:C", 0.05),
   ] };
@@ -233,7 +259,8 @@ test("mixed does not override a regular PCA whose fit is under two", () => {
   const mixed = { id: "mixed", title: "Mixed", references: [
     row("Mixed:A", 0), row("Mixed:B", 0.1), row("Mixed:C", 0.2),
   ] };
-  const result = calculate({ closestPcaId: "closest", modernPcas: [closest, mixed, better],
+  const result = calculate({ closestPcaId: "closest", closestPopulationDistance: 1.999,
+    modernPcas: [closest, mixed, better],
     groupLimit: "auto" });
   assert.equal(result.pca.id, "closest");
   assert.ok(result.pcaFitDistances.find((entry) => entry.id === "better").distance < 2);
@@ -246,7 +273,8 @@ test("mixed needs a 25 percent fit improvement over the best regular PCA", () =>
   const mixed = { id: "mixed", title: "Mixed", references: [
     row("Mixed:A", 0.024), row("Mixed:B", 0.03), row("Mixed:C", 0.04),
   ] };
-  const result = calculate({ closestPcaId: "regular", modernPcas: [regular, mixed],
+  const result = calculate({ closestPcaId: "regular", closestPopulationDistance: 2.001,
+    modernPcas: [regular, mixed],
     groupLimit: "auto" });
   assert.equal(result.pca.id, "regular");
   assert.ok(result.pcaFitDistances.find((entry) => entry.id === "mixed").distance <
@@ -254,7 +282,8 @@ test("mixed needs a 25 percent fit improvement over the best regular PCA", () =>
 });
 
 test("a manual group count still uses auto fits to choose the default PCA", () => {
-  const result = calculate({ groupLimit: 1, modernPcas: [...pcas,
+  const result = calculate({ groupLimit: 1, closestPopulationDistance: 2.001,
+    modernPcas: [...pcas,
     { id: "mixed", title: "Mixed PCA", references: mixedReferences }] });
   assert.equal(result.pca.id, "mixed");
   assert.equal(result.fit.groups.length, 1);

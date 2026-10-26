@@ -744,18 +744,20 @@
           const closestProfiles = [];
           let mixedProfile = null;
           const hasMixed = maps.some((pca) => pca.id === "mixed");
+          const fitDrivenAuto = Number.isFinite(data.closestPopulationDistance) &&
+            data.closestPopulationDistance > 2;
           const regularCount = maps.filter((pca) => pca.id !== "mixed").length;
           let regularScanned = 0;
           const sendAutoSelection = () => {
-            if (selectedSent || !tiedIds.length || regularScanned < regularCount ||
-                closestProfiles.length < tiedIds.length ||
+            if (selectedSent || !best || regularScanned < regularCount ||
+                (!fitDrivenAuto && (!tiedIds.length || closestProfiles.length < tiedIds.length)) ||
                 (hasMixed && !mixedProfile)) return;
-            const closestProfile = closestProfiles.reduce((bestProfile, candidate) =>
-              candidate.chosen.fit.distance < bestProfile.chosen.fit.distance
+            const regularProfile = fitDrivenAuto ? best : closestProfiles.reduce(
+              (bestProfile, candidate) => candidate.chosen.fit.distance < bestProfile.chosen.fit.distance
                 ? candidate : bestProfile);
             const chosen = self.G25ModernPca.shouldAutoSelectMixed(
-              best.distance, mixedProfile?.chosen.fit.distance)
-              ? mixedProfile : closestProfile;
+              data.closestPopulationDistance, best.distance, mixedProfile?.chosen.fit.distance)
+              ? mixedProfile : regularProfile;
             const fit = data.groupLimit === "auto" ? chosen.chosen.fit
               : chosen.fits.find((entry) => entry.groupLimit === data.groupLimit)?.fit ||
                 self.G25Medieval.fitAdmixture(data.target, chosen.pca.references,
@@ -787,7 +789,7 @@
             if (pca.id !== "mixed") {
               regularScanned += 1;
               if (!best || chosen.fit.distance < best.distance) {
-                best = { pca, distance: chosen.fit.distance, fits };
+                best = { pca, chosen, distance: chosen.fit.distance, fits };
               }
             }
             if (data.selectedPcaId === "auto") {
@@ -1695,10 +1697,17 @@
     return `hsl(${hue} 68% ${lightness}%)`;
   }
 
-  function bestRegularModernFitDistance() {
-    return Math.min(...activeModernPcas()
+  function bestRegularModernFitDistance(pcas = activeModernPcas()) {
+    return Math.min(...pcas.filter((pca) => pca.id !== "mixed")
       .map((pca) => modernPcaFitDistances.get(pca.id)?.distance)
       .filter(Number.isFinite));
+  }
+
+  function closestModernPopulationDistance() {
+    const references = allowedReferences((state.turkish ? turkishReferences : globalReferences)
+      .filter((row) => row[0] === "modern"))
+      .filter((row) => !window.G25ModernPca.isIstanbulReference(row));
+    return core.nearestMatches(state.single, references, 1)[0]?.distance ?? Infinity;
   }
 
   function populateModernPcaSelect() {
@@ -1725,18 +1734,25 @@
       state.deepPcaId = "auto";
     }
     const currentSelectedId = deep ? state.deepPcaId : state.modernPcaId;
+    const closestPopulationDistance = closestModernPopulationDistance();
     const rankedPcas = window.G25ModernPca.rankModernPcas(
       state.single, choices, core.nearestMatches,
       (pca) => pca.id === "mixed" ? pca.references : allowedPcaReferences(pca),
-      modernPcaFitDistances);
+      modernPcaFitDistances, closestPopulationDistance);
+    const fitDriven = Number.isFinite(closestPopulationDistance) && closestPopulationDistance > 2;
     const distances = [...new Set(rankedPcas.map((entry) => entry.distance).filter(Number.isFinite))];
+    const fitDistances = [...new Set(rankedPcas
+      .map(({ pca }) => modernPcaFitDistances.get(pca.id)?.distance)
+      .filter(Number.isFinite))];
     const automatic = rankedPcas.find(({ pca, distance }) =>
       pca.id !== "mixed" && Number.isFinite(distance));
     const closestFit = modernPcaFitDistances.get(automatic?.pca.id);
     const mixedFit = modernPcaFitDistances.get("mixed");
     const autoMixed = !modernMixedDirty && choices.some((pca) => pca.id === "mixed") &&
       window.G25ModernPca.shouldAutoSelectMixed(
-        bestRegularModernFitDistance(), mixedFit?.distance);
+        closestPopulationDistance,
+        fitDriven ? bestRegularModernFitDistance(choices) : bestRegularModernFitDistance(),
+        mixedFit?.distance);
     const autoFit = autoMixed ? mixedFit : closestFit;
     const entries = new Map();
     const addOption = (id, title, color, closestDistance, fitDistance) => {
@@ -1781,15 +1797,19 @@
       options.append(option);
       entries.set(id, { title, color, fitText });
     };
-    addOption("auto", deep ? "Auto · closest deep PCA" : "Closest population",
+    addOption("auto", fitDriven ? "Auto · lowest fit" :
+      deep ? "Auto · closest deep PCA" : "Closest population",
       distances.length ? modernPcaColor(0) : "#687585",
       automatic?.distance, autoFit);
     for (const { pca, distance: geneticDistance } of rankedPcas) {
       const available = Number.isFinite(geneticDistance);
-      const position = distances.length > 1 ? distances.indexOf(geneticDistance) / (distances.length - 1) : 0;
       const fitDistance = modernPcaFitDistances.get(pca.id);
+      const colorScale = fitDriven && fitDistances.length ? fitDistances : distances;
+      const colorMetric = fitDriven && fitDistances.length ? fitDistance?.distance : geneticDistance;
+      const position = colorScale.length > 1 ?
+        colorScale.indexOf(colorMetric) / (colorScale.length - 1) : 0;
       addOption(pca.id, pca.id === "mixed" ? "Mixed" : pca.title,
-        available ? modernPcaColor(position) : "#687585",
+        available && position >= 0 ? modernPcaColor(position) : "#687585",
         geneticDistance, fitDistance);
     }
     const selected = entries.get(currentSelectedId) || entries.get("auto");
@@ -1837,9 +1857,11 @@
     let rankedPcas = [];
     if (isModern) {
       rankedPcas = populateModernPcaSelect().filter(({ pca }) => pca.id !== "mixed");
-      const closestDistance = rankedPcas.find(({ distance }) => Number.isFinite(distance))?.distance;
-      closestPcaIds = rankedPcas.filter(({ distance }) => distance === closestDistance)
-        .map(({ pca }) => pca.id);
+      const closestDistance = Math.min(...rankedPcas.map(({ distance }) => distance)
+        .filter(Number.isFinite));
+      closestPcaIds = Number.isFinite(closestDistance)
+        ? rankedPcas.filter(({ distance }) => distance === closestDistance)
+          .map(({ pca }) => pca.id) : [];
       closestPcaId = closestPcaIds[0] || null;
       const selectedPcaId = state.deepAnalysis ? state.deepPcaId : state.modernPcaId;
       const { closest, pca } = window.G25ModernPca.selectModernPca(state.single,
@@ -1852,7 +1874,11 @@
       const selectedMixed = modernMixedPca && (selectedPcaId === "mixed" ||
         selectedPcaId === "auto" && !modernMixedDirty &&
           window.G25ModernPca.shouldAutoSelectMixed(
-            bestRegularModernFitDistance(), mixedFit?.distance));
+            closest?.distance,
+            Number.isFinite(closest?.distance) && closest.distance > 2
+              ? bestRegularModernFitDistance(rankedPcas.map(({ pca }) => pca))
+              : bestRegularModernFitDistance(),
+            mixedFit?.distance));
       displayedPcaId = selectedMixed ? "mixed" : pca?.id || null;
       periodReferences = selectedMixed ? modernMixedPca.references : pca ? regularPcaReferences(pca) : [];
       const hasPlot = periodReferences.length >= 3;
@@ -1966,6 +1992,7 @@
           .map((pca) => ({ id: pca.id, title: pca.title,
             references: allowedDeepPcaReferences(pca) })) : [],
         closestPcaId, closestPcaIds,
+        closestPopulationDistance: closestModern?.distance,
         modernPcas: scanModernPcas ? [
           ...(state.deepAnalysis ? rankedPcas.map(({ pca }) => pca) : activeModernPcas()).map((pca) => ({
             id: pca.id, title: pca.title, references: pcaFitReferences(pca),

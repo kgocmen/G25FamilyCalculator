@@ -60,13 +60,18 @@ function G25ModernPcaModule(root) {
   }
 
   function rankModernPcas(target, pcas, nearestMatches, referencesForPca = (pca) => pca.references,
-    autoFits = null) {
+    autoFits = null, closestPopulationDistance = 0) {
     const ranked = pcas.map((pca, index) => {
       const references = referencesForPca(pca).filter((row) => !isIstanbulReference(row));
       const distance = nearestMatches(target, references, 1)[0]?.distance ?? Infinity;
       return { pca, number: index + 1, distance };
     });
     ranked.sort((first, second) => {
+      if (Number.isFinite(closestPopulationDistance) && closestPopulationDistance > 2) {
+        const firstFit = autoFits?.get(first.pca.id)?.distance ?? Infinity;
+        const secondFit = autoFits?.get(second.pca.id)?.distance ?? Infinity;
+        if (firstFit !== secondFit) return firstFit - secondFit;
+      }
       if (first.distance !== second.distance) return first.distance - second.distance;
       const firstFit = autoFits?.get(first.pca.id)?.distance ?? Infinity;
       const secondFit = autoFits?.get(second.pca.id)?.distance ?? Infinity;
@@ -86,9 +91,11 @@ function G25ModernPcaModule(root) {
     return selected;
   }
 
-  function shouldAutoSelectMixed(bestRegularFitDistance, mixedFitDistance) {
-    return Number.isFinite(bestRegularFitDistance) && bestRegularFitDistance > 2 &&
-      Number.isFinite(mixedFitDistance) && mixedFitDistance < bestRegularFitDistance * 0.75;
+  function shouldAutoSelectMixed(closestPopulationDistance, bestRegularFitDistance, mixedFitDistance) {
+    if (!Number.isFinite(bestRegularFitDistance) || !Number.isFinite(mixedFitDistance)) return false;
+    const useFitRanking = Number.isFinite(closestPopulationDistance) && closestPopulationDistance > 2;
+    return (useFitRanking || bestRegularFitDistance > 2) &&
+      mixedFitDistance < bestRegularFitDistance * 0.75;
   }
 
   const api = { selectModernPca, rankModernPcas, selectFitReferences, selectDeepReferences,

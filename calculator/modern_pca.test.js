@@ -207,6 +207,23 @@ test("equal closest distances use the lower auto fit as the PCA tie break", () =
     (pca) => pca.references, ranked).pca.id, "second");
 });
 
+test("a closest population over two ranks PCAs by ascending fit", () => {
+  const pcas = [
+    { id: "near", references: [row("Near", 0.1)] },
+    { id: "far", references: [row("Far", 1)] },
+    { id: "mixed", references: [row("Mixed", 2)] },
+  ];
+  const fits = new Map([
+    ["near", { distance: 4 }], ["far", { distance: 1.5 }],
+    ["mixed", { distance: 1 }],
+  ]);
+  const ids = (closestDistance) => rankModernPcas(target(0), pcas, nearestMatches,
+    (pca) => pca.references, fits, closestDistance).map(({ pca }) => pca.id);
+  assert.deepEqual(ids(2.001), ["mixed", "far", "near"]);
+  assert.deepEqual(ids(2), ["near", "far", "mixed"]);
+  assert.deepEqual(ids(1.999), ["near", "far", "mixed"]);
+});
+
 test("Istanbul informs admixture but never ranks the closest PCA", () => {
   const istanbul = row("Türk_İstanbul:Türk_İstanbul_(Anadolu_Türkü_Profili)", 0);
   const pcas = [
@@ -247,16 +264,17 @@ test("default group count advances only after a 25 percent fit improvement", () 
   assert.equal(defaultGroupFit([]), null);
 });
 
-test("mixed overrides auto only above two and below 75 percent of the best regular fit", () => {
-  assert.equal(shouldAutoSelectMixed(2.001, 1.5), true);
-  assert.equal(shouldAutoSelectMixed(2.001, 2), false);
-  assert.equal(shouldAutoSelectMixed(2, 1), false);
-  assert.equal(shouldAutoSelectMixed(3, 2.24), true);
-  assert.equal(shouldAutoSelectMixed(3, 2.25), false);
-  assert.equal(shouldAutoSelectMixed(3, 3), false);
-  assert.equal(shouldAutoSelectMixed(3, 3.1), false);
-  assert.equal(shouldAutoSelectMixed(Infinity, 1), false);
-  assert.equal(shouldAutoSelectMixed(3, undefined), false);
+test("mixed uses the new threshold above two and keeps the existing rule below it", () => {
+  assert.equal(shouldAutoSelectMixed(2.001, 2, 1.499), true);
+  assert.equal(shouldAutoSelectMixed(2.001, 2, 1.5), false);
+  assert.equal(shouldAutoSelectMixed(2, 3, 1), true);
+  assert.equal(shouldAutoSelectMixed(1.999, 3, 1), true);
+  assert.equal(shouldAutoSelectMixed(1.999, 2, 1), false);
+  assert.equal(shouldAutoSelectMixed(3, 1, 0.74), true);
+  assert.equal(shouldAutoSelectMixed(3, 3, 2.25), false);
+  assert.equal(shouldAutoSelectMixed(Infinity, 3, 1), true);
+  assert.equal(shouldAutoSelectMixed(3, Infinity, 1), false);
+  assert.equal(shouldAutoSelectMixed(3, 3, undefined), false);
 });
 
 test("bundled mixed PCA uses the editable dataset with ten groups", () => {
