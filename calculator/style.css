@@ -416,9 +416,8 @@ body:has(#population-panel[open]) { overflow: hidden; }
   .panel { border-radius: 14px; padding: 16px 12px; }
   .section-head { flex-wrap: wrap; gap: 12px; }
   .section-head h2 { font-size: 18px; }
-  .mode-switch { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; margin-top: 16px; }
-  .mode-button { min-height: 44px; padding: 9px 6px; font-size: 12px; }
-  .mode-button[data-mode="10"] { grid-column: 1 / -1; }
+  .mode-switch { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: 44px; gap: 6px; margin-top: 16px; }
+  .mode-button { min-width: 0; height: 44px; padding: 9px 6px; font-size: 12px; }
   .family-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; }
   .family-tab { min-height: 44px; padding: 8px 5px; font-size: 11px; }
   .person-row { padding: 12px 10px; }

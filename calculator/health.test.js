@@ -38,3 +38,11 @@ test("conflicting X-chromosome calls cannot produce a Health result", () => {
   const parsed = raw.parse("RSID,CHROMOSOME,POSITION,RESULT\nrs1,1,1,AA\nrs6152,X,2,A\nrs6152,X,2,G");
   assert.ok(!health.matchCalls(parsed.calls, parsed.special).some(({ id }) => id === "rs6152"));
 });
+
+test("LPA rs10455872 flags the G allele, not AA, as increased Lp(a) association", () => {
+  for (const [genotype, flag] of [["AA", "positive"], ["AG", "negative"], ["GG", "negative"]]) {
+    const parsed = raw.parse(`RSID,CHROMOSOME,POSITION,RESULT\nrs10455872,6,1,${genotype}`);
+    const match = health.matchCalls(parsed.calls, parsed.special).find(({ id }) => id === "rs10455872");
+    assert.equal(match?.flag, flag, genotype);
+  }
+});

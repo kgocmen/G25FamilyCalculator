@@ -794,19 +794,19 @@
       "id": "rs10455872",
       "category": "cardio",
       "title": "Lipoprotein(a) Riski (LPA)",
-      "definition": "Kardiyovasküler hastalıklar için LDL'den bağımsız 'gizli kolesterol' yüksekliği belirteci.",
+      "definition": "LPA genindeki bu varyant, lipoprotein(a) düzeyi ve kardiyovasküler riskle ilişkilidir.",
       "genotypes": {
         "GG": {
-          "flag": "positive",
-          "meaning": "Bu LPA genotipi lipoprotein(a) düzeyiyle ilişkili olabilir; gerçek düzey kan testiyle değerlendirilir."
+          "flag": "negative",
+          "meaning": "İki G aleli, daha yüksek lipoprotein(a) düzeyiyle ilişkilidir; gerçek düzey kan testiyle ölçülür."
         },
         "AG": {
-          "flag": "neutral",
-          "meaning": "Bu LPA genotipi lipoprotein(a) düzeyiyle ilişkili olabilir; gerçek düzey kan testiyle değerlendirilir."
+          "flag": "negative",
+          "meaning": "Bir G aleli, daha yüksek lipoprotein(a) düzeyiyle ilişkilidir; gerçek düzey kan testiyle ölçülür."
         },
         "AA": {
-          "flag": "negative",
-          "meaning": "Bu LPA genotipi lipoprotein(a) düzeyiyle ilişkili olabilir; gerçek düzey kan testiyle değerlendirilir."
+          "flag": "positive",
+          "meaning": "Bu varyantta lipoprotein(a) artışıyla ilişkili G aleli yoktur; gerçek düzey kan testiyle ölçülür."
         }
       }
     },
