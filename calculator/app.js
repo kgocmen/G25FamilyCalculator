@@ -1020,6 +1020,7 @@
     $("#early-medieval-tab").hidden = !state.turkish;
     $("#late-medieval-tab").hidden = !state.turkish;
     $("#medieval-breakdown-panel").hidden = true;
+    $("#neolithic-panel").hidden = true;
     $("#visualise-neighbor-control").hidden = true;
     $("#visualise-cluster-control").hidden = true;
     $("#visualise-pc-toggle-control").hidden = true;
@@ -1043,8 +1044,9 @@
       button.tabIndex = active ? 0 : -1;
       if (active) $("#family-inputs").setAttribute("aria-labelledby", button.id);
     });
-    for (const [selector, view] of [["#early-medieval-tab", "early"],
-      ["#late-medieval-tab", "late"], ["#modern-analysis-tab", "modern"]]) {
+    for (const [selector, view] of [["#neolithic-tab", "neolithic"],
+      ["#early-medieval-tab", "early"], ["#late-medieval-tab", "late"],
+      ["#modern-analysis-tab", "modern"]]) {
       const button = $(selector);
       const active = mode === 10 && state.analysisView === view;
       button.classList.toggle("active", active);
@@ -1278,6 +1280,10 @@
     }
     updateAnalysisView();
     if (!state.single) return;
+    if (state.mode === 10 && state.analysisView === "neolithic") {
+      renderNeolithic();
+      return;
+    }
     if (isPeriodView() && (state.turkish || state.analysisView === "modern")) {
       renderMedievalBreakdown();
       return;
@@ -1631,15 +1637,56 @@
   }
 
   function updateAnalysisView() {
+    const neolithicView = state.mode === 10 && state.analysisView === "neolithic";
     const periodView = isPeriodView() &&
       (state.turkish || state.analysisView === "modern");
     $("#copy-admixed").hidden = state.mode !== 9 && !periodView;
     const available = (state.mode === 1 || state.mode === 10) && Boolean(state.single) &&
-      (periodView || references.length > 0);
+      (periodView || neolithicView || references.length > 0);
     for (const selector of ["#matches-panel", "#relaxed-estimates-panel", "#parent-estimates-panel", "#grandparent-estimates-panel"]) {
-      $(selector).hidden = !available || periodView;
+      $(selector).hidden = !available || periodView || neolithicView;
     }
     $("#medieval-breakdown-panel").hidden = !available || !periodView;
+    $("#neolithic-panel").hidden = !available || !neolithicView;
+  }
+
+  function renderNeolithic() {
+    const status = $("#neolithic-status");
+    const distance = $("#neolithic-distance");
+    const list = $("#neolithic-list");
+    list.replaceChildren();
+    distance.hidden = true;
+    try {
+      const scope = state.turkish ? "turkish" : "global";
+      const fit = window.G25Neolithic.calculate(state.single, scope);
+      const parts = fit.components;
+      const units = allocatePercentUnits(parts.map(({ weight }) => weight), 10000);
+      status.textContent = `${parts.length} ancient proxies · ${scope === "turkish" ? "Turkish" : "All"} references`;
+      distance.textContent = `Fit distance ${fit.distance.toFixed(3)}`;
+      distance.hidden = false;
+      parts.forEach((part, index) => {
+        if (scope === "global" && units[index] === 0) return;
+        const row = document.createElement("div");
+        row.className = "neolithic-row";
+        row.setAttribute("role", "listitem");
+        const head = document.createElement("div");
+        head.className = "neolithic-row-head";
+        const name = document.createElement("span");
+        name.textContent = part.name;
+        const percentage = document.createElement("strong");
+        percentage.textContent = `${(units[index] / 100).toFixed(2)}%`;
+        head.append(name, percentage);
+        const bar = document.createElement("div");
+        bar.className = "breakdown-bar";
+        const fill = document.createElement("span");
+        fill.style.width = `${Math.min(100, part.weight * 100)}%`;
+        bar.append(fill);
+        row.append(head, bar);
+        list.append(row);
+      });
+    } catch (error) {
+      status.textContent = `Neolithic analysis failed: ${error.message}`;
+    }
   }
 
   function modernPcaColor(position) {
@@ -3338,12 +3385,14 @@
     modernMixedDirty = true;
     modernPcaFitDistances.clear();
     state.modernPcaId = "auto";
-    if (!state.turkish) state.analysisView = "modern";
+    if (!state.turkish && (state.analysisView === "early" || state.analysisView === "late")) {
+      state.analysisView = "modern";
+    }
     updateSelectedReferences(activeReferenceRows());
     render();
   });
-  const analysisTabViews = ["early", "late", "modern"];
-  const analysisTabSelectors = ["#early-medieval-tab", "#late-medieval-tab", "#modern-analysis-tab"];
+  const analysisTabViews = ["neolithic", "early", "late", "modern"];
+  const analysisTabSelectors = ["#neolithic-tab", "#early-medieval-tab", "#late-medieval-tab", "#modern-analysis-tab"];
   for (const [index, selector] of analysisTabSelectors.entries()) {
     const view = analysisTabViews[index];
     const button = $(selector);

@@ -23,6 +23,9 @@ GLOBAL_MODERN_PCA_MIXED_OUTPUT = ROOT / "calculator" / "mixed_pca_references.js"
 ydnatr_DIRECTORY = ROOT / "data" / "ydnatr"
 K12B_OUTPUT = ROOT / "calculator" / "k12b_data.js"
 HEALTH_OUTPUT = ROOT / "calculator" / "health_data.js"
+NEOLITHIC_OUTPUT = ROOT / "calculator" / "neolithic_references.js"
+GLOBAL_ANCIENT_MIN_ROWS = 4365
+GLOBAL_ANCIENT_TAIL_LABEL = "Zambia_LSA_(low_res)_(n=1)"
 K12B_COMPONENTS = ["Gedrosia", "Siberian", "Northwest_African", "Southeast_Asian",
                    "Atlantic_Med", "North_European", "South_Asian", "East_African",
                    "Southwest_Asian", "East_Asian", "Caucasus", "Sub_Saharan"]
@@ -96,7 +99,7 @@ def read_ydnatr_data(directory: Path = ydnatr_DIRECTORY) -> tuple[dict, dict]:
     return k12b, health
 
 
-def write_ydnatr_bundle(data: dict, output: Path, symbol: str) -> None:
+def write_data_bundle(data: dict, output: Path, symbol: str) -> None:
     output.write_text(
         "(function (root) {\n  const data = " +
         json.dumps(data, ensure_ascii=False, separators=(",", ":")) +
@@ -110,8 +113,8 @@ def write_ydnatr_bundle(data: dict, output: Path, symbol: str) -> None:
 def build_ydnatr(directory: Path = ydnatr_DIRECTORY, k12b_output: Path = K12B_OUTPUT,
                  health_output: Path = HEALTH_OUTPUT) -> None:
     k12b, health = read_ydnatr_data(directory)
-    write_ydnatr_bundle(k12b, k12b_output, "G25_K12B_DATA")
-    write_ydnatr_bundle(health, health_output, "G25_HEALTH_DATA")
+    write_data_bundle(k12b, k12b_output, "G25_K12B_DATA")
+    write_data_bundle(health, health_output, "G25_HEALTH_DATA")
     total = sum(len(rows) for periods in k12b["sets"].values() for rows in periods.values())
     print(f"Bundled {total} K12b comparison rows into {k12b_output}")
     print(f"Bundled {len(health['variants'])} Health markers into {health_output}")
@@ -134,6 +137,67 @@ def read_rows(path: Path, category: str) -> list[list]:
                 raise ValueError(f"{path}:{number}: coordinates must be finite")
             rows.append([category, row[0], *values])
     return rows
+
+
+def read_global_ancient_rows(path: Path = ROOT / "data" / "ancient_g25.txt") -> list[list]:
+    """Reject a cut-off global ancient source before building browser bundles."""
+    rows = read_rows(path, "ancient")
+    if len(rows) < GLOBAL_ANCIENT_MIN_ROWS or not any(row[1] == GLOBAL_ANCIENT_TAIL_LABEL for row in rows):
+        raise ValueError(f"{path}: global ancient G25 dataset is incomplete")
+    return rows
+
+
+def read_neolithic_data(data_directory: Path = ROOT / "data") -> dict:
+    """Group the selected G25 rows from the two editable Neolithic TXT files."""
+    result = {}
+    for scope, selected_filename, source_filename in (
+            ("turkish", "turkish_neolithic_g25.txt", "turkish_ancient_g25.txt"),
+            ("global", "neolithic_g25.txt", "ancient_g25.txt")):
+        source_path = data_directory / source_filename
+        source_rows = (read_global_ancient_rows(source_path) if scope == "global"
+                       else read_rows(source_path, "ancient"))
+        by_label = {row[1]: row[2:] for row in source_rows}
+        if scope == "turkish":
+            # Turkish groups can reuse selected sources from the global
+            # Neolithic model while retaining their Turkish group names.
+            for row in read_rows(data_directory / "neolithic_g25.txt", "ancient"):
+                source = row[1].partition(":")[2]
+                if not source:
+                    raise ValueError("neolithic_g25.txt: expected Group:Source label")
+                if source in by_label and by_label[source] != row[2:]:
+                    raise ValueError(f"{source} differs between Neolithic G25 datasets")
+                by_label[source] = row[2:]
+        selected_rows = read_rows(data_directory / selected_filename, "ancient")
+        if not selected_rows:
+            raise ValueError(f"{selected_filename}: Neolithic references are missing")
+        groups = {}
+        seen_sources = set()
+        for row in selected_rows:
+            name, separator, source = row[1].partition(":")
+            if not separator or not name.strip() or not source.strip():
+                raise ValueError(f"{selected_filename}: expected Group:Source label")
+            if source in seen_sources:
+                raise ValueError(f"{selected_filename}: duplicate source: {source}")
+            if source not in by_label or row[2:] != by_label[source]:
+                source_description = ("turkish_ancient_g25.txt or neolithic_g25.txt"
+                                      if scope == "turkish" else source_filename)
+                raise ValueError(f"{selected_filename}: {source} does not match {source_description}")
+            seen_sources.add(source)
+            groups.setdefault(name, []).append((source, row[2:]))
+        result[scope] = [
+            {"name": name, "sources": [source for source, _ in rows],
+             "values": [sum(values[dimension] for _, values in rows) / len(rows)
+                        for dimension in range(25)]}
+            for name, rows in groups.items()
+        ]
+    return result
+
+
+def build_neolithic_data(data_directory: Path = ROOT / "data",
+                         output: Path = NEOLITHIC_OUTPUT) -> None:
+    data = read_neolithic_data(data_directory)
+    write_data_bundle(data, output, "G25_NEOLITHIC_REFERENCES")
+    print(f"Bundled {len(data['turkish'])} Turkish and {len(data['global'])} global Neolithic proxies into {output}")
 
 
 def read_modern_pcas(modern_rows: list[list], directory: Path = MODERN_PCA_DIRECTORY,
@@ -263,13 +327,17 @@ def main() -> None:
     selection = parser.add_mutually_exclusive_group()
     selection.add_argument("--turkish", action="store_true", help="Rebuild only the Turkish modern, ancient, medieval and PCA bundles")
     selection.add_argument("--ydnatr", action="store_true", help="Rebuild only the K12b Oracle and Health bundles")
+    selection.add_argument("--neolithic", action="store_true", help="Rebuild only the Neolithic reference bundle")
     args = parser.parse_args()
     if args.ydnatr:
         build_ydnatr()
         return
+    if args.neolithic:
+        build_neolithic_data()
+        return
     if not args.turkish:
         global_modern_rows = read_rows(ROOT / "data" / "modern_g25.txt", "modern")
-        rows = global_modern_rows + read_rows(ROOT / "data" / "ancient_g25.txt", "ancient")
+        rows = global_modern_rows + read_global_ancient_rows()
         OUTPUT.write_text(
             "window.G25_REFERENCES = " + json.dumps(rows, ensure_ascii=False, separators=(",", ":")) + ";\n",
             encoding="utf-8",
@@ -314,6 +382,7 @@ def main() -> None:
     print(f"Bundled {len(medieval_rows['early'])} early and {len(medieval_rows['late'])} late Turkish medieval references into {MEDIEVAL_OUTPUT}")
     if not args.turkish:
         build_ydnatr()
+    build_neolithic_data()
 
 
 if __name__ == "__main__":

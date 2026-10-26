@@ -1,6 +1,8 @@
 # Keep editable reference source files alongside their browser bundles.
 data/*
 !data/ydnatr/
+!data/turkish_neolithic_g25.txt
+!data/neolithic_g25.txt
 !data/pca/
 data/pca/*
 !data/pca/turkish_pca_config.txt
@@ -9,6 +11,7 @@ data/pca/*
 !data/pca/turkish_modern_pca*.g25.txt
 !data/turkish_modern_g25.txt
 !data/turkish_ancient_g25.txt
+!data/ancient_g25.txt
 !data/turkish_early_medieval_g25.txt
 !data/turkish_late_medieval_g25.txt
 *.py

@@ -5,19 +5,21 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#14243b">
   <title>G25 Family Calculator</title>
-  <link rel="stylesheet" href="style.css?v=20261026-7">
+  <link rel="stylesheet" href="style.css?v=20261026-8">
   <link rel="stylesheet" href="k12b.css?v=20261026-4">
   <link rel="stylesheet" href="health.css?v=20261026-3">
-  <script defer src="references.js?v=20261022-1"></script>
+  <script defer src="references.js?v=20261026-2"></script>
   <script defer src="turkish_references.js?v=20261022-1"></script>
   <script defer src="modern_pca_references.js?v=20261023-3"></script>
   <script defer src="mixed_pca_references.js?v=20261023-3"></script>
   <script defer src="turkish_modern_pca_references.js?v=20261022-2"></script>
   <script defer src="turkish_mixed_pca_references.js?v=20261022-2"></script>
   <script defer src="turkish_medieval_references.js?v=20261022-2"></script>
+  <script defer src="neolithic_references.js?v=20261026-9"></script>
   <script defer src="core.js?v=20261023-1"></script>
   <script defer src="mixture.js?v=20261015-5"></script>
-  <script defer src="medieval.js?v=20261023-2"></script>
+  <script defer src="medieval.js?v=20261026-3"></script>
+  <script defer src="neolithic.js?v=20261026-1"></script>
   <script defer src="visualise.js?v=20261020-9"></script>
   <script defer src="clusters.js?v=20261020-1"></script>
   <script defer src="pca.js?v=20261024-5"></script>
@@ -28,7 +30,7 @@
   <script defer src="k12b.js?v=20261026-6"></script>
   <script defer src="health.js?v=20261026-3"></script>
   <script defer src="raw_data_ui.js?v=20261026-5"></script>
-  <script defer src="app.js?v=20261024-7"></script>
+  <script defer src="app.js?v=20261026-10"></script>
 </head>
 <body>
   <main class="shell">
@@ -67,6 +69,7 @@
         <button id="family-tab-great-grandparents" class="family-tab" type="button" role="tab" data-family-mode="8" aria-selected="false" aria-controls="family-inputs">8 great-grandparents</button>
       </div>
       <div id="period-tabs" class="analysis-tabs" role="tablist" aria-label="Breakdown" hidden>
+        <button id="neolithic-tab" class="analysis-tab" type="button" role="tab" aria-selected="false" aria-controls="neolithic-panel" tabindex="-1">Neolithic</button>
         <button id="early-medieval-tab" class="analysis-tab" type="button" role="tab" aria-selected="false" aria-controls="medieval-breakdown-panel">Early Medieval</button>
         <button id="late-medieval-tab" class="analysis-tab" type="button" role="tab" aria-selected="false" aria-controls="medieval-breakdown-panel">Late Medieval</button>
         <button id="modern-analysis-tab" class="analysis-tab active" type="button" role="tab" aria-selected="true" aria-controls="medieval-breakdown-panel">Modern</button>
@@ -380,6 +383,17 @@
           </div>
         </div>
       </div>
+    </section>
+
+    <section id="neolithic-panel" class="panel matches-panel" aria-labelledby="neolithic-title" hidden>
+      <div class="section-head">
+        <div>
+          <h2 id="neolithic-title">Neolithic</h2>
+          <p id="neolithic-status" role="status"></p>
+        </div>
+        <output id="neolithic-distance" class="breakdown-distance" hidden></output>
+      </div>
+      <div id="neolithic-list" class="breakdown-list" role="list"></div>
     </section>
 
     <section id="relaxed-estimates-panel" class="panel matches-panel" aria-labelledby="relaxed-estimates-title" hidden>

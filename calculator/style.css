@@ -193,6 +193,11 @@ p { margin: 0; }
 .pca-legend-modern-swatch { width: 12px; height: 11px; background: #d63270; clip-path: polygon(50% 0, 100% 100%, 0 100%); }
 .pca-legend-custom-swatch { width: 12px; height: 12px; border: 2px solid #0c766e; border-radius: 50%; background: #d9f2ec; }
 .breakdown-list { display: grid; gap: 9px; margin-top: 20px; }
+.neolithic-row { min-width: 0; padding: 12px 14px; border: 1px solid #dfe7ed; border-radius: 10px; }
+.neolithic-row-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; color: #173c50; font-size: 14px; }
+.neolithic-row-head span { min-width: 0; overflow-wrap: anywhere; }
+.neolithic-row-head strong { flex: 0 0 auto; font-variant-numeric: tabular-nums; }
+.neolithic-note { margin-top: 16px; }
 .breakdown-group { min-width: 0; border: 1px solid #dfe7ed; border-radius: 10px; padding: 11px 14px; }
 .breakdown-group > summary { display: flex; justify-content: space-between; gap: 20px; align-items: center; cursor: pointer; color: #173c50; font-size: 14px; list-style: none; }
 .breakdown-group > summary::-webkit-details-marker { display: none; }

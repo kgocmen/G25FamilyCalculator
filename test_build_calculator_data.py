@@ -1,9 +1,11 @@
 import tempfile
 import unittest
+import json
 from pathlib import Path
 
-from build_calculator_data import (ROOT, build_ydnatr, read_global_modern_pcas,
-                                   read_modern_pcas, read_rows, read_ydnatr_data,
+from build_calculator_data import (ROOT, build_neolithic_data, build_ydnatr, read_global_ancient_rows,
+                                   read_global_modern_pcas,
+                                   read_modern_pcas, read_neolithic_data, read_rows, read_ydnatr_data,
                                    rebuild_mixed_pca)
 
 
@@ -23,6 +25,37 @@ class ydnatrDataTests(unittest.TestCase):
             build_ydnatr(k12b_output=k12b_output, health_output=health_output)
             self.assertEqual(k12b_output.read_bytes(), (ROOT / "calculator" / "k12b_data.js").read_bytes())
             self.assertEqual(health_output.read_bytes(), (ROOT / "calculator" / "health_data.js").read_bytes())
+
+
+class NeolithicDataTests(unittest.TestCase):
+    def test_editable_neolithic_groups_build_from_the_matching_ancient_datasets(self):
+        data = read_neolithic_data()
+        for scope, filename in (("turkish", "turkish_neolithic_g25.txt"),
+                                ("global", "neolithic_g25.txt")):
+            self.assertTrue(data[scope])
+            selected_rows = read_rows(ROOT / "data" / filename, "ancient")
+            self.assertEqual([entry["name"] for entry in data[scope]],
+                             list(dict.fromkeys(row[1].partition(":")[0] for row in selected_rows)))
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "neolithic_references.js"
+            build_neolithic_data(output=output)
+            self.assertEqual(output.read_bytes(), (ROOT / "calculator" / "neolithic_references.js").read_bytes())
+
+    def test_selected_txt_coordinates_must_match_the_source_dataset(self):
+        with tempfile.TemporaryDirectory() as directory:
+            data_directory = Path(directory)
+            for filename in ("turkish_neolithic_g25.txt", "neolithic_g25.txt",
+                             "turkish_ancient_g25.txt", "ancient_g25.txt"):
+                (data_directory / filename).symlink_to(ROOT / "data" / filename)
+            selected = data_directory / "neolithic_g25.txt"
+            selected.unlink()
+            lines = (ROOT / "data" / "neolithic_g25.txt").read_text(encoding="utf-8").splitlines()
+            parts = lines[0].split(",")
+            parts[1] = str(float(parts[1]) + 0.01)
+            lines[0] = ",".join(parts)
+            selected.write_text("\n".join(lines) + "\n", encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "does not match ancient_g25.txt"):
+                read_neolithic_data(data_directory)
 
 
 class ReadRowsTests(unittest.TestCase):
@@ -46,6 +79,21 @@ class ReadRowsTests(unittest.TestCase):
         for text in [f"modern,Wrong,{coordinates}", "Missing,0", f"Nonfinite,nan,{','.join(['0'] * 24)}"]:
             with self.subTest(text=text), self.assertRaises(ValueError):
                 self.read(text)
+
+    def test_global_ancient_source_includes_the_rows_after_tanzania(self):
+        rows = read_global_ancient_rows()
+        self.assertEqual(len(rows), 4365)
+        self.assertEqual(rows[-1][1], "Zambia_LSA_(low_res)_(n=1)")
+        self.assertIn("Tanzania_Pastoral_N_(n=5)", {row[1] for row in rows})
+        bundle = (ROOT / "calculator" / "references.js").read_text(encoding="utf-8")
+        bundled_rows = json.loads(bundle.removeprefix("window.G25_REFERENCES = ").rstrip(";\n"))
+        self.assertEqual([row for row in bundled_rows if row[0] == "ancient"], rows)
+        with tempfile.TemporaryDirectory() as directory:
+            truncated = Path(directory) / "ancient_g25.txt"
+            truncated.write_text("\n".join(",".join([row[1], *map(str, row[2:])])
+                                           for row in rows[:10]), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "incomplete"):
+                read_global_ancient_rows(truncated)
 
     def test_modern_pca_config_uses_matching_main_dataset_coordinates(self):
         coordinates = ",".join(["0"] * 25)

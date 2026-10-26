@@ -242,7 +242,7 @@ function G25MedievalModule(root) {
     return fit;
   }
 
-  const api = { fitAdmixture, fitDeepAdmixture };
+  const api = { fitAdmixture, fitDeepAdmixture, fitUnrestricted };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else {
     root.G25Medieval = api;
