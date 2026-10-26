@@ -1,13 +1,15 @@
 "use strict";
-importScripts("raw_dna.js?v=20261024-3");
+importScripts("raw_dna.js?v=20261026-1");
+importScripts("health_data.js?v=20261026-2", "health.js?v=20261026-3");
 
 self.onmessage = async ({ data }) => {
   const send = (type, payload = {}) => self.postMessage({ type, ...payload });
   try {
     if (!data.file || data.file.size > 100 * 1024 * 1024) throw new Error("Choose an extracted CSV or TXT file smaller than 100 MB.");
     send("status", { message: "Reading MyHeritage SNP calls…" });
-    const { calls, stats } = G25RawDNA.parse(await data.file.text());
+    const { calls, special, stats } = G25RawDNA.parse(await data.file.text());
     send("parsed", { stats });
+    send("health", { matches: G25Health.matchCalls(calls, special) });
     const readJson = async (file) => {
       const response = await fetch(new URL(`raw_data/${file}`, self.location.href), { cache: "no-cache" });
       if (!response.ok) throw new Error(`Could not load ${file}. Check your connection and try again.`);
@@ -55,6 +57,7 @@ self.onmessage = async ({ data }) => {
       } catch (error) { send("model-error", { id, message: error.message }); }
     }
     calls.clear();
+    special.clear();
     send("done");
   } catch (error) { send("error", { message: error.message || "Raw DNA processing failed." }); }
 };

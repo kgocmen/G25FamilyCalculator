@@ -1,0 +1,17 @@
+#raw-k12b-health { padding-top: 10px; }
+.health-report { display: grid; gap: 24px; margin-top: 22px; }
+.health-report[hidden] { display: none; }
+.health-section h3 { margin: 0 0 12px; font-size: 16px; color: #14243b; }
+.health-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(245px, 1fr)); gap: 12px; }
+.health-card { min-width: 0; padding: 14px 15px; border: 1px solid #dce4eb; border-radius: 10px; background: #fff; }
+.health-card-header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: 8px; }
+.health-card h4 { flex: 1 1 150px; margin: 0; font-size: 13px; line-height: 1.35; overflow-wrap: anywhere; }
+.health-rsid { color: #526c7e; font: 11px ui-monospace, SFMono-Regular, Consolas, monospace; }
+.health-definition { margin: 10px 0 0; color: #526c7e; font-size: 12px; line-height: 1.5; }
+.health-meaning { margin: 7px 0 0; color: #365a72; font-size: 12px; line-height: 1.5; }
+.health-card-details { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 13px; }
+.health-genotype { padding: 5px 8px; border-radius: 6px; background: #edf4f8; color: #176e8d; font: 700 13px ui-monospace, SFMono-Regular, Consolas, monospace; }
+.health-flag { font-size: 11px; font-weight: 700; }
+.health-flag-positive { color: #32644e; }
+.health-flag-neutral { color: #526c7e; }
+.health-flag-negative { color: #a34135; }

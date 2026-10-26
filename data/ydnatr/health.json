@@ -1,0 +1,1950 @@
+{
+  "source": "https://www.ydnatr.com/p/saglik.html",
+  "categories": {
+    "cardio": "Kalp ve Damar Sağlığı",
+    "cancer": "Hücre Sağlığı ve Onkoloji",
+    "metabolism": "Metabolizma, Beslenme ve Endokrin",
+    "neuro": "Nöroloji, Psikiyatri ve Bilişsel Yetiler",
+    "immunity": "Bağışıklık, İnflamasyon ve Otoimmünite",
+    "pharma": "İlaç Yanıtı",
+    "physical": "Fiziksel Özellikler"
+  },
+  "variants": [
+    {
+      "id": "rs17070145",
+      "category": "neuro",
+      "title": "Çalışma Belleği (KIBRA)",
+      "definition": "Hipokampal fonksiyon ve kısa süreli bellek performansı ile ilişkili genetik varyant.",
+      "genotypes": {
+        "TT": {
+          "flag": "positive",
+          "meaning": "Kısa süreli bellek konsolidasyonu ve kelime hatırlama görevlerinde istatistiksel olarak daha yüksek performans yatkınlığı."
+        },
+        "CT": {
+          "flag": "neutral",
+          "meaning": "Ortalama çalışma belleği performansı."
+        },
+        "CC": {
+          "flag": "neutral",
+          "meaning": "Standart kısa süreli bellek performansı, yeni bilgilerin işlenmesinde daha fazla tekrara ihtiyaç duyulabilir."
+        }
+      }
+    },
+    {
+      "id": "rs53576",
+      "category": "neuro",
+      "title": "Sosyal Adaptasyon (OXTR)",
+      "definition": "Oksitosin reseptörü aktivitesi; empati ve stres reaktivitesi eğilimleri.",
+      "genotypes": {
+        "GG": {
+          "flag": "positive",
+          "meaning": "Sosyal ipuçlarını okuma ve empati yeteneğine genetik yatkınlık."
+        },
+        "AG": {
+          "flag": "neutral",
+          "meaning": "Dengeli sosyal adaptasyon ve duygusal tanıma kapasitesi."
+        },
+        "AA": {
+          "flag": "neutral",
+          "meaning": "Stresle başa çıkmada daha içe dönük stratejiler izleme eğilimi, bağımsızlık hissi baskındır."
+        }
+      }
+    },
+    {
+      "id": "rs1800497",
+      "category": "neuro",
+      "title": "Ödül Duyarlılığı (DRD2)",
+      "definition": "Dopamin D2 reseptör yoğunluğunu etkileyen Taq1A varyant.",
+      "genotypes": {
+        "CC": {
+          "flag": "positive",
+          "meaning": "Yüksek DRD2 reseptör yoğunluğu; standart ödül mekanizması ve dürtü kontrolü."
+        },
+        "CT": {
+          "flag": "neutral",
+          "meaning": "Dopamin reseptör sayısında hafif azalma, ödül sisteminde orta düzey duyarlılık."
+        },
+        "TT": {
+          "flag": "negative",
+          "meaning": "Düşük DRD2 yoğunluğu; dopamin arayışına (şeker, risk alma) ve bağımlılık geliştirmeye karşı %20-30 civarında genetik yatkınlık."
+        }
+      }
+    },
+    {
+      "id": "rs6311",
+      "category": "neuro",
+      "title": "Stres Reaktivitesi (HTR2A)",
+      "definition": "Serotonin reseptör regülasyonu ve duygusal esneklik.",
+      "genotypes": {
+        "GG": {
+          "flag": "positive",
+          "meaning": "Standart stres toleransı ve duygusal esneklik."
+        },
+        "AG": {
+          "flag": "neutral",
+          "meaning": "Strese yanıtta hafif istatistiksel varyans."
+        },
+        "AA": {
+          "flag": "neutral",
+          "meaning": "Çevresel strese duyarlılık; zorlu dönemlerde depresif belirtiler gösterme riskinde %10-15 civarı hafif genetik yatkınlık."
+        }
+      }
+    },
+    {
+      "id": "rs1800955",
+      "category": "neuro",
+      "title": "Yenilik Arayışı (DRD4)",
+      "definition": "Dopamin D4 reseptörü sinyalizasyonu.",
+      "genotypes": {
+        "CC": {
+          "flag": "positive",
+          "meaning": "Standart dopamin yanıtı ve rutinlere uyum."
+        },
+        "CT": {
+          "flag": "neutral",
+          "meaning": "Davranışsal özelliklerde (yenilik arayışı) minör değişim yatkınlığı."
+        },
+        "TT": {
+          "flag": "neutral",
+          "meaning": "Yenilik arayışı skorlarında istatistiksel artış."
+        }
+      }
+    },
+    {
+      "id": "rs4680",
+      "category": "neuro",
+      "title": "Bilişsel Esneklik (COMT)",
+      "definition": "Prefrontal kortekste dopamin yıkım hızı (Val158Met).",
+      "genotypes": {
+        "AA": {
+          "flag": "neutral",
+          "meaning": "Met/Met (Endişeli): Dopamini yavaş yıkar."
+        },
+        "AG": {
+          "flag": "neutral",
+          "meaning": "Val/Met: Stres yönetimi ve günlük bilişsel performans optimum dengededir."
+        },
+        "GG": {
+          "flag": "positive",
+          "meaning": "Val/Val (Savaşçı): Dopamini hızlı yıkar."
+        }
+      }
+    },
+    {
+      "id": "rs429358",
+      "category": "neuro",
+      "title": "Nörodejenerasyon Riski (APOE)",
+      "definition": "APOE tipinin belirlenmesinde rs429358 ve rs7412 varyantları birlikte değerlendirilir.",
+      "genotypes": {
+        "TT": {
+          "flag": "positive",
+          "meaning": "Bu genotipte rs429358 üzerinde e4 ile ilişkili C aleli görülmez; APOE tipi için rs7412 de gereklidir."
+        },
+        "CT": {
+          "flag": "negative",
+          "meaning": "Bu genotipte rs429358 üzerinde bir C aleli görülür; APOE tipi için rs7412 de gereklidir."
+        },
+        "CC": {
+          "flag": "negative",
+          "meaning": "Bu genotipte rs429358 üzerinde iki C aleli görülür; APOE tipi için rs7412 de gereklidir."
+        }
+      }
+    },
+    {
+      "id": "rs324420",
+      "category": "neuro",
+      "title": "Anksiyete Modülasyonu (FAAH)",
+      "definition": "Anandamid (rahatlatıcı endokannabinoid) parçalama hızı.",
+      "genotypes": {
+        "CC": {
+          "flag": "neutral",
+          "meaning": "Hızlı yıkım; stres altında standart tepki."
+        },
+        "CA": {
+          "flag": "neutral",
+          "meaning": "Orta seviye yıkım hızı."
+        },
+        "AA": {
+          "flag": "positive",
+          "meaning": "Anandamidi yavaş parçalar; doğal olarak anksiyeteye karşı hafif bir hücresel direnç ve ağrı toleransında artış yatkınlığı."
+        }
+      }
+    },
+    {
+      "id": "rs1799971",
+      "category": "neuro",
+      "title": "Ağrı Hassasiyeti (OPRM1)",
+      "definition": "Opioid reseptörü hassasiyeti ve analjezik ihtiyacı.",
+      "genotypes": {
+        "AA": {
+          "flag": "positive",
+          "meaning": "Bu OPRM1 genotipi ağrı ve opioid yanıtı araştırmalarında incelenir; analjezik dozunu tek başına belirlemez."
+        },
+        "AG": {
+          "flag": "negative",
+          "meaning": "Bu OPRM1 genotipi ağrı ve opioid yanıtı araştırmalarında incelenir; analjezik dozunu tek başına belirlemez."
+        },
+        "GG": {
+          "flag": "negative",
+          "meaning": "Bu OPRM1 genotipi ağrı ve opioid yanıtı araştırmalarında incelenir; analjezik dozunu tek başına belirlemez."
+        }
+      }
+    },
+    {
+      "id": "rs10427255",
+      "category": "neuro",
+      "title": "Fotik Hapşırma Refleksi (ZEB2)",
+      "definition": "Parlak ışığa veya güneşe aniden bakıldığında kontrolsüz hapşırma refleksi (Achoo Sendromu).",
+      "genotypes": {
+        "CC": {
+          "flag": "neutral",
+          "meaning": "Güneşe veya parlak ışığa bakıldığında hapşırma refleksi gösterme yatkınlığı çok yüksektir."
+        },
+        "CT": {
+          "flag": "neutral",
+          "meaning": "Parlak ışıkta hapşırma refleksine orta düzey genetik yatkınlık."
+        },
+        "TT": {
+          "flag": "neutral",
+          "meaning": "Standart refleks; ışığa bakmak hapşırmayı tetiklemez."
+        }
+      }
+    },
+    {
+      "id": "rs1051730",
+      "category": "neuro",
+      "title": "Nikotin Bağımlılığı (CHRNA3)",
+      "definition": "Nikotin reseptörü alt birimi; sigaraya olan genetik duyarlılık.",
+      "genotypes": {
+        "GG": {
+          "flag": "positive",
+          "meaning": "Nikotine karşı standart genetik duyarlılık."
+        },
+        "GA": {
+          "flag": "neutral",
+          "meaning": "Nikotin bağımlılığı riskinde hafif istatistiksel artış."
+        },
+        "AA": {
+          "flag": "negative",
+          "meaning": "Nikotine yüksek genetik yatkınlık; sigaraya başlandığında günde içilen sigara sayısının yüksek olma eğilimi ~1.5 kat artar."
+        }
+      }
+    },
+    {
+      "id": "rs6265",
+      "category": "neuro",
+      "title": "Nöroplastisite (BDNF)",
+      "definition": "Beyin Türevli Nörotrofik Faktör; öğrenme, hafıza ve sinir hücresi gelişimi (Val66Met).",
+      "genotypes": {
+        "CC": {
+          "flag": "positive",
+          "meaning": "Val/Val: Yüksek BDNF salınımı; yeni bilgileri kalıcı belleğe geçirme (hafıza konsolidasyonu) kapasitesi optimum düzeydedir."
+        },
+        "CT": {
+          "flag": "neutral",
+          "meaning": "Val/Met: Ortalama BDNF aktivitesi ve standart bellek performansı."
+        },
+        "TT": {
+          "flag": "negative",
+          "meaning": "Met/Met: BDNF salınımında %20-30 civarı düşüş."
+        }
+      }
+    },
+    {
+      "id": "rs1799990",
+      "category": "neuro",
+      "title": "Prion Direnci (PRNP)",
+      "definition": "Deli dana ve Creutzfeldt-Jakob gibi nörodejeneratif prion hastalıklarına karşı genetik koruma.",
+      "genotypes": {
+        "AA": {
+          "flag": "neutral",
+          "meaning": "Bu PRNP genotipi prion hastalığı araştırmalarında incelenir; hastalığa karşı bağışıklık anlamına gelmez."
+        },
+        "AG": {
+          "flag": "positive",
+          "meaning": "Bu PRNP genotipi prion hastalığı araştırmalarında incelenir; hastalığa karşı bağışıklık anlamına gelmez."
+        },
+        "GG": {
+          "flag": "neutral",
+          "meaning": "Bu PRNP genotipi prion hastalığı araştırmalarında incelenir; hastalığa karşı bağışıklık anlamına gelmez."
+        }
+      }
+    },
+    {
+      "id": "rs2736990",
+      "category": "neuro",
+      "title": "Parkinson Yatkınlığı (SNCA)",
+      "definition": "Beyinde alfa-sinüklein proteininin birikme durumu ve yaşa bağlı Parkinson hastalığı genetiği.",
+      "genotypes": {
+        "TT": {
+          "flag": "positive",
+          "meaning": "Bu SNCA genotipi Parkinson hastalığı araştırmalarında incelenir; hastalığın gelişeceğini göstermez."
+        },
+        "CT": {
+          "flag": "neutral",
+          "meaning": "Bu SNCA genotipi Parkinson hastalığı araştırmalarında incelenir; hastalığın gelişeceğini göstermez."
+        },
+        "CC": {
+          "flag": "negative",
+          "meaning": "Bu SNCA genotipi Parkinson hastalığı araştırmalarında incelenir; hastalığın gelişeceğini göstermez."
+        }
+      }
+    },
+    {
+      "id": "rs1801260",
+      "category": "neuro",
+      "title": "Sirkadiyen Ritim Esnekliği (CLOCK)",
+      "definition": "Biyolojik saatin uyku-uyanıklık döngüsünü hücresel seviyede nasıl regüle ettiği.",
+      "genotypes": {
+        "AA": {
+          "flag": "neutral",
+          "meaning": "Standart sirkadiyen ritim; uyku saati biyolojik esnekliğe sahiptir."
+        },
+        "AG": {
+          "flag": "neutral",
+          "meaning": "Biyolojik saat ritminde hafif istatistiksel kayma eğilimi."
+        },
+        "GG": {
+          "flag": "neutral",
+          "meaning": "Uyku döngüsünde genetik kayma eğilimi."
+        }
+      }
+    },
+    {
+      "id": "rs4988235",
+      "category": "metabolism",
+      "title": "Laktoz Toleransı (MCM6)",
+      "definition": "Süt şekeri (Laktoz) sindiriminin yetişkinlikte devam etmesi.",
+      "genotypes": {
+        "CC": {
+          "flag": "negative",
+          "meaning": "Bu genotip yetişkinlikte laktoz sindirme olasılığının azalmasıyla ilişkilidir; belirtiler kişiden kişiye değişir."
+        },
+        "CT": {
+          "flag": "positive",
+          "meaning": "Bu genotip yetişkinlikte laktoz sindirme olasılığının sürmesiyle ilişkilidir; gerçek tolerans kişiden kişiye değişir."
+        },
+        "TT": {
+          "flag": "positive",
+          "meaning": "Bu genotip yetişkinlikte laktoz sindirme olasılığının sürmesiyle ilişkilidir; gerçek tolerans kişiden kişiye değişir."
+        }
+      }
+    },
+    {
+      "id": "rs9939609",
+      "category": "metabolism",
+      "title": "Obezite Yatkınlığı (FTO)",
+      "definition": "İştah doygunluk regülasyonu ve poligenik obezite riski.",
+      "genotypes": {
+        "TT": {
+          "flag": "positive",
+          "meaning": "Standart risk; normal genetik iştah regülasyonu."
+        },
+        "AT": {
+          "flag": "neutral",
+          "meaning": "Obezite riskinde %15 oranında hafif istatistiksel artış."
+        },
+        "AA": {
+          "flag": "negative",
+          "meaning": "Doyma hissi gecikir; obezite riskinde ~1.3 kat artış."
+        }
+      }
+    },
+    {
+      "id": "rs7903146",
+      "category": "metabolism",
+      "title": "Tip 2 Diyabet Riski (TCF7L2)",
+      "definition": "Pankreas insülin salınım regülasyonunda en güçlü risk belirteci.",
+      "genotypes": {
+        "CC": {
+          "flag": "positive",
+          "meaning": "Bu TCF7L2 genotipi tip 2 diyabetle istatistiksel olarak ilişkilidir; kişisel tanı veya kesin risk vermez."
+        },
+        "CT": {
+          "flag": "neutral",
+          "meaning": "Bu TCF7L2 genotipi tip 2 diyabetle istatistiksel olarak ilişkilidir; kişisel tanı veya kesin risk vermez."
+        },
+        "TT": {
+          "flag": "negative",
+          "meaning": "Bu TCF7L2 genotipi tip 2 diyabetle istatistiksel olarak ilişkilidir; kişisel tanı veya kesin risk vermez."
+        }
+      }
+    },
+    {
+      "id": "rs762551",
+      "category": "metabolism",
+      "title": "Kafein Metabolizması (CYP1A2)",
+      "definition": "Karaciğerde kafein parçalama enzim hızı.",
+      "genotypes": {
+        "AA": {
+          "flag": "positive",
+          "meaning": "Hızlı metabolizör; kafein kanda hızla temizlenir; uykusuzluk veya çarpıntı yan etkileri minimaldir."
+        },
+        "AC": {
+          "flag": "neutral",
+          "meaning": "Yavaş kafein yıkımı; fazla tüketim kalp ritmini hafif etkileyebilir."
+        },
+        "CC": {
+          "flag": "negative",
+          "meaning": "Çok yavaş yıkım; geç saatlerde tüketilen kahve hipertansiyon riskini ve uykusuzluğu tetikler."
+        }
+      }
+    },
+    {
+      "id": "rs738409",
+      "category": "metabolism",
+      "title": "Karaciğer Yağlanması (PNPLA3)",
+      "definition": "Lipid metabolizması ve Non-Alkolik Yağlı Karaciğer (NAFLD) riski.",
+      "genotypes": {
+        "CC": {
+          "flag": "positive",
+          "meaning": "Standart lipid metabolizması; karaciğer hücrelerinde anormal yağ birikimi riski düşüktür."
+        },
+        "CG": {
+          "flag": "neutral",
+          "meaning": "Karaciğer yağlanmasına karşı orta düzey risk taşıyıcılığı."
+        },
+        "GG": {
+          "flag": "negative",
+          "meaning": "Yüksek risk; kötü beslenme ve alkol tüketimine bağlı karaciğer yağlanması (Steatoz) riskinde ~70% civarı güçlü istatistiksel artış."
+        }
+      }
+    },
+    {
+      "id": "rs671",
+      "category": "metabolism",
+      "title": "Alkol Toksisitesi (ALDH2)",
+      "definition": "Alkolün toksik asetaldehitten asetat formuna dönüştürülme hızı.",
+      "genotypes": {
+        "GG": {
+          "flag": "positive",
+          "meaning": "Kusursuz enzim aktivitesi; alkol sorunsuz bir şekilde vücuttan atılır."
+        },
+        "GA": {
+          "flag": "neutral",
+          "meaning": "Enzim kapasitesinde düşüş; alkol tüketiminde yüz kızarması ve kalp çarpıntısı gözlemlenir."
+        },
+        "AA": {
+          "flag": "negative",
+          "meaning": "Enzim tamamen inaktiftir; alkol toksik asetaldehit olarak kanda birikir; şiddetli yüz kızarması ve alkole karşı genetik toleranssızlık."
+        }
+      }
+    },
+    {
+      "id": "rs713598",
+      "category": "metabolism",
+      "title": "Acı Tat Algısı (TAS2R38)",
+      "definition": "Glukozinolatları (brokoli, lahana acısı) algılama hassasiyeti.",
+      "genotypes": {
+        "CC": {
+          "flag": "neutral",
+          "meaning": "Süper-tadan (Supertaster); acı tatlara karşı aşırı duyarlıdır, koyu yeşil sebzeleri sevmeyebilir."
+        },
+        "CG": {
+          "flag": "neutral",
+          "meaning": "Normal tat algısı dengesi."
+        },
+        "GG": {
+          "flag": "neutral",
+          "meaning": "Tat-almayan (Nontaster); acı tatları algılamaz, kahveyi veya sebzeleri daha rahat tüketir."
+        }
+      }
+    },
+    {
+      "id": "rs601338",
+      "category": "metabolism",
+      "title": "B12 ve Bağırsak Florası (FUT2)",
+      "definition": "Salgı (Secretor) statüsü; norovirüs direnci ve B12 emilimi.",
+      "genotypes": {
+        "GG": {
+          "flag": "positive",
+          "meaning": "Salgılayıcı (Secretor); mide-bağırsak florası bifidobakterileri destekler, B12 emilimi mükemmeldir."
+        },
+        "GA": {
+          "flag": "neutral",
+          "meaning": "Orta düzey flora dengesi ve emilim."
+        },
+        "AA": {
+          "flag": "neutral",
+          "meaning": "Salgılamayan (Non-secretor); b12 emiliminde hücresel zorluk yaşar, ancak norovirüs enfeksiyonlarına genetik olarak çok dirençlidir."
+        }
+      }
+    },
+    {
+      "id": "rs1544410",
+      "category": "metabolism",
+      "title": "D Vitamini Reseptörü (VDR)",
+      "definition": "D vitamininin kemik ve immün sistemde hücresel kullanımı.",
+      "genotypes": {
+        "AA": {
+          "flag": "negative",
+          "meaning": "Bu VDR genotipi D vitamini yanıtıyla ilgili araştırmalarda incelenir; takviye gereksinimi tek bir SNP ile belirlenmez."
+        },
+        "AG": {
+          "flag": "neutral",
+          "meaning": "Bu VDR genotipi D vitamini yanıtıyla ilgili araştırmalarda incelenir; takviye gereksinimi tek bir SNP ile belirlenmez."
+        },
+        "GG": {
+          "flag": "positive",
+          "meaning": "Bu VDR genotipi D vitamini yanıtıyla ilgili araştırmalarda incelenir; takviye gereksinimi tek bir SNP ile belirlenmez."
+        }
+      }
+    },
+    {
+      "id": "rs10741657",
+      "category": "metabolism",
+      "title": "D Vitamini Sentezi (CYP2R1)",
+      "definition": "Karaciğerde D vitaminini aktif forma çeviren ana enzimin genetiği.",
+      "genotypes": {
+        "GG": {
+          "flag": "positive",
+          "meaning": "Normal enzim aktivitesi; kan D vitamini (25-OH) seviyelerini dengede tutar."
+        },
+        "GA": {
+          "flag": "neutral",
+          "meaning": "D vitamini sentez hızında genetik olarak hafif yavaşlama."
+        },
+        "AA": {
+          "flag": "negative",
+          "meaning": "Sentez verimi düşüktür; genetik D vitamini eksikliğine yatkınlık oluşturur, dışarıdan takviye ihtiyacı yüksektir."
+        }
+      }
+    },
+    {
+      "id": "rs72921001",
+      "category": "metabolism",
+      "title": "Kişniş / Sabun Tadı (OR6A2)",
+      "definition": "Koku reseptörü OR6A2'nin aldehit kimyasallarına olan duyarlılığı.",
+      "genotypes": {
+        "AA": {
+          "flag": "negative",
+          "meaning": "Kişniş otundaki (cilantro) aldehitlere karşı aşırı duyarlıdır, yediğinde net bir sabun veya böcek tadı alır."
+        },
+        "CA": {
+          "flag": "neutral",
+          "meaning": "Kişnişi sabun gibi algılama ihtimali artmıştır."
+        },
+        "CC": {
+          "flag": "positive",
+          "meaning": "Aldehit reseptörleri normaldir; kişniş otunu taze ve aromatik bir bitki olarak algılar."
+        }
+      }
+    },
+    {
+      "id": "rs1801282",
+      "category": "metabolism",
+      "title": "İnsülin Duyarlılığı (PPARG)",
+      "definition": "Yağ dokusunda lipit metabolizması ve insülin direnci regülasyonu (Pro12Ala).",
+      "genotypes": {
+        "CC": {
+          "flag": "neutral",
+          "meaning": "Standart risk; kan şekeri ve insülin yanıtı normal popülasyonla aynıdır."
+        },
+        "CG": {
+          "flag": "positive",
+          "meaning": "Diyabet gelişimine karşı hücresel koruma."
+        },
+        "GG": {
+          "flag": "positive",
+          "meaning": "Nadir faydalı varyant; hücreler insüline mükemmel tepki verir, Tip 2 Diyabete karşı güçlü genetik direnç."
+        }
+      }
+    },
+    {
+      "id": "rs3750344",
+      "category": "metabolism",
+      "title": "Pankreas Çinko Pompası (SLC30A8)",
+      "definition": "Pankreas beta hücrelerinde insülin kristalizasyonu ve salınımı için gereken çinko taşıyıcısı.",
+      "genotypes": {
+        "CC": {
+          "flag": "neutral",
+          "meaning": "Pankreas insülin sekresyonu normaldir."
+        },
+        "CT": {
+          "flag": "neutral",
+          "meaning": "İnsülin regülasyonunda hafif farklılık, diyabet riskinde minimal düşüş eğilimi."
+        },
+        "TT": {
+          "flag": "positive",
+          "meaning": "Diyabete karşı koruyucu varyant; pankreas beta hücre fonksiyonları yaşa bağlı hasardan istatistiksel olarak daha iyi korunur."
+        }
+      }
+    },
+    {
+      "id": "rs2016520",
+      "category": "metabolism",
+      "title": "Dayanıklılık ve Yağ Yakımı (PPARD)",
+      "definition": "Kaslarda yağ asitlerinin enerjiye (ATP) dönüştürülme hızı.",
+      "genotypes": {
+        "CC": {
+          "flag": "neutral",
+          "meaning": "Egzersiz esnasında yağ yakım hızı standart seviyededir."
+        },
+        "CT": {
+          "flag": "neutral",
+          "meaning": "Aerobik kapasitede ve hücresel yağ metabolizmasında hafif artış."
+        },
+        "TT": {
+          "flag": "positive",
+          "meaning": "Yüksek yağ yakım kapasitesi; aerobik egzersizlerde enerjiyi yağlardan çok daha verimli sentezleyerek dayanıklılığı artırır."
+        }
+      }
+    },
+    {
+      "id": "rs10830963",
+      "category": "metabolism",
+      "title": "Melatonin ve Kan Şekeri (MTNR1B)",
+      "definition": "Melatonin reseptörü (MT2) fonksiyonu; uyku ritminin insülin direncine genetik etkisi.",
+      "genotypes": {
+        "CC": {
+          "flag": "positive",
+          "meaning": "Normal insülin regülasyonu; uyku ve kan şekeri dengesi standarttır."
+        },
+        "CG": {
+          "flag": "neutral",
+          "meaning": "Kan şekeri seviyelerinde uyku dengesizliğine bağlı hafif dalgalanma riski."
+        },
+        "GG": {
+          "flag": "negative",
+          "meaning": "Geç saatlerde salgılanan melatonin insülin direncini artırır."
+        }
+      }
+    },
+    {
+      "id": "rs8192675",
+      "category": "metabolism",
+      "title": "Şeker Hassasiyeti (SLC2A2)",
+      "definition": "Beyindeki GLUT2 glikoz taşıyıcı genetiği; tatlı ve karbonhidrat tüketim meyli.",
+      "genotypes": {
+        "CC": {
+          "flag": "positive",
+          "meaning": "Şeker tüketimi standart seviyelerdedir."
+        },
+        "CT": {
+          "flag": "neutral",
+          "meaning": "Tatlı tüketimine karşı orta düzey genetik eğilim."
+        },
+        "TT": {
+          "flag": "negative",
+          "meaning": "Glikoz algılama mekanizması zayıftır; vücut doygunluk hissetmek için daha fazla şekere ihtiyaç duyar; günlük yüksek şeker ve karbonhidrat tüketimine belirgin genetik yatkınlık."
+        }
+      }
+    },
+    {
+      "id": "rs174537",
+      "category": "metabolism",
+      "title": "Omega-3 Sentezi (FADS1)",
+      "definition": "Bitkisel yağ asitlerinin (ALA) faydalı EPA/DHA formuna dönüştürülme hızı.",
+      "genotypes": {
+        "TT": {
+          "flag": "positive",
+          "meaning": "Yüksek sentez kapasitesi; ceviz, keten tohumu gibi bitkisel kaynakları hücresel Omega-3'e mükemmel verimle dönüştürür."
+        },
+        "CT": {
+          "flag": "neutral",
+          "meaning": "Ortalama Omega-3 sentez ve dönüşüm kapasitesi."
+        },
+        "CC": {
+          "flag": "negative",
+          "meaning": "Düşük sentez; bitkisel kaynaklardan Omega-3 üretme verimi oldukça zayıftır; dışarıdan doğrudan balık/yosun yağı takviyesi gerekebilir."
+        }
+      }
+    },
+    {
+      "id": "rs7501331",
+      "category": "metabolism",
+      "title": "A Vitamini Dönüşümü (BCO1)",
+      "definition": "Bitkisel beta-karoteni aktif A vitaminine (Retinol) dönüştüren enzimin genetiği.",
+      "genotypes": {
+        "AA": {
+          "flag": "positive",
+          "meaning": "Standart verim; bitkisel beta-karoteni aktif A vitaminine sorunsuz şekilde çevirir."
+        },
+        "AG": {
+          "flag": "neutral",
+          "meaning": "Dönüşüm kapasitesinde genetik ve istatistiksel yavaşlama."
+        },
+        "GG": {
+          "flag": "negative",
+          "meaning": "Enzim aktivitesi zayıftır; vücut bitkisel beta-karoteni iyi kullanamaz; genetik olarak doğrudan hayvansal kaynaklı aktif A vitamini (Retinol) ihtiyacı yüksektir."
+        }
+      }
+    },
+    {
+      "id": "rs1799883",
+      "category": "metabolism",
+      "title": "Doymuş Yağ Emilimi (FABP2)",
+      "definition": "Bağırsaklarda yağ asidi bağlayıcı protein.",
+      "genotypes": {
+        "GG": {
+          "flag": "positive",
+          "meaning": "Normal yağ emilimi; doymuş yağ tüketimine verilen trigliserit tepkisi standarttır."
+        },
+        "GA": {
+          "flag": "neutral",
+          "meaning": "Bağırsaklarda yağ emilimi hızlanmıştır."
+        },
+        "AA": {
+          "flag": "negative",
+          "meaning": "Doymuş yağlara karşı yüksek hücresel hassasiyet."
+        }
+      }
+    },
+    {
+      "id": "rs3758391",
+      "category": "metabolism",
+      "title": "Hücresel Yaşlanma ve Onarım (SIRT1)",
+      "definition": "Hücre onarımını sağlayan enzim aktivitesi; sağlıklı yaşlanma ve uzun ömür potansiyeli.",
+      "genotypes": {
+        "TT": {
+          "flag": "positive",
+          "meaning": "Yüksek SIRT1 enzim aktivitesi; sağlıklı hücresel onarım, oksidatif strese karşı yüksek direnç ve istatistiksel uzun ömür (longevity) eğilimi."
+        },
+        "CT": {
+          "flag": "neutral",
+          "meaning": "Standart hücresel onarım ve enzim aktivitesi."
+        },
+        "CC": {
+          "flag": "negative",
+          "meaning": "Azalmış enzim aktivitesi; çevresel stres faktörleri altında hızlanmış hücresel yaşlanma riskinde genetik ve istatistiksel artış."
+        }
+      }
+    },
+    {
+      "id": "rs662",
+      "category": "metabolism",
+      "title": "Toksin ve Pestisit Temizliği (PON1)",
+      "definition": "Vücudun tarım ilaçları (pestisit) gibi çevresel toksinleri ve serbest radikalleri temizleme hızı.",
+      "genotypes": {
+        "AA": {
+          "flag": "positive",
+          "meaning": "Yüksek PON1 enzim aktivitesi; serbest radikallere ve çevresel toksinlere karşı optimal hücresel savunma ve detoksifikasyon mekanizması."
+        },
+        "AG": {
+          "flag": "neutral",
+          "meaning": "Ortalama toksin temizleme hızı ve standart enzim aktivitesi."
+        },
+        "GG": {
+          "flag": "negative",
+          "meaning": "Düşük hücresel detoks kapasitesi; çevresel kimyasallara ve toksinlere karşı artmış genetik duyarlılık; damar sertliği (ateroskleroz) riskinde istatistiksel artış."
+        }
+      }
+    },
+    {
+      "id": "rs1800588",
+      "category": "metabolism",
+      "title": "Doğal İyi Kolesterol (LIPC)",
+      "definition": "Karaciğer enzimlerinin çalışma hızı ve kandaki koruyucu 'iyi kolesterol' (HDL) tutulumu.",
+      "genotypes": {
+        "CC": {
+          "flag": "neutral",
+          "meaning": "Standart lipaz enzim aktivitesi; bazal HDL (iyi kolesterol) regülasyonu normal popülasyon standartlarındadır."
+        },
+        "CT": {
+          "flag": "positive",
+          "meaning": "HDL seviyelerinde istatistiksel yüksekliğe genetik eğilim."
+        },
+        "TT": {
+          "flag": "positive",
+          "meaning": "Azalmış hepatik lipaz aktivitesi; kanda koruyucu HDL (iyi kolesterol) seviyelerinin genetik olarak yüksek kalma eğilimi; kardiyovasküler koruma sağlar."
+        }
+      }
+    },
+    {
+      "id": "rs8192678",
+      "category": "metabolism",
+      "title": "Mitokondri ve Aerobik Kapasite (PPARGC1A)",
+      "definition": "Kas hücrelerindeki mitokondriyal biyogenez.",
+      "genotypes": {
+        "GG": {
+          "flag": "neutral",
+          "meaning": "Standart mitokondriyal sentez; aerobik (kardiyo) egzersizlerine verilen tepki normaldir."
+        },
+        "GA": {
+          "flag": "neutral",
+          "meaning": "Aerobik efor kapasitesine ve yağ oksidasyonuna istatistiksel yatkınlık."
+        },
+        "AA": {
+          "flag": "positive",
+          "meaning": "Aerobik efora yüksek genetik yanıt; düzenli kardiyo ve dayanıklılık antrenmanlarında mitokondri üretimini maksimize ederek hücresel yorulmayı belirgin şekilde geciktirir."
+        }
+      }
+    },
+    {
+      "id": "rs1333049",
+      "category": "cardio",
+      "title": "Kalp Krizi Yatkınlığı (9p21)",
+      "definition": "Koroner arter hastalığı için spesifik kromozomal bağımsız risk faktörü.",
+      "genotypes": {
+        "GG": {
+          "flag": "positive",
+          "meaning": "Bu 9p21 genotipi koroner arter hastalığıyla istatistiksel bir ilişki olarak incelenir; bireysel riski tek başına göstermez."
+        },
+        "CG": {
+          "flag": "neutral",
+          "meaning": "Bu 9p21 genotipi koroner arter hastalığıyla istatistiksel bir ilişki olarak incelenir; bireysel riski tek başına göstermez."
+        },
+        "CC": {
+          "flag": "negative",
+          "meaning": "Bu 9p21 genotipi koroner arter hastalığıyla istatistiksel bir ilişki olarak incelenir; bireysel riski tek başına göstermez."
+        }
+      }
+    },
+    {
+      "id": "rs10455872",
+      "category": "cardio",
+      "title": "Lipoprotein(a) Riski (LPA)",
+      "definition": "Kardiyovasküler hastalıklar için LDL'den bağımsız 'gizli kolesterol' yüksekliği belirteci.",
+      "genotypes": {
+        "GG": {
+          "flag": "positive",
+          "meaning": "Bu LPA genotipi lipoprotein(a) düzeyiyle ilişkili olabilir; gerçek düzey kan testiyle değerlendirilir."
+        },
+        "AG": {
+          "flag": "neutral",
+          "meaning": "Bu LPA genotipi lipoprotein(a) düzeyiyle ilişkili olabilir; gerçek düzey kan testiyle değerlendirilir."
+        },
+        "AA": {
+          "flag": "negative",
+          "meaning": "Bu LPA genotipi lipoprotein(a) düzeyiyle ilişkili olabilir; gerçek düzey kan testiyle değerlendirilir."
+        }
+      }
+    },
+    {
+      "id": "rs699",
+      "category": "cardio",
+      "title": "Tuza Duyarlı Tansiyon (AGT)",
+      "definition": "Sodyum tüketimine kan basıncının verdiği tepki.",
+      "genotypes": {
+        "TT": {
+          "flag": "positive",
+          "meaning": "Standart tansiyon regülasyonu; tuza karşı normal duyarlılık."
+        },
+        "TC": {
+          "flag": "neutral",
+          "meaning": "Kan basıncı yüksekliğine hafif genetik meyil."
+        },
+        "CC": {
+          "flag": "negative",
+          "meaning": "Hipertansiyon riskinde ~%20 artış; sodyum (tuz) tüketimine karşı duyarlıdır; aşırı tuz tansiyonu keskin yükseltir."
+        }
+      }
+    },
+    {
+      "id": "rs1801133",
+      "category": "cardio",
+      "title": "Homosistein Metilasyonu (MTHFR C677T)",
+      "definition": "Kardiyovasküler riski artıran homosistein temizleme enzim kapasitesi.",
+      "genotypes": {
+        "GG": {
+          "flag": "positive",
+          "meaning": "Tam enzim aktivitesi; homosisteini başarıyla temizler, damarları korur."
+        },
+        "AG": {
+          "flag": "neutral",
+          "meaning": "Enzim kapasitesinde ~%30-40 kayıp; diyetle alınan folat genellikle yeterlidir."
+        },
+        "AA": {
+          "flag": "negative",
+          "meaning": "Enzim kapasitesinde ~%70 kayıp; kanda toksik homosistein birikme riski yüksektir."
+        }
+      }
+    },
+    {
+      "id": "rs1801131",
+      "category": "cardio",
+      "title": "Folat Döngüsü (MTHFR A1298C)",
+      "definition": "MTHFR genindeki ikinci majör metilasyon ve hücresel sentez varyantı.",
+      "genotypes": {
+        "AA": {
+          "flag": "positive",
+          "meaning": "Normal folat döngüsü fonksiyonu."
+        },
+        "AC": {
+          "flag": "neutral",
+          "meaning": "Enzim aktivitesinde ~%20 oranında hafif bir kapasite düşüşü."
+        },
+        "CC": {
+          "flag": "negative",
+          "meaning": "Enzim aktivitesinde ~%40 kayıp; diğer MTHFR mutasyonlarıyla (C677T) birleştiğinde klinik tabloyu ağırlaştırabilir."
+        }
+      }
+    },
+    {
+      "id": "rs1799983",
+      "category": "cardio",
+      "title": "Damar Endoteli (NOS3 / eNOS)",
+      "definition": "Damarları genişleten nitrik oksit (NO) sentezi.",
+      "genotypes": {
+        "GG": {
+          "flag": "positive",
+          "meaning": "Standart damar genişleme ve nitrik oksit üretim kapasitesi."
+        },
+        "GT": {
+          "flag": "neutral",
+          "meaning": "Orta düzey vazodilatasyon tepkisi."
+        },
+        "TT": {
+          "flag": "negative",
+          "meaning": "Azalmış NO üretimi; damar endotel fonksiyonunda düşüş ve vazospazm eğiliminde hafif istatistiksel artış."
+        }
+      }
+    },
+    {
+      "id": "rs1864163",
+      "category": "cardio",
+      "title": "Kalp Koruması ve HDL (CETP)",
+      "definition": "Kandaki iyi kolesterol (HDL) seviyesini düzenleyen ve kalbi koruyan genetik mekanizma.",
+      "genotypes": {
+        "AA": {
+          "flag": "neutral",
+          "meaning": "Standart kardiyovasküler profil ve popülasyon ortalamasında HDL düzeyleri."
+        },
+        "AG": {
+          "flag": "positive",
+          "meaning": "Kandaki iyi kolesterol (HDL) miktarında orta düzeyde genetik artış yatkınlığı."
+        },
+        "GG": {
+          "flag": "positive",
+          "meaning": "Yüksek kardiyovasküler koruma; damar tıkanıklığını engelleyen koruyucu iyi kolesterol (HDL) seviyelerini genetik olarak yüksek tutma eğilimi; kalp krizi riskinde belirgin istatistiksel düşüş."
+        }
+      }
+    },
+    {
+      "id": "rs7412",
+      "category": "cardio",
+      "title": "Lipid Kalkanı ve Alzheimer Koruması (APOE - e2)",
+      "definition": "APOE tipinin belirlenmesinde rs7412 ve rs429358 varyantları birlikte değerlendirilir.",
+      "genotypes": {
+        "CC": {
+          "flag": "neutral",
+          "meaning": "Bu genotipte rs7412 üzerinde e2 ile ilişkili T aleli görülmez; APOE tipi için rs429358 de gereklidir."
+        },
+        "CT": {
+          "flag": "positive",
+          "meaning": "Bu genotipte rs7412 üzerinde bir T aleli görülür; APOE tipi için rs429358 de gereklidir."
+        },
+        "TT": {
+          "flag": "positive",
+          "meaning": "Bu genotipte rs7412 üzerinde iki T aleli görülür; APOE tipi için rs429358 de gereklidir."
+        }
+      }
+    },
+    {
+      "id": "rs1801253",
+      "category": "cardio",
+      "title": "Nabız ve Adrenalin Yanıtı (ADRB1)",
+      "definition": "Kalp kasındaki Beta-1 adrenalin reseptörü; strese ve beta-bloker ilaçlara verilen kardiyak yanıt.",
+      "genotypes": {
+        "CC": {
+          "flag": "positive",
+          "meaning": "Standart kalp ritmi; strese verilen nabız tepkisi normaldir; beta-bloker ilaçlara iyi yanıt verir."
+        },
+        "CG": {
+          "flag": "neutral",
+          "meaning": "Adrenalin reseptör duyarlılığında hafif artış."
+        },
+        "GG": {
+          "flag": "negative",
+          "meaning": "Reseptörler adrenaline aşırı duyarlıdır."
+        }
+      }
+    },
+    {
+      "id": "rs4149056",
+      "category": "pharma",
+      "title": "Kolesterol İlacı Toksisitesi (SLCO1B1)",
+      "definition": "Statin sınıfı (Simvastatin vb.) ilaçların kaslarda toksisite (Miyopati) yapma riski.",
+      "genotypes": {
+        "TT": {
+          "flag": "positive",
+          "meaning": "Bu rs4149056 genotipi ilaç yanıtıyla ilişkili bir belirteçtir; tedavi kararları başka genetik ve klinik bilgiler gerektirir."
+        },
+        "CT": {
+          "flag": "negative",
+          "meaning": "Bu rs4149056 genotipi ilaç yanıtıyla ilişkili bir belirteçtir; tedavi kararları başka genetik ve klinik bilgiler gerektirir."
+        },
+        "CC": {
+          "flag": "negative",
+          "meaning": "Bu rs4149056 genotipi ilaç yanıtıyla ilişkili bir belirteçtir; tedavi kararları başka genetik ve klinik bilgiler gerektirir."
+        }
+      }
+    },
+    {
+      "id": "rs1695",
+      "category": "pharma",
+      "title": "Hücresel Detoksifikasyon (GSTP1)",
+      "definition": "Kanserojenleri ve ağır metalleri glutatyona bağlayarak atma fazı.",
+      "genotypes": {
+        "AA": {
+          "flag": "positive",
+          "meaning": "Bu rs1695 genotipi ilaç yanıtıyla ilişkili bir belirteçtir; tedavi kararları başka genetik ve klinik bilgiler gerektirir."
+        },
+        "AG": {
+          "flag": "neutral",
+          "meaning": "Bu rs1695 genotipi ilaç yanıtıyla ilişkili bir belirteçtir; tedavi kararları başka genetik ve klinik bilgiler gerektirir."
+        },
+        "GG": {
+          "flag": "negative",
+          "meaning": "Bu rs1695 genotipi ilaç yanıtıyla ilişkili bir belirteçtir; tedavi kararları başka genetik ve klinik bilgiler gerektirir."
+        }
+      }
+    },
+    {
+      "id": "rs3892097",
+      "category": "pharma",
+      "title": "Psikiyatrik ve Analjezik İlaçlar (CYP2D6)",
+      "definition": "Antidepresanlar, beta-blokerler ve Kodein dahil ilaçların %25'ini yıkan ana enzim.",
+      "genotypes": {
+        "CC": {
+          "flag": "positive",
+          "meaning": "Bu rs3892097 genotipi ilaç yanıtıyla ilişkili bir belirteçtir; tedavi kararları başka genetik ve klinik bilgiler gerektirir."
+        },
+        "CT": {
+          "flag": "neutral",
+          "meaning": "Bu rs3892097 genotipi ilaç yanıtıyla ilişkili bir belirteçtir; tedavi kararları başka genetik ve klinik bilgiler gerektirir."
+        },
+        "TT": {
+          "flag": "negative",
+          "meaning": "Bu rs3892097 genotipi ilaç yanıtıyla ilişkili bir belirteçtir; tedavi kararları başka genetik ve klinik bilgiler gerektirir."
+        }
+      }
+    },
+    {
+      "id": "rs12248560",
+      "category": "pharma",
+      "title": "Mide ve Kan Sulandırıcılar (CYP2C19)",
+      "definition": "Plavix (Klopidogrel) ve PPI (Mide koruyucu) ilaçların metabolizması.",
+      "genotypes": {
+        "CC": {
+          "flag": "positive",
+          "meaning": "Bu rs12248560 genotipi ilaç yanıtıyla ilişkili bir belirteçtir; tedavi kararları başka genetik ve klinik bilgiler gerektirir."
+        },
+        "CT": {
+          "flag": "neutral",
+          "meaning": "Bu rs12248560 genotipi ilaç yanıtıyla ilişkili bir belirteçtir; tedavi kararları başka genetik ve klinik bilgiler gerektirir."
+        },
+        "TT": {
+          "flag": "negative",
+          "meaning": "Bu rs12248560 genotipi ilaç yanıtıyla ilişkili bir belirteçtir; tedavi kararları başka genetik ve klinik bilgiler gerektirir."
+        }
+      }
+    },
+    {
+      "id": "rs9923231",
+      "category": "pharma",
+      "title": "Warfarin Dozajı (VKORC1)",
+      "definition": "Kan sulandırıcı ilaçlara (Coumadin/Warfarin) karşı genetik duyarlılık.",
+      "genotypes": {
+        "GG": {
+          "flag": "positive",
+          "meaning": "Bu rs9923231 genotipi ilaç yanıtıyla ilişkili bir belirteçtir; tedavi kararları başka genetik ve klinik bilgiler gerektirir."
+        },
+        "GA": {
+          "flag": "neutral",
+          "meaning": "Bu rs9923231 genotipi ilaç yanıtıyla ilişkili bir belirteçtir; tedavi kararları başka genetik ve klinik bilgiler gerektirir."
+        },
+        "AA": {
+          "flag": "negative",
+          "meaning": "Bu rs9923231 genotipi ilaç yanıtıyla ilişkili bir belirteçtir; tedavi kararları başka genetik ve klinik bilgiler gerektirir."
+        }
+      }
+    },
+    {
+      "id": "rs1799930",
+      "category": "pharma",
+      "title": "İlaç ve Toksin Asetilasyonu (NAT2)",
+      "definition": "Karaciğerin belirli toksinleri ve ilaçları metabolize etme (N-asetilasyon) hızı.",
+      "genotypes": {
+        "GG": {
+          "flag": "neutral",
+          "meaning": "Bu rs1799930 genotipi ilaç yanıtıyla ilişkili bir belirteçtir; tedavi kararları başka genetik ve klinik bilgiler gerektirir."
+        },
+        "GA": {
+          "flag": "neutral",
+          "meaning": "Bu rs1799930 genotipi ilaç yanıtıyla ilişkili bir belirteçtir; tedavi kararları başka genetik ve klinik bilgiler gerektirir."
+        },
+        "AA": {
+          "flag": "negative",
+          "meaning": "Bu rs1799930 genotipi ilaç yanıtıyla ilişkili bir belirteçtir; tedavi kararları başka genetik ve klinik bilgiler gerektirir."
+        }
+      }
+    },
+    {
+      "id": "rs2032582",
+      "category": "pharma",
+      "title": "Hücresel İlaç Pompası (ABCB1)",
+      "definition": "P-glikoprotein pompası; nörolojik ilaçların ve toksinlerin kan-beyin bariyerinden geçişi.",
+      "genotypes": {
+        "GG": {
+          "flag": "positive",
+          "meaning": "Bu rs2032582 genotipi ilaç yanıtıyla ilişkili bir belirteçtir; tedavi kararları başka genetik ve klinik bilgiler gerektirir."
+        },
+        "GT": {
+          "flag": "neutral",
+          "meaning": "Bu rs2032582 genotipi ilaç yanıtıyla ilişkili bir belirteçtir; tedavi kararları başka genetik ve klinik bilgiler gerektirir."
+        },
+        "TT": {
+          "flag": "negative",
+          "meaning": "Bu rs2032582 genotipi ilaç yanıtıyla ilişkili bir belirteçtir; tedavi kararları başka genetik ve klinik bilgiler gerektirir."
+        }
+      }
+    },
+    {
+      "id": "rs2476601",
+      "category": "immunity",
+      "title": "Otoimmün Hastalık Yatkınlığı (PTPN22)",
+      "definition": "T hücresi regülasyonu; romatoid Artrit, Tip 1 Diyabet ve Lupus risk faktörü.",
+      "genotypes": {
+        "GG": {
+          "flag": "positive",
+          "meaning": "Bağışıklık toleransı normal, standart otoimmün hastalık riski."
+        },
+        "GA": {
+          "flag": "negative",
+          "meaning": "Otoimmün saldırı riskinde istatistiksel artış."
+        },
+        "AA": {
+          "flag": "negative",
+          "meaning": "T hücre regülasyonunda bozulma; otoimmün hastalıklara (Hashimoto, Romatizma) karşı ~2-3 kat artmış genetik yatkınlık (predispozisyon)."
+        }
+      }
+    },
+    {
+      "id": "rs2187668",
+      "category": "immunity",
+      "title": "Çölyak Yatkınlığı (HLA-DQA1)",
+      "definition": "Gluten proteinine karşı hücresel otoimmün tepki (Çölyak Genetiği).",
+      "genotypes": {
+        "CC": {
+          "flag": "positive",
+          "meaning": "Gluten duyarlılığı ve Çölyak hastalığı genetik riski son derece düşüktür."
+        },
+        "CT": {
+          "flag": "neutral",
+          "meaning": "Glutene karşı hücresel duyarlılık taşıyıcılığı."
+        },
+        "TT": {
+          "flag": "negative",
+          "meaning": "Glutene karşı otoimmün tepki genetiği."
+        }
+      }
+    },
+    {
+      "id": "rs1800629",
+      "category": "immunity",
+      "title": "Enflamasyon Sitokini (TNF-alpha)",
+      "definition": "Tümör Nekroz Faktörü; sistemik enflamasyon (iltihap) tetikleme hızı.",
+      "genotypes": {
+        "GG": {
+          "flag": "positive",
+          "meaning": "Enflamasyon üretimi standart ve dengeli düzeydedir."
+        },
+        "GA": {
+          "flag": "neutral",
+          "meaning": "Sistemik iltihap markerlarında hafif artış yatkınlığı."
+        },
+        "AA": {
+          "flag": "negative",
+          "meaning": "Kronik hafif seyirli iltihaba yatkınlık."
+        }
+      }
+    },
+    {
+      "id": "rs11209026",
+      "category": "immunity",
+      "title": "Bağırsak Enflamasyonu (IL23R)",
+      "definition": "İltihabi bağırsak koruma mekanizması (Crohn hastalığı direnci).",
+      "genotypes": {
+        "GG": {
+          "flag": "neutral",
+          "meaning": "Normal bağırsak bağışıklık dengesi."
+        },
+        "GA": {
+          "flag": "positive",
+          "meaning": "İltihaplı bağırsak hastalıklarına (IBD) karşı istatistiksel koruma sağlar."
+        },
+        "AA": {
+          "flag": "positive",
+          "meaning": "Nadir koruyucu varyant; crohn hastalığı ve ülseratif kolit riskini belirgin şekilde düşürür."
+        }
+      }
+    },
+    {
+      "id": "rs2241880",
+      "category": "immunity",
+      "title": "Hücresel Otofaji (ATG16L1)",
+      "definition": "Hücrelerin patojenleri temizlemesi (Otofaji) ve Crohn hastalığı yatkınlığı.",
+      "genotypes": {
+        "AA": {
+          "flag": "positive",
+          "meaning": "Hücresel temizlik (Otofaji) standart çalışır."
+        },
+        "AG": {
+          "flag": "neutral",
+          "meaning": "Otofaji kapasitesinde hafif istatistiksel düşüş."
+        },
+        "GG": {
+          "flag": "negative",
+          "meaning": "Bağırsak hücresel temizlik mekanizmasında bozulma."
+        }
+      }
+    },
+    {
+      "id": "rs334",
+      "category": "immunity",
+      "title": "Sıtma Direnci / Orak Hücre (HBB)",
+      "definition": "Kırmızı kan hücrelerinin formu ve hemoglobin üretimi.",
+      "genotypes": {
+        "AA": {
+          "flag": "positive",
+          "meaning": "Bu rs334 genotipi hemoglobin varyantlarıyla ilişkili olabilir; taşıyıcılık veya hastalık için klinik doğrulama gerekir."
+        },
+        "AT": {
+          "flag": "neutral",
+          "meaning": "Bu rs334 genotipi hemoglobin varyantlarıyla ilişkili olabilir; taşıyıcılık veya hastalık için klinik doğrulama gerekir."
+        },
+        "TT": {
+          "flag": "negative",
+          "meaning": "Bu rs334 genotipi hemoglobin varyantlarıyla ilişkili olabilir; taşıyıcılık veya hastalık için klinik doğrulama gerekir."
+        }
+      }
+    },
+    {
+      "id": "rs1800795",
+      "category": "immunity",
+      "title": "Sistemik Enflamasyon Puanı (IL6)",
+      "definition": "Interlökin-6 salınımı; vücudun bazal iltihap (CRP) üretim genetiği.",
+      "genotypes": {
+        "GG": {
+          "flag": "positive",
+          "meaning": "Enflamatuar yanıt standarttır; akut bir enfeksiyon yoksa kandaki bazal CRP düzeyi düşük seyreder."
+        },
+        "GC": {
+          "flag": "neutral",
+          "meaning": "Ortalama sistemik iltihap üretim kapasitesi."
+        },
+        "CC": {
+          "flag": "negative",
+          "meaning": "IL-6 ve bazal CRP seviyelerinde genetik yükseklik."
+        }
+      }
+    },
+    {
+      "id": "rs12252",
+      "category": "immunity",
+      "title": "Viral Enfeksiyon Direnci (IFITM3)",
+      "definition": "Hücre zarı savunması; grip (İnfluenza) ve çeşitli virüslere karşı hücresel kalkan.",
+      "genotypes": {
+        "TT": {
+          "flag": "positive",
+          "meaning": "Güçlü hücresel viral direnç; virüslerin hücre içine girişini başarıyla zorlaştırır."
+        },
+        "CT": {
+          "flag": "neutral",
+          "meaning": "Viral enfeksiyonlara karşı kısmi bazal direnç."
+        },
+        "CC": {
+          "flag": "negative",
+          "meaning": "Hücre zarı savunmasında zayıflık; virüsler hücreye kolay girer; ağır gribe (İnfluenza) yakalanma riskinde ~6 kat istatistiksel artış."
+        }
+      }
+    },
+    {
+      "id": "rs2231142",
+      "category": "immunity",
+      "title": "Ürik Asit ve Gut Riski (ABCG2)",
+      "definition": "Böbrek ve bağırsaklarda ürik asit atılımını sağlayan taşıyıcı proteinin fonksiyonu.",
+      "genotypes": {
+        "GG": {
+          "flag": "positive",
+          "meaning": "Ürik asit atılımı standarttır; böbrekler kandan ürik asidi başarıyla temizler."
+        },
+        "GT": {
+          "flag": "neutral",
+          "meaning": "Kanda ürik asit birikimine hafif düzey genetik yatkınlık."
+        },
+        "TT": {
+          "flag": "negative",
+          "meaning": "Ürik asit atılım mekanizması zayıftır."
+        }
+      }
+    },
+    {
+      "id": "rs1800896",
+      "category": "immunity",
+      "title": "Doğal İltihap Giderici (IL10)",
+      "definition": "Bağışıklık sisteminin gereksiz iltihabı (enflamasyonu) durdurma ve otoimmün hastalıklara direnç kapasitesi.",
+      "genotypes": {
+        "GG": {
+          "flag": "positive",
+          "meaning": "Yüksek IL-10 üretimi; gelişen enflamasyonu hızla baskılama kapasitesi; kronik enflamatuar ve otoimmün hastalıklara karşı güçlü genetik koruma."
+        },
+        "AG": {
+          "flag": "neutral",
+          "meaning": "Standart anti-enflamatuar kapasite ve hücresel bağışıklık regülasyonu."
+        },
+        "AA": {
+          "flag": "negative",
+          "meaning": "Düşük IL-10 sitokin salınımı; enflamatuar yanıtı baskılamada genetik zayıflık; kronik iltihaplanma ve otoimmün hastalık riskinde istatistiksel artış."
+        }
+      }
+    },
+    {
+      "id": "rs1061147",
+      "category": "immunity",
+      "title": "Bazal İltihap Seviyesi (CRP)",
+      "definition": "Vücutta enfeksiyon yokken bile kandaki bazal iltihap (C-Reaktif Protein) seviyesini belirleyen gen.",
+      "genotypes": {
+        "CC": {
+          "flag": "positive",
+          "meaning": "Optimum CRP regülasyonu; sistemik bazal iltihap (enflamasyon) seviyelerinin genetik olarak düşük seyretme eğilimi."
+        },
+        "CT": {
+          "flag": "neutral",
+          "meaning": "Standart bazal CRP seviyesi varyansı."
+        },
+        "TT": {
+          "flag": "negative",
+          "meaning": "Yüksek bazal enflamasyon; akut enfeksiyon yokluğunda dahi kandaki bazal CRP düzeylerinin genetik olarak daha yüksek seyretme yatkınlığı."
+        }
+      }
+    },
+    {
+      "id": "rs2228145",
+      "category": "immunity",
+      "title": "Romatizma ve Astım Koruması (IL6R)",
+      "definition": "Bağışıklık sisteminin hücreler arası iltihap sinyallerini algılama şekli.",
+      "genotypes": {
+        "CC": {
+          "flag": "neutral",
+          "meaning": "Standart interlökin-6 reseptör aktivitesi."
+        },
+        "AC": {
+          "flag": "positive",
+          "meaning": "Otoimmün ve hücresel enflamatuar hastalıklara karşı orta düzey istatistiksel koruma."
+        },
+        "AA": {
+          "flag": "positive",
+          "meaning": "Doğal anti-enflamatuar hücresel varyant."
+        }
+      }
+    },
+    {
+      "id": "rs28929474",
+      "category": "immunity",
+      "title": "Akciğer ve Karaciğer Koruması (SERPINA1)",
+      "definition": "Akciğer ve karaciğer dokusunu hücresel yıkıma ve amfizeme karşı koruyan enzimin üretim kalitesi.",
+      "genotypes": {
+        "CC": {
+          "flag": "positive",
+          "meaning": "Bu SERPINA1 genotipi alfa-1 antitripsin eksikliği açısından incelenebilir; klinik doğrulama olmadan tanı konamaz."
+        },
+        "CT": {
+          "flag": "negative",
+          "meaning": "Bu SERPINA1 genotipi alfa-1 antitripsin eksikliği açısından incelenebilir; klinik doğrulama olmadan tanı konamaz."
+        },
+        "TT": {
+          "flag": "negative",
+          "meaning": "Bu SERPINA1 genotipi alfa-1 antitripsin eksikliği açısından incelenebilir; klinik doğrulama olmadan tanı konamaz."
+        }
+      }
+    },
+    {
+      "id": "rs2066844",
+      "category": "immunity",
+      "title": "Bağırsak Enflamasyonu (NOD2)",
+      "definition": "Bağırsaklardaki bakterileri tanıyan reseptör.",
+      "genotypes": {
+        "CC": {
+          "flag": "positive",
+          "meaning": "Bağırsak zarı hücresel savunması normaldir."
+        },
+        "CT": {
+          "flag": "neutral",
+          "meaning": "Bağırsak florasındaki bakterilere karşı hatalı bağışıklık yanıtı riskinde istatistiksel artış."
+        },
+        "TT": {
+          "flag": "negative",
+          "meaning": "Crohn Hastalığı için klinik açıdan en güçlü genetik yatkınlıklardan biridir."
+        }
+      }
+    },
+    {
+      "id": "rs2243250",
+      "category": "immunity",
+      "title": "Alerji ve IgE Yatkınlığı (IL4)",
+      "definition": "Interlökin-4 üretim genetiği; astım, saman nezlesi ve alerjik reaksiyon (IgE) tetiklenmesi.",
+      "genotypes": {
+        "CC": {
+          "flag": "positive",
+          "meaning": "Standart bağışıklık profili; alerjenlere verilen antikor (IgE) yanıtı normal seviyededir."
+        },
+        "CT": {
+          "flag": "neutral",
+          "meaning": "Alerjik reaksiyonlara hafif istatistiksel eğilim."
+        },
+        "TT": {
+          "flag": "negative",
+          "meaning": "IL-4 sitokini genetik olarak daha fazla üretilir."
+        }
+      }
+    },
+    {
+      "id": "rs1800562",
+      "category": "cancer",
+      "title": "Hemokromatoz Mutasyonu (HFE)",
+      "definition": "Organlarda (karaciğer/kalp) toksik düzeyde demir birikimi.",
+      "genotypes": {
+        "GG": {
+          "flag": "positive",
+          "meaning": "Bu HFE genotipi demir metabolizmasıyla ilişkili bir belirteçtir; hemokromatoz tanısı için tek başına yeterli değildir."
+        },
+        "AG": {
+          "flag": "neutral",
+          "meaning": "Bu HFE genotipi demir metabolizmasıyla ilişkili bir belirteçtir; hemokromatoz tanısı için tek başına yeterli değildir."
+        },
+        "AA": {
+          "flag": "negative",
+          "meaning": "Bu HFE genotipi demir metabolizmasıyla ilişkili bir belirteçtir; hemokromatoz tanısı için tek başına yeterli değildir."
+        }
+      }
+    },
+    {
+      "id": "rs1061170",
+      "category": "cancer",
+      "title": "Makula Dejenerasyonu Riski (CFH)",
+      "definition": "Tamamlayıcı Faktör H geni; yaşa bağlı sarı nokta hastalığı (AMD).",
+      "genotypes": {
+        "TT": {
+          "flag": "positive",
+          "meaning": "Sarı nokta hastalığı riski oldukça düşüktür."
+        },
+        "TC": {
+          "flag": "neutral",
+          "meaning": "Yaşa bağlı görme kaybı riskinde orta düzey artış."
+        },
+        "CC": {
+          "flag": "negative",
+          "meaning": "Makula dejenerasyonuna karşı çok belirgin (ortalama 5-7 kat) artmış genetik risk."
+        }
+      }
+    },
+    {
+      "id": "rs6983267",
+      "category": "cancer",
+      "title": "Kolorektal Risk Bölgesi (8q24)",
+      "definition": "Bağırsak polipleri ve kolorektal kanser yatkınlığı (Onkogenik lokasyon).",
+      "genotypes": {
+        "TT": {
+          "flag": "positive",
+          "meaning": "Standart kolon ve rektum hücresel proliferasyon riski."
+        },
+        "GT": {
+          "flag": "neutral",
+          "meaning": "Ortalama hücresel polip riski."
+        },
+        "GG": {
+          "flag": "negative",
+          "meaning": "Kolon polipleri ve kolorektal kanser gelişim riskinde ~1.2 - 1.4 kat arası istatistiksel artış (Diyet/tarama önemlidir)."
+        }
+      }
+    },
+    {
+      "id": "rs2802292",
+      "category": "cancer",
+      "title": "Uzun Ömürlülük / Longevity (FOXO3)",
+      "definition": "Hücresel stres direnci, insülin yolu modülasyonu ve yaşlanma genetiği.",
+      "genotypes": {
+        "TT": {
+          "flag": "neutral",
+          "meaning": "Standart hücresel ömür ve yaşlanma beklentisi."
+        },
+        "TG": {
+          "flag": "positive",
+          "meaning": "Strese ve DNA hasarına karşı artmış direnç (Uzun ömür eğilimi)."
+        },
+        "GG": {
+          "flag": "positive",
+          "meaning": "İstatiksel Uzun Ömür (Longevity) varyantı."
+        }
+      }
+    },
+    {
+      "id": "rs121908936",
+      "category": "metabolism",
+      "title": "Konjenital Laktaz Eksikliği (LCT)",
+      "definition": "Doğuştan laktaz enzimi eksikliğine yol açan ve bebeklikte süt (laktoz) sindirimini engelleyen nadir genetik mutasyon (Y1390X).",
+      "genotypes": {
+        "GG": {
+          "flag": "positive",
+          "meaning": "Bu LCT genotipi nadir laktaz eksikliği araştırmalarında incelenir; tek bir ham DNA çağrısı tanı koydurmaz."
+        },
+        "AG": {
+          "flag": "neutral",
+          "meaning": "Bu LCT genotipi nadir laktaz eksikliği araştırmalarında incelenir; tek bir ham DNA çağrısı tanı koydurmaz."
+        },
+        "AA": {
+          "flag": "negative",
+          "meaning": "Bu LCT genotipi nadir laktaz eksikliği araştırmalarında incelenir; tek bir ham DNA çağrısı tanı koydurmaz."
+        }
+      }
+    },
+    {
+      "id": "rs1154204",
+      "category": "cancer",
+      "title": "Polisiklik Toksin Hassasiyeti (CYP1A1)",
+      "definition": "Sigara dumanındaki (PAH) hidrokarbonları temizleme/aktifleşme dengesi.",
+      "genotypes": {
+        "AA": {
+          "flag": "positive",
+          "meaning": "Normal toksin temizliği; sigara dumanı ve kömür yanığı etkilerine karşı standart bazal risk."
+        },
+        "AG": {
+          "flag": "neutral",
+          "meaning": "Zayıflamış detoksifikasyon enzim hızı."
+        },
+        "GG": {
+          "flag": "negative",
+          "meaning": "Toksinler hücrede mutajenik forma dönüşür."
+        }
+      }
+    },
+    {
+      "id": "rs3156192",
+      "category": "physical",
+      "title": "Telomer Uzunluğu (TERT)",
+      "definition": "Hücresel yaşlanmayı kontrol eden telomeraz enzim aktivitesi ve telomer kısalma hızı.",
+      "genotypes": {
+        "CC": {
+          "flag": "neutral",
+          "meaning": "Telomerler standart popülasyon hızında kısalır."
+        },
+        "CT": {
+          "flag": "positive",
+          "meaning": "Telomer kısalma hızında istatistiksel yavaşlama."
+        },
+        "TT": {
+          "flag": "positive",
+          "meaning": "Uzun telomer genetiği; telomeraz enzimi daha aktiftir; hücresel yaşlanmayı geciktirerek biyolojik yaşın kronolojik yaştan daha genç kalmasına (~3-4 yıl) genetik avantaj sağlar."
+        }
+      }
+    },
+    {
+      "id": "rs1800012",
+      "category": "physical",
+      "title": "Kemik Mineral Yoğunluğu (COL1A1)",
+      "definition": "Tip 1 Kolajen sentezi; kemik erimesi (osteoporoz) ve kırık riski.",
+      "genotypes": {
+        "GG": {
+          "flag": "positive",
+          "meaning": "Normal kolajen sentezi; kemik mineral yoğunluğu korunur, kırık riski düşüktür."
+        },
+        "GT": {
+          "flag": "neutral",
+          "meaning": "Kemik yoğunluğunda yaşa bağlı azalma yatkınlığı."
+        },
+        "TT": {
+          "flag": "negative",
+          "meaning": "Düşük kolajen kalitesi; osteoporoz ve minör travmalarda dahi kemik kırılması riskinde belirgin istatistiksel artış."
+        }
+      }
+    },
+    {
+      "id": "rs12803066",
+      "category": "physical",
+      "title": "Miyop",
+      "definition": "Göz küresinin gelişimi ve miyop (uzağı net görememe) riskini etkileyen genetik varyant.",
+      "genotypes": {
+        "AA": {
+          "flag": "positive",
+          "meaning": "Standart göz yapısı; miyop için popülasyon ortalamasıyla aynı hücresel risk."
+        },
+        "AG": {
+          "flag": "neutral",
+          "meaning": "Miyop (uzağı net görememe) gelişim riskinde orta düzeyde istatistiksel artış."
+        },
+        "GG": {
+          "flag": "negative",
+          "meaning": "Miyopa (uzağı net görememe) karşı belirgin genetik yatkınlık."
+        }
+      }
+    },
+    {
+      "id": "rs6732426",
+      "category": "physical",
+      "title": "Saç Tipi (Düz/Dalgalı)",
+      "definition": "Saç köklerinin yapısını belirleyerek saçın düz veya dalgalı olmasını sağlayan gen.",
+      "genotypes": {
+        "CC": {
+          "flag": "neutral",
+          "meaning": "Kıvırcık veya belirgin dalgalı saç yapısına genetik yatkınlık."
+        },
+        "CT": {
+          "flag": "neutral",
+          "meaning": "Orta düzeyde, hafif dalgalı saç fenotipine sahip olma eğilimi."
+        },
+        "TT": {
+          "flag": "neutral",
+          "meaning": "Düz saç yapısına sahip olma konusunda belirgin morfolojik yatkınlık."
+        }
+      }
+    },
+    {
+      "id": "rs1805007",
+      "category": "physical",
+      "title": "Kızıl Saç ve Çillenme (MC1R)",
+      "definition": "Kızıl saç rengi, güneşte çillenme eğilimi ve UV ışınlarına karşı cilt hassasiyeti.",
+      "genotypes": {
+        "CC": {
+          "flag": "neutral",
+          "meaning": "Standart genetik varyant; melanin dengesi normaldir, güneşte aşırı çillenme veya kızıl saç fenotipi beklenmez."
+        },
+        "CT": {
+          "flag": "neutral",
+          "meaning": "Kızıl saç varyantı taşıyıcılığı; saç foliküllerinde kızıl yansımalar ve güneşte çillenme eğiliminde hücresel artış."
+        },
+        "TT": {
+          "flag": "neutral",
+          "meaning": "Belirgin kızıl saç fenotipi; UV ışınlarına karşı yüksek cilt hassasiyeti; düşük bronzlaşma kapasitesi ve güneş yanıklarına genetik yatkınlık."
+        }
+      }
+    },
+    {
+      "id": "rs16891982",
+      "category": "physical",
+      "title": "Cilt Tonu ve Pigmentasyon (SLC45A2)",
+      "definition": "Melanin (renk pigmenti) üretimini dengeleyerek temel cilt tonunu belirleyen ana gen.",
+      "genotypes": {
+        "CC": {
+          "flag": "neutral",
+          "meaning": "Koyu ten rengine genetik yatkınlık; yüksek melanin sentezi, UV radyasyonuna karşı hücresel düzeyde doğal koruma sağlar."
+        },
+        "CG": {
+          "flag": "neutral",
+          "meaning": "Orta tonda (buğday) ten rengine genetik yatkınlık."
+        },
+        "GG": {
+          "flag": "neutral",
+          "meaning": "Açık ten (beyaz) fenotipi; düşük bazal melanin sentezi; UV hasarına ve cilt lekelenmelerine karşı belirgin istatistiksel yatkınlık."
+        }
+      }
+    },
+    {
+      "id": "rs2180439",
+      "category": "physical",
+      "title": "Saç Kalınlığı ve Ter Bezleri (EDAR)",
+      "definition": "Saç tellerinin kalınlığını ve ter bezlerinin yoğunluğunu belirleyen varyant.",
+      "genotypes": {
+        "AA": {
+          "flag": "neutral",
+          "meaning": "Standart saç teli kalınlığı ve normal apokrin bez yoğunluğu."
+        },
+        "AG": {
+          "flag": "neutral",
+          "meaning": "Daha kalın saç telleri ve ter bezi aktivitesinde hafif hücresel varyasyon eğilimi."
+        },
+        "GG": {
+          "flag": "neutral",
+          "meaning": "Kalın ve düz saç teli fenotipi; eDAR gen varyantına bağlı olarak hücresel boyutta yoğun apokrin bez yapısı (Doğu Asya genetiği ile ilişkilidir)."
+        }
+      }
+    },
+    {
+      "id": "rs143383",
+      "category": "physical",
+      "title": "Eklem Kireçlenmesi Riski (GDF5)",
+      "definition": "Eklem kıkırdağı yapısı ve diz osteoartriti (kireçlenme) yatkınlığı.",
+      "genotypes": {
+        "CC": {
+          "flag": "positive",
+          "meaning": "Kıkırdak gelişimi normaldir; standart eklem sağlığı profili."
+        },
+        "CT": {
+          "flag": "neutral",
+          "meaning": "Kıkırdak dokusu yüksek baskıya daha duyarlıdır, orta düzey aşınma riski."
+        },
+        "TT": {
+          "flag": "negative",
+          "meaning": "Diz kireçlenmesi (Osteoartrit) gelişimi ve eklem yüksekliğinin daralması riskinde istatistiksel artış (~1.8 kat)."
+        }
+      }
+    },
+    {
+      "id": "rs4340",
+      "category": "physical",
+      "title": "Dayanıklılık ve Patlayıcı Güç (ACE)",
+      "definition": "Angiotensin Converting Enzyme genindeki delesyon/insersiyon (D/I) varyantı.",
+      "genotypes": {
+        "AA": {
+          "flag": "positive",
+          "meaning": "Insersiyon (I/I) formu; oksijen kullanımını maksimize eder, uzun mesafe maraton ve dayanıklılık sporlarında genetik avantaj sağlar."
+        },
+        "AG": {
+          "flag": "neutral",
+          "meaning": "Heterozigot (I/D); güç ve dayanıklılık arasında dengeli kas fizyolojisi."
+        },
+        "GG": {
+          "flag": "positive",
+          "meaning": "Delesyon (D/D) formu; kasların hipertrofi yanıtı hızlıdır, sprint ve halter gibi patlayıcı güç gerektiren sporlara yatkınlık."
+        }
+      }
+    },
+    {
+      "id": "rs1815739",
+      "category": "physical",
+      "title": "Kas Lifi Profili (ACTN3)",
+      "definition": "Hızlı kasılan (Tip II) kas liflerinde alfa-aktinin-3 üretimi.",
+      "genotypes": {
+        "CC": {
+          "flag": "positive",
+          "meaning": "Tam üretim; sprint ve güç sporlarına yüksek genetik avantaj."
+        },
+        "CT": {
+          "flag": "neutral",
+          "meaning": "Kısmi üretim; güç ve dayanıklılık sporları için dengeli kas yapısı."
+        },
+        "TT": {
+          "flag": "neutral",
+          "meaning": "Null varyant; hızlı kasılan protein üretilmez, kaslar dayanıklılık eforuna (maraton) daha yatkındır."
+        }
+      }
+    },
+    {
+      "id": "rs1805086",
+      "category": "physical",
+      "title": "Miyostatin & Kas (MSTN)",
+      "definition": "Kas büyümesini sınırlayan protein üretimi mutasyonu.",
+      "genotypes": {
+        "AA": {
+          "flag": "neutral",
+          "meaning": "Normal miyostatin üretimi, standart kas gelişimi."
+        },
+        "AG": {
+          "flag": "positive",
+          "meaning": "Azalmış miyostatin; hipertrofi potansiyelinde ve kas hacmi kazanma hızında genetik avantaj."
+        },
+        "GG": {
+          "flag": "positive",
+          "meaning": "Çok nadir düşük miyostatin; aşırı kas hipertrofisi ve güç potansiyeli."
+        }
+      }
+    },
+    {
+      "id": "rs121912617",
+      "category": "physical",
+      "title": "Kısa Uyku Varyantı (DEC2)",
+      "definition": "Ailesel doğal kısa uyku (FNSS) süresi regülasyonu.",
+      "genotypes": {
+        "CC": {
+          "flag": "neutral",
+          "meaning": "Standart biyoritim, normal (7-8 saat) uyku ihtiyacı."
+        },
+        "CG": {
+          "flag": "positive",
+          "meaning": "Doğal kısa uyuyanlar (Short Sleeper): Günde 4-6 saat uyku ile tamamen dinç kalkabilme yatkınlığı."
+        },
+        "GG": {
+          "flag": "positive",
+          "meaning": "Minimum uykuyla nörolojik fonksiyonları koruyabilme genetiği."
+        }
+      }
+    },
+    {
+      "id": "rs17822931",
+      "category": "physical",
+      "title": "Ter Kokusu (ABCC11)",
+      "definition": "Apokrin bezlerden protein salınımı ve kulak kiri tipi.",
+      "genotypes": {
+        "AA": {
+          "flag": "positive",
+          "meaning": "Ter kokusuna sebep olan proteinleri salgılamaz (Asya varyantı)."
+        },
+        "AG": {
+          "flag": "neutral",
+          "meaning": "Standart apokrin salgı; ıslak kulak kiri."
+        },
+        "GG": {
+          "flag": "neutral",
+          "meaning": "Standart apokrin salgı; ıslak kulak kiri."
+        }
+      }
+    },
+    {
+      "id": "rs6152",
+      "category": "physical",
+      "title": "Androjen Reseptörü (AR)",
+      "definition": "Erkek tipi saç dökülmesi (Alopesi) ile en güçlü ilişkili SNP.",
+      "genotypes": {
+        "A": {
+          "flag": "neutral",
+          "meaning": "Androjen reseptör hassasiyeti yüksektir."
+        },
+        "G": {
+          "flag": "positive",
+          "meaning": "Saç kökleri androjene karşı daha dirençlidir, genetik dökülme riski azalmıştır."
+        }
+      }
+    },
+    {
+      "id": "rs35264875",
+      "category": "physical",
+      "title": "Saç Morfolojisi (TCHH)",
+      "definition": "Saç keratin folikül yapısı (Kıvırcık vs Düz).",
+      "genotypes": {
+        "AA": {
+          "flag": "neutral",
+          "meaning": "Düz saç fenotipi; saç telleri yuvarlak kesitlidir."
+        },
+        "AC": {
+          "flag": "neutral",
+          "meaning": "Dalgalı saç yapısına morfolojik yatkınlık."
+        },
+        "CC": {
+          "flag": "neutral",
+          "meaning": "Asimetrik folikül yapısı; daha kıvırcık ve hacimli saç fenotipi."
+        }
+      }
+    },
+    {
+      "id": "rs12891399",
+      "category": "physical",
+      "title": "Saç Rengi Belirteci (SLC24A4)",
+      "definition": "Açık saç (sarı/kumral) pigmentasyonunu etkileyen Avrupa geni.",
+      "genotypes": {
+        "GG": {
+          "flag": "neutral",
+          "meaning": "Daha az saç pigmenti; sarı, açık kumral veya kızıl saç rengi ihtimalinde belirgin genetik artış."
+        },
+        "GT": {
+          "flag": "neutral",
+          "meaning": "Orta tonlarda (kumral/kestane) saç rengine yatkınlık."
+        },
+        "TT": {
+          "flag": "neutral",
+          "meaning": "Daha yoğun saç pigmentasyonu; kahverengi veya siyah saç rengi fenotipi."
+        }
+      }
+    },
+    {
+      "id": "rs1126809",
+      "category": "physical",
+      "title": "Tirozinaz Pigmentasyonu (TYR)",
+      "definition": "Melanin biyosentezini kontrol ederek göz ve ten rengini etkileyen majör varyant.",
+      "genotypes": {
+        "AA": {
+          "flag": "neutral",
+          "meaning": "Yüksek melanin üretimi; koyu ten ve kahverengi göz rengine güçlü genetik yatkınlık."
+        },
+        "AG": {
+          "flag": "neutral",
+          "meaning": "Ara pigmentasyon formu; orta tonda cilt ve göz rengi yatkınlığı."
+        },
+        "GG": {
+          "flag": "neutral",
+          "meaning": "Düşük melanin üretimi; mavi göz, beyaz ten ve güneşte çillenme fenotipine çok güçlü yatkınlık."
+        }
+      }
+    },
+    {
+      "id": "rs1129038",
+      "category": "physical",
+      "title": "Göz Pigmentasyonu (OCA2)",
+      "definition": "İris pigmentasyonu (Melanin) ana belirteci.",
+      "genotypes": {
+        "AA": {
+          "flag": "neutral",
+          "meaning": "Düşük melanin; mavi, açık yeşil veya gri göz ihtimalini artıran güçlü varyant."
+        },
+        "AG": {
+          "flag": "neutral",
+          "meaning": "Orta düzey iris pigmentasyonu."
+        },
+        "GG": {
+          "flag": "neutral",
+          "meaning": "Koyu renk (kahverengi/ela) göz genetiği."
+        }
+      }
+    },
+    {
+      "id": "rs12913832",
+      "category": "physical",
+      "title": "Mavi Göz Varyantı (HERC2)",
+      "definition": "OCA2 geninin ifadesini kapatan mutasyon.",
+      "genotypes": {
+        "AA": {
+          "flag": "neutral",
+          "meaning": "Melanin üretimi aktif; kahverengi veya koyu renkli göz fenotipi."
+        },
+        "AG": {
+          "flag": "neutral",
+          "meaning": "Taşıyıcı form; ela, yeşil veya açık kahverengi göz görülebilir."
+        },
+        "GG": {
+          "flag": "neutral",
+          "meaning": "İriste melanin üretimini bloke eder; saf mavi veya çok açık renkli göz genetiği."
+        }
+      }
+    },
+    {
+      "id": "rs1426654",
+      "category": "physical",
+      "title": "Temel Cilt Rengi (SLC24A5)",
+      "definition": "Melanozom gelişimi ve bazal cilt pigmentasyonunu belirleyen ana varyant.",
+      "genotypes": {
+        "AA": {
+          "flag": "neutral",
+          "meaning": "Avrupa tipi beyaz ten rengi; melanin üretimi baskılanmıştır."
+        },
+        "AG": {
+          "flag": "neutral",
+          "meaning": "Melez / Buğday cilt tonu yatkınlığı; kısmi melanin sentezi."
+        },
+        "GG": {
+          "flag": "neutral",
+          "meaning": "Yüksek melanin üretimi, esmer ve koyu ten rengi genetiği."
+        }
+      }
+    },
+    {
+      "id": "rs12203592",
+      "category": "physical",
+      "title": "Bronzlaşma Yatkınlığı (IRF4)",
+      "definition": "Güneşe (UV radyasyonuna) karşı melanin tepkisi ve cilt duyarlılığı.",
+      "genotypes": {
+        "CC": {
+          "flag": "positive",
+          "meaning": "Cilt güneşe maruz kaldığında hızlıca karararak kendini korur."
+        },
+        "CT": {
+          "flag": "neutral",
+          "meaning": "Ortalama bronzlaşma kapasitesi."
+        },
+        "TT": {
+          "flag": "neutral",
+          "meaning": "Bronzlaşma yanıtı çok düşüktür; güneşte hızla kızarma, güneş yanığı ve belirgin çillenme eğilimi gösterir."
+        }
+      }
+    },
+    {
+      "id": "rs12821256",
+      "category": "physical",
+      "title": "Açık Saç Rengi (KITLG)",
+      "definition": "Melanosit gelişimi ve Avrupa kökenli açık renk saç pigmentasyonu.",
+      "genotypes": {
+        "AA": {
+          "flag": "neutral",
+          "meaning": "Koyu renk saç (Siyah veya Koyu Kahverengi) fenotipine güçlü genetik yatkınlık."
+        },
+        "AG": {
+          "flag": "neutral",
+          "meaning": "Orta tonda saç pigmentasyonu (Açık Kahverengi veya Koyu Kumral)."
+        },
+        "GG": {
+          "flag": "neutral",
+          "meaning": "Düşük saç pigmentasyonu; sarışın ya da çok açık kumral saç rengi fenotipine istatistiksel yatkınlık."
+        }
+      }
+    }
+  ]
+}

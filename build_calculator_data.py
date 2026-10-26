@@ -5,6 +5,7 @@ import argparse
 import csv
 import json
 import math
+import re
 from pathlib import Path
 
 
@@ -19,6 +20,101 @@ MODERN_PCA_MIXED_SOURCE = MODERN_PCA_DIRECTORY / "turkish_modern_pca_mixed.g25.t
 MODERN_PCA_MIXED_OUTPUT = ROOT / "calculator" / "turkish_mixed_pca_references.js"
 GLOBAL_MODERN_PCA_MIXED_SOURCE = MODERN_PCA_DIRECTORY / "modern_pca_mixed.g25.txt"
 GLOBAL_MODERN_PCA_MIXED_OUTPUT = ROOT / "calculator" / "mixed_pca_references.js"
+ydnatr_DIRECTORY = ROOT / "data" / "ydnatr"
+K12B_OUTPUT = ROOT / "calculator" / "k12b_data.js"
+HEALTH_OUTPUT = ROOT / "calculator" / "health_data.js"
+K12B_COMPONENTS = ["Gedrosia", "Siberian", "Northwest_African", "Southeast_Asian",
+                   "Atlantic_Med", "North_European", "South_Asian", "East_African",
+                   "Southwest_Asian", "East_Asian", "Caucasus", "Sub_Saharan"]
+K12B_SETS = ("yakinlik1", "yakinlik2tr", "ikili1", "ikili2tr")
+
+
+def read_ydnatr_data(directory: Path = ydnatr_DIRECTORY) -> tuple[dict, dict]:
+    """Read the editable K12b and Health source tables before bundling."""
+    k12b = {"source": "https://www.ydnatr.com/p/qwewqfxgzdhdsaf.html",
+            "components": K12B_COMPONENTS,
+            "sets": {name: {"modern": [], "ancient": []} for name in K12B_SETS}}
+    ancient_samples = []
+    for period in ("modern", "ancient"):
+        path = directory / f"k12b_{period}.txt"
+        with path.open(encoding="utf-8", newline="") as file:
+            reader = csv.DictReader(file)
+            if reader.fieldnames != ["set", "kind", "label", *K12B_COMPONENTS]:
+                raise ValueError(f"{path}: expected set, kind, label and K12b component columns")
+            for number, entry in enumerate(reader, 2):
+                name, kind, label = entry["set"], entry["kind"], entry["label"]
+                if (name not in K12B_SETS or not label or
+                        kind not in ({"modern"} if period == "modern" else {"average", "sample"}) or
+                        (kind == "sample" and name != "yakinlik2tr") or
+                        (period == "ancient" and name == "ikili2tr")):
+                    raise ValueError(f"{path}:{number}: invalid set, kind or label")
+                try:
+                    values = [float(entry[component]) for component in K12B_COMPONENTS]
+                except (TypeError, ValueError) as error:
+                    raise ValueError(f"{path}:{number}: invalid percentages") from error
+                if not all(math.isfinite(value) and value >= 0 for value in values):
+                    raise ValueError(f"{path}:{number}: percentages must be finite and nonnegative")
+                row = [label, *values]
+                k12b["sets"][name][period].append(row)
+                if kind == "sample":
+                    ancient_samples.append(row)
+    for name in ("yakinlik1", "ikili1"):
+        k12b["sets"][name]["ancient"].extend(ancient_samples)
+    if not ancient_samples or any(not values["modern"] for values in k12b["sets"].values()):
+        raise ValueError("K12b Oracle is missing modern or ancient samples")
+
+    health = json.loads((directory / "health.json").read_text(encoding="utf-8"))
+    if (not isinstance(health, dict) or not isinstance(health.get("categories"), dict) or
+            not isinstance(health.get("variants"), list) or not health["variants"]):
+        raise ValueError("Invalid Health source table")
+    ids = set()
+    def is_sentence(value: object) -> bool:
+        return (isinstance(value, str) and bool(value.strip()) and
+                len(re.findall(r"(?<!\d)[.!?](?=\s|$)", value.strip())) == 1 and
+                value.rstrip().endswith((".", "!", "?")))
+
+    for variant in health["variants"]:
+        if not isinstance(variant, dict) or not isinstance(variant.get("id"), str) or \
+                not variant["id"].startswith("rs") or not variant["id"][2:].isdigit() or \
+                variant["id"] in ids or variant.get("category") not in health["categories"]:
+            raise ValueError("Health markers need unique rs IDs and known categories")
+        ids.add(variant["id"])
+        if not isinstance(variant.get("title"), str) or not variant["title"].strip():
+            raise ValueError(f"{variant['id']}: missing title")
+        if not is_sentence(variant.get("definition")):
+            raise ValueError(f"{variant['id']}: definition must be one sentence")
+        genotypes = variant.get("genotypes")
+        if not isinstance(genotypes, dict) or not genotypes:
+            raise ValueError(f"{variant['id']}: missing genotypes")
+        for genotype, interpretation in genotypes.items():
+            if (not isinstance(genotype, str) or not genotype or
+                    any(base not in "ACGT" for base in genotype) or
+                    not isinstance(interpretation, dict) or
+                    interpretation.get("flag") not in {"positive", "neutral", "negative"} or
+                    not is_sentence(interpretation.get("meaning"))):
+                raise ValueError(f"{variant['id']}:{genotype}: invalid phenotype interpretation")
+    return k12b, health
+
+
+def write_ydnatr_bundle(data: dict, output: Path, symbol: str) -> None:
+    output.write_text(
+        "(function (root) {\n  const data = " +
+        json.dumps(data, ensure_ascii=False, separators=(",", ":")) +
+        f";\n  root.{symbol} = data;\n" +
+        "  if (typeof module !== \"undefined\" && module.exports) module.exports = data;\n" +
+        "})(typeof self === \"undefined\" ? globalThis : self);\n",
+        encoding="utf-8",
+    )
+
+
+def build_ydnatr(directory: Path = ydnatr_DIRECTORY, k12b_output: Path = K12B_OUTPUT,
+                 health_output: Path = HEALTH_OUTPUT) -> None:
+    k12b, health = read_ydnatr_data(directory)
+    write_ydnatr_bundle(k12b, k12b_output, "G25_K12B_DATA")
+    write_ydnatr_bundle(health, health_output, "G25_HEALTH_DATA")
+    total = sum(len(rows) for periods in k12b["sets"].values() for rows in periods.values())
+    print(f"Bundled {total} K12b comparison rows into {k12b_output}")
+    print(f"Bundled {len(health['variants'])} Health markers into {health_output}")
 
 
 def read_rows(path: Path, category: str) -> list[list]:
@@ -164,8 +260,13 @@ def write_mixed_bundle(rows: list[list], output: Path, symbol: str) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--turkish", action="store_true", help="Rebuild only the Turkish modern, ancient, medieval and PCA bundles")
+    selection = parser.add_mutually_exclusive_group()
+    selection.add_argument("--turkish", action="store_true", help="Rebuild only the Turkish modern, ancient, medieval and PCA bundles")
+    selection.add_argument("--ydnatr", action="store_true", help="Rebuild only the K12b Oracle and Health bundles")
     args = parser.parse_args()
+    if args.ydnatr:
+        build_ydnatr()
+        return
     if not args.turkish:
         global_modern_rows = read_rows(ROOT / "data" / "modern_g25.txt", "modern")
         rows = global_modern_rows + read_rows(ROOT / "data" / "ancient_g25.txt", "ancient")
@@ -211,6 +312,8 @@ def main() -> None:
         encoding="utf-8",
     )
     print(f"Bundled {len(medieval_rows['early'])} early and {len(medieval_rows['late'])} late Turkish medieval references into {MEDIEVAL_OUTPUT}")
+    if not args.turkish:
+        build_ydnatr()
 
 
 if __name__ == "__main__":

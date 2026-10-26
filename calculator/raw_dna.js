@@ -19,7 +19,7 @@
   }
 
   function parse(text) {
-    const calls = new Map(), conflicts = new Set();
+    const calls = new Map(), conflicts = new Set(), special = new Map(), specialConflicts = new Set();
     const stats = { rows: 0, noCalls: 0, nonAutosomal: 0, invalid: 0, duplicates: 0, conflicts: 0, build: "unspecified" };
     let columns = null, delimiter;
     for (let line of text.replace(/^\uFEFF/, "").split(/\r\n|\n|\r/)) {
@@ -45,8 +45,23 @@
       }
       stats.rows++;
       const row = fields(line, delimiter);
-      const chr = Number((row[columns.chr] || "").replace(/^chr/i, ""));
-      if (!Number.isInteger(chr) || chr < 1 || chr > 22) { stats.nonAutosomal++; continue; }
+      const chromosome = (row[columns.chr] || "").replace(/^chr/i, "").toUpperCase();
+      const chr = Number(chromosome);
+      if (!Number.isInteger(chr) || chr < 1 || chr > 22) {
+        // Preserve the one X-chromosome marker in the Health reference table.
+        // Haploid calls and two matching alleles both resolve to one base.
+        if ((chromosome === "X" || chromosome === "23") && /^rs6152$/i.test(row[columns.rs] || "")) {
+          const genotype = (columns.result >= 0 ? row[columns.result] || "" :
+            (row[columns.a] || "") + (row[columns.b] || "")).toUpperCase();
+          if (/^(A|G|AA|GG)$/.test(genotype) && !specialConflicts.has(6152)) {
+            const allele = genotype[0];
+            if (special.has(6152) && special.get(6152) !== allele) {
+              special.delete(6152); specialConflicts.add(6152);
+            } else special.set(6152, allele);
+          }
+        }
+        stats.nonAutosomal++; continue;
+      }
       const id = /^rs([1-9]\d*)$/i.exec(row[columns.rs] || "");
       if (!id || Number(id[1]) > 0xffffffff) { stats.invalid++; continue; }
       const genotype = (columns.result >= 0 ? row[columns.result] || "" :
@@ -64,7 +79,7 @@
     if (!calls.size) throw new Error("No usable autosomal SNP calls were found in this file.");
     stats.conflicts = conflicts.size;
     stats.usable = calls.size;
-    return { calls, stats };
+    return { calls, special, stats };
   }
 
   function decodeModel(buffer) {

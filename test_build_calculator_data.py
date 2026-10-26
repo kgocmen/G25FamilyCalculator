@@ -2,8 +2,27 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from build_calculator_data import (ROOT, read_global_modern_pcas, read_modern_pcas,
-                                   read_rows, rebuild_mixed_pca)
+from build_calculator_data import (ROOT, build_ydnatr, read_global_modern_pcas,
+                                   read_modern_pcas, read_rows, read_ydnatr_data,
+                                   rebuild_mixed_pca)
+
+
+class ydnatrDataTests(unittest.TestCase):
+    def test_period_files_build_complete_oracle_and_health(self):
+        k12b, health = read_ydnatr_data()
+        self.assertEqual(len(k12b["sets"]["yakinlik1"]["modern"]), 521)
+        self.assertEqual(len(k12b["sets"]["yakinlik1"]["ancient"]), 150)
+        self.assertEqual(len(k12b["sets"]["yakinlik2tr"]["modern"]), 650)
+        self.assertEqual(len(k12b["sets"]["yakinlik2tr"]["ancient"]), 150)
+        self.assertEqual(len(k12b["sets"]["ikili1"]["ancient"]), 150)
+        self.assertEqual(k12b["sets"]["ikili2tr"]["ancient"], [])
+        self.assertEqual(len(health["variants"]), 97)
+        with tempfile.TemporaryDirectory() as directory:
+            k12b_output = Path(directory) / "k12b_data.js"
+            health_output = Path(directory) / "health_data.js"
+            build_ydnatr(k12b_output=k12b_output, health_output=health_output)
+            self.assertEqual(k12b_output.read_bytes(), (ROOT / "calculator" / "k12b_data.js").read_bytes())
+            self.assertEqual(health_output.read_bytes(), (ROOT / "calculator" / "health_data.js").read_bytes())
 
 
 class ReadRowsTests(unittest.TestCase):

@@ -1,5 +1,6 @@
-# Keep the editable PCA and Turkish source files alongside their browser bundles.
+# Keep editable reference source files alongside their browser bundles.
 data/*
+!data/ydnatr/
 !data/pca/
 data/pca/*
 !data/pca/turkish_pca_config.txt

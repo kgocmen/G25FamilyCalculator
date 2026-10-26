@@ -39,13 +39,20 @@
     function clearResults() {
       results = {}; inputStats = null; g25 = null;
       settledModels.clear();
-      for (const id of ["raw-model-results", "raw-g25", "raw-summary"]) $(id).hidden = true;
+      $("raw-model-results").hidden = false;
+      for (const id of ["raw-g25", "raw-summary"]) $(id).hidden = true;
       selectModel("k12b");
       for (const id of ["k36", "k12b"]) {
         $("raw-" + id + "-status").textContent = "";
-        $("raw-" + id + "-components").replaceChildren();
-        for (const format of ["row", "table"]) $("raw-" + id + "-copy-" + format).disabled = true;
+        if (id === "k36") $("raw-k36-components").replaceChildren();
+        for (const format of ["row", "table"]) {
+          const button = $("raw-" + id + "-copy-" + format);
+          button.disabled = true;
+          if (id === "k12b") button.hidden = true;
+        }
       }
+      window.G25K12BUI?.reset();
+      window.G25HealthUI?.reset();
       $("raw-g25-line").value = "";
       $("raw-export").disabled = true;
     }
@@ -97,17 +104,27 @@
         (data.fit.converged ? `Fit converged in ${data.fit.iterations} iterations.` : "Fit did not converge; proportions are provisional and G25 is unavailable.") +
         (low ? " Low SNP coverage: results may be unstable." : "") +
         ` ${data.stats.flipped.toLocaleString()} strand complements; ${data.stats.incompatible.toLocaleString()} incompatible calls excluded.`;
-      const fragment = document.createDocumentFragment();
-      data.components.forEach((component, i) => {
-        const row = document.createElement("div"); row.className = "raw-component";
-        const label = document.createElement("span"); label.textContent = component.replaceAll("_", " ");
-        const value = document.createElement("strong"); value.textContent = (data.fit.proportions[i] * 100).toFixed(2) + "%";
-        const bar = document.createElement("span"); bar.className = "raw-component-bar"; bar.setAttribute("aria-hidden", "true");
-        bar.style.width = (data.fit.proportions[i] * 100).toFixed(3) + "%";
-        row.append(label, value, bar); fragment.append(row);
-      });
-      $(prefix + "-components").replaceChildren(fragment);
-      for (const format of ["row", "table"]) $(prefix + "-copy-" + format).disabled = false;
+      if (data.id === "k12b") {
+        selectModel("k12b");
+        window.G25K12BUI?.setProfile(data.fit.proportions);
+      }
+      else {
+        const fragment = document.createDocumentFragment();
+        data.components.forEach((component, i) => {
+          const row = document.createElement("div"); row.className = "raw-component";
+          const label = document.createElement("span"); label.textContent = component.replaceAll("_", " ");
+          const value = document.createElement("strong"); value.textContent = (data.fit.proportions[i] * 100).toFixed(2) + "%";
+          const bar = document.createElement("span"); bar.className = "raw-component-bar"; bar.setAttribute("aria-hidden", "true");
+          bar.style.width = (data.fit.proportions[i] * 100).toFixed(3) + "%";
+          row.append(label, value, bar); fragment.append(row);
+        });
+        $(prefix + "-components").replaceChildren(fragment);
+      }
+      for (const format of ["row", "table"]) {
+        const button = $(prefix + "-copy-" + format);
+        button.disabled = false;
+        if (data.id === "k12b") button.hidden = false;
+      }
       $("raw-export").disabled = false;
       if (data.g25) {
         g25 = data.g25;
@@ -135,7 +152,7 @@
         message("Open this calculator through its hosted site or a local web server to process raw DNA."); return;
       }
       try {
-        worker = new Worker(new URL("raw_dna_worker.js?v=20261024-3", document.baseURI));
+        worker = new Worker(new URL("raw_dna_worker.js?v=20261026-2", document.baseURI));
         const current = worker;
         busy(true); message("Starting local DNA analysis…");
         for (const id of modelIds) $("raw-" + id + "-status").textContent = `Calculating ${id === "k36" ? "K36" : "K12b"}…`;
@@ -150,6 +167,7 @@
               `${data.stats.invalid.toLocaleString()} invalid rows · ${data.stats.duplicates.toLocaleString()} duplicates (${data.stats.conflicts.toLocaleString()} conflicting SNPs excluded).`;
           }
           if (data.type === "result") showResult(data);
+          if (data.type === "health") window.G25HealthUI?.setMatches(data.matches);
           if (data.type === "model-error") {
             settledModels.add(data.id);
             showModels();

@@ -6,6 +6,8 @@
   <meta name="theme-color" content="#14243b">
   <title>G25 Family Calculator</title>
   <link rel="stylesheet" href="style.css?v=20261024-6">
+  <link rel="stylesheet" href="k12b.css?v=20261026-4">
+  <link rel="stylesheet" href="health.css?v=20261026-3">
   <script defer src="references.js?v=20261022-1"></script>
   <script defer src="turkish_references.js?v=20261022-1"></script>
   <script defer src="modern_pca_references.js?v=20261023-3"></script>
@@ -21,13 +23,16 @@
   <script defer src="pca.js?v=20261024-5"></script>
   <script defer src="modern_pca.js?v=20261023-3"></script>
   <script defer src="pca_layout.js?v=20261024-6"></script>
-  <script defer src="raw_data_ui.js?v=20261024-4"></script>
+  <script defer src="k12b_data.js?v=20261026-2"></script>
+  <script defer src="health_data.js?v=20261026-2"></script>
+  <script defer src="k12b.js?v=20261026-6"></script>
+  <script defer src="health.js?v=20261026-3"></script>
+  <script defer src="raw_data_ui.js?v=20261026-5"></script>
   <script defer src="app.js?v=20261024-7"></script>
 </head>
 <body>
   <main class="shell">
     <header class="page-header">
-      <div class="eyebrow">REFERENCE DATA FROM WORLD GENETICS</div>
       <div class="page-title-row">
         <h1>G25 Family Calculator</h1>
         <button id="open-populations" class="population-launcher" type="button" aria-haspopup="dialog" aria-controls="population-panel">
@@ -95,18 +100,50 @@
           <textarea id="raw-g25-line" rows="4" readonly spellcheck="false" aria-label="Simulated scaled G25 coordinates"></textarea>
           <div class="raw-g25-footer"><button id="raw-analyse" class="primary-button" type="button">Use in Analyse</button></div>
         </section>
-        <div id="raw-model-results" hidden>
+        <div id="raw-model-results">
           <div id="raw-model-tabs" class="analysis-tabs raw-model-tabs" role="tablist" aria-label="Raw DNA results">
             <button id="raw-k12b-tab" class="analysis-tab active" type="button" role="tab" aria-selected="true" aria-controls="raw-k12b">K12b</button>
             <button id="raw-k36-tab" class="analysis-tab" type="button" role="tab" aria-selected="false" aria-controls="raw-k36" tabindex="-1">K36</button>
           </div>
           <section id="raw-k12b" class="raw-result raw-model-panel" role="tabpanel" aria-labelledby="raw-k12b-tab">
             <div class="section-head"><h2 id="raw-k12b-title">Dodecad K12b</h2>
-              <div class="raw-actions"><button id="raw-k12b-copy-row" class="text-button" type="button" disabled>Copy row</button>
-                <button id="raw-k12b-copy-table" class="text-button" type="button" disabled>Copy table</button></div>
+              <div class="raw-actions"><button id="raw-k12b-copy-row" class="text-button" type="button" disabled hidden>Copy row</button>
+                <button id="raw-k12b-copy-table" class="text-button" type="button" disabled hidden>Copy table</button></div>
             </div>
             <p id="raw-k12b-status" class="method-note"></p>
-            <div id="raw-k12b-components" class="raw-components"></div>
+            <div class="analysis-tabs k12b-subtabs" role="tablist" aria-label="K12b view">
+              <button id="raw-k12b-chart-tab" class="analysis-tab active" type="button" role="tab" aria-selected="true" aria-controls="raw-k12b-chart">Chart</button>
+              <button id="raw-k12b-oracle-tab" class="analysis-tab" type="button" role="tab" aria-selected="false" aria-controls="raw-k12b-oracle" tabindex="-1">Oracle</button>
+              <button id="raw-k12b-health-tab" class="analysis-tab" type="button" role="tab" aria-selected="false" aria-controls="raw-k12b-health" tabindex="-1">Health</button>
+            </div>
+            <div id="raw-k12b-chart" role="tabpanel" aria-labelledby="raw-k12b-chart-tab">
+              <div class="k12b-chart-grid">
+                <div id="k12b-chart" class="k12b-chart" role="img" aria-label="K12b component pie chart"></div>
+                <div id="k12b-table" class="k12b-table"></div>
+              </div>
+            </div>
+            <div id="raw-k12b-oracle" role="tabpanel" aria-labelledby="raw-k12b-oracle-tab" hidden>
+              <label class="k12b-field" for="k12b-input">K12b percentages</label>
+              <textarea id="k12b-input" rows="7" spellcheck="false" placeholder="Gedrosia 24.27&#10;Siberian 1.17&#10;Northwest_African 0.86&#10;…"></textarea>
+              <p id="k12b-error" class="k12b-error" role="alert" hidden></p>
+              <div class="k12b-actions">
+                <button id="k12b-generate" class="primary-button" type="button">Calculate Oracle</button>
+                <button id="k12b-clear" class="text-button" type="button">Clear</button>
+                <label class="match-filter k12b-reference-filter">Reference set
+                  <select id="k12b-reference-category" aria-label="K12b Oracle reference set">
+                    <option value="modern">Modern</option>
+                    <option value="ancient">Ancient</option>
+                    <option value="all">All</option>
+                  </select>
+                </label>
+              </div>
+              <div id="k12b-summary" class="k12b-summary" hidden></div>
+              <div id="k12b-matches" class="k12b-matches" hidden></div>
+            </div>
+            <div id="raw-k12b-health" role="tabpanel" aria-labelledby="raw-k12b-health-tab" lang="tr" hidden>
+              <p id="k12b-health-status" class="method-note" role="status"></p>
+              <div id="k12b-health-report" class="health-report" hidden></div>
+            </div>
           </section>
           <section id="raw-k36" class="raw-result raw-model-panel" role="tabpanel" aria-labelledby="raw-k36-tab" hidden>
             <div class="section-head"><h2 id="raw-k36-title">Eurogenes K36</h2>
