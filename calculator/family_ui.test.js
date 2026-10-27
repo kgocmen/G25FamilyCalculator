@@ -328,10 +328,30 @@ search.listeners.input();
 assert.equal(bulk.textContent, 'Blacklist all 1 match');
 
 // Raw Data is isolated from family and comparison results, and preserves their inputs.
+window.G25Neolithic = { calculate: () => ({ distance: .123, components: [
+  { name: 'Small', weight: .001 }, { name: 'Medium', weight: .278 },
+  { name: 'Large', weight: .721 },
+] }) };
+api.state.mode = 10;
+api.state.analysisView = 'neolithic';
+api.state.single = row('Neolithic sample', .2);
+api.render();
+assert.deepEqual(document.querySelector('#neolithic-list').children.map((item) =>
+  item.children[0].children[1].textContent), ['0.10%', '27.80%', '72.10%']);
+
+refs.push(pcaRow('A', .2), pcaRow('B', .2001));
 api.state.mode = 0;
-api.state.compare = [row('A', .2), row('B', .4)];
+api.state.compare = [row('A', .2), row('B', .2001)];
 document.querySelector('#remaining-step').value = '5';
 api.render();
+const closestNames = (selector) => document.querySelector(selector).children[0].children[1].children
+  .map((tableRow) => tableRow.children[1].textContent);
+assert.equal(closestNames('#actual-matches').filter((name) => name.startsWith('B: ')).length, 1);
+assert.equal(closestNames('#actual-matches').some((name) => name.startsWith('A · modern') ||
+  name.startsWith('B · modern')), false);
+assert.equal(closestNames('#calculated-matches').filter((name) => name.startsWith('A: ')).length, 1);
+assert.equal(closestNames('#calculated-matches').some((name) => name.startsWith('A · modern') ||
+  name.startsWith('B · modern')), false);
 const previousParents = JSON.stringify(api.state.slots[2]);
 modeButtons[5].listeners.click();
 assert.equal(api.state.mode, 11);

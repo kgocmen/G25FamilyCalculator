@@ -1,6 +1,6 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
-const { ancestorWeights, calculate, calculateComparison, closestMatches, estimateChildFromKnown, formatLine, missingAncestorLabel, nearestMatches, parseLine, prepareMatches, rankMatches, resultLabel } = require("./core.js");
+const { ancestorWeights, calculate, calculateComparison, closestMatches, estimateChildFromKnown, excludeTargetReferences, formatLine, missingAncestorLabel, nearestMatches, parseLine, prepareMatches, rankMatches, resultLabel } = require("./core.js");
 
 function person(label, value) {
   return { label, values: Array(25).fill(value) };
@@ -327,6 +327,29 @@ test("one input ranks references by Euclidean distance without a cutoff", () => 
   assert.equal(matches[0].distance, 0);
   assert.ok(Math.abs(matches[1].distance - 0.5) < 1e-12);
   assert.deepEqual(nearestMatches(target, references).map((row) => row.label), ["Exact", "Near", "Far"]);
+});
+
+test("closest lists omit entered population references but keep the other target once", () => {
+  const actual = { ...person("Turkish_Adana_(n=28)", 0), category: "modern" };
+  const calculated = { ...person("Turkish_Hatay_(n=13)", 0.001728), category: "modern" };
+  const references = [
+    { ...person(actual.label, 0), category: "modern" },
+    { ...person(calculated.label, 0.001728), category: "modern" },
+    { ...person("Alias of Adana", 0), category: "modern" },
+    { ...person(actual.label, 0.2), category: "ancient" },
+    ...Array.from({ length: 8 }, (_, index) =>
+      ({ ...person(`Neighbor ${index + 1}`, (index + 1) * 0.0002), category: "modern" })),
+  ];
+  assert.deepEqual(excludeTargetReferences(references, [actual]).map((row) => row.label).slice(0, 2),
+    [calculated.label, actual.label]);
+  const lists = rankMatches(prepareMatches(actual, calculated, references), 10, 10, 10, true);
+  for (const [key, other] of [["actual", calculated.label], ["calculated", actual.label]]) {
+    assert.equal(lists[key].length, 10);
+    assert.equal(lists[key].filter((row) => row.category === "target" && row.label === other).length, 1);
+    assert.equal(lists[key].some((row) => row.category === "modern" &&
+      [actual.label, calculated.label, "Alias of Adana"].includes(row.label)), false);
+  }
+  assert.equal(lists.actual.find((row) => row.label === calculated.label).ac.toFixed(3), "0.864");
 });
 
 test("both closest lists rank reference populations and can include the other offspring", () => {

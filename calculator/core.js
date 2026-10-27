@@ -65,6 +65,18 @@
     })).sort((a, b) => a.distance - b.distance || a.id - b.id).slice(0, limit);
   }
 
+  function isTargetReference(target, row) {
+    const category = Array.isArray(row) ? row[0] : row.category;
+    const label = Array.isArray(row) ? row[1] : row.label;
+    const values = Array.isArray(row) ? row.slice(2) : row.values;
+    return (label === target.label && (!target.category || category === target.category)) ||
+      values.every((value, index) => value === target.values[index]);
+  }
+
+  function excludeTargetReferences(references, targets) {
+    return references.filter((row) => !targets.some((target) => isTargetReference(target, row)));
+  }
+
   function visibleRemainingAdmixture(fits, references, targets) {
     const between = distance(targets[0].values, targets[1].values);
     return fits.filter((fit) => {
@@ -147,6 +159,8 @@
         label: Array.isArray(row) ? row[1] : row.label,
         ac: distance(actual.values, values),
         bc: distance(calculated.values, values),
+        sameActual: isTargetReference(actual, row),
+        sameCalculated: isTargetReference(calculated, row),
       };
     });
     for (const candidate of candidates) {
@@ -160,12 +174,15 @@
     return { actual, calculated, candidates, between, furthestDistance };
   }
 
-  function rankMatches(prepared, limit = 10, metricLimit = 10, closestLimit = limit) {
+  function rankMatches(prepared, limit = 10, metricLimit = 10, closestLimit = limit,
+    excludeCalculated = false) {
     if (!Number.isFinite(metricLimit) || metricLimit < 0) throw new Error("Choose a valid distance limit.");
     const { actual, calculated, candidates, between } = prepared;
     const metricCandidates = candidates.filter((row) => row.ac <= metricLimit && row.bc <= metricLimit);
-    // The opposing target competes with every reference for a place in each closest list.
-    const rank = (key, other) => [...candidates, other]
+    // Entered populations appear as targets, so their reference rows do not compete with them.
+    const closestCandidates = candidates.filter((row) => !row.sameActual &&
+      (!excludeCalculated || !row.sameCalculated));
+    const rank = (key, other) => [...closestCandidates, other]
       .sort((a, b) => a[key] - b[key] || (a.category === "target" ? -1 : b.category === "target" ? 1 : a.id - b.id))
       .slice(0, closestLimit);
     const extremes = (key, ascending) => metricCandidates
@@ -460,7 +477,7 @@
     return [csvLabel, ...values.map(formatNumber)].join(",");
   }
 
-  const api = { optimiseFamily, ancestorWeights, calculate, calculateComparison, closestMatches, distance, estimateChildFromKnown, visibleRemainingAdmixture, formatLine, missingAncestorLabel, nearestMatches, parseLine, prepareMatches, rankMatches, remainingAdmixture, summarizeRemainingAdmixture, resultLabel };
+  const api = { optimiseFamily, ancestorWeights, calculate, calculateComparison, closestMatches, distance, estimateChildFromKnown, excludeTargetReferences, visibleRemainingAdmixture, formatLine, missingAncestorLabel, nearestMatches, parseLine, prepareMatches, rankMatches, remainingAdmixture, summarizeRemainingAdmixture, resultLabel };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else {
     root.G25Core = api;

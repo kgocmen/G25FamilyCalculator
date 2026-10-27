@@ -1676,7 +1676,7 @@
         const name = document.createElement("span");
         name.textContent = part.name;
         const percentage = document.createElement("strong");
-        percentage.textContent = `${(units[index] / 100).toFixed(2)}%`;
+        percentage.textContent = formatPercent(units[index], 2);
         head.append(name, percentage);
         const bar = document.createElement("div");
         bar.className = "breakdown-bar";
@@ -2816,17 +2816,18 @@
     return units;
   }
 
-  function formatPercent(units) {
-    return `${(units / 10).toFixed(1)}%`;
+  function formatPercent(units, decimals = 1) {
+    return `${(units / 10 ** decimals).toFixed(decimals)}%`;
   }
 
   function renderSingleClosestTables() {
     if (!state.single || !references.length) return;
     const category = $("#analyse-match-category").value;
     const candidates = category === "all" ? references : references.filter((row) => row[0] === category);
+    const closestCandidates = core.excludeTargetReferences(candidates, [state.single]);
     $("#single-ancient-matches-group").hidden = true;
     $("#actual-matches-title").textContent = `Up to ${state.closestCount} closest ${category === "all" ? "" : `${category} `}populations to ${state.single.label}`;
-    renderMatchTable($("#actual-matches"), core.nearestMatches(state.single, candidates, state.closestCount),
+    renderMatchTable($("#actual-matches"), core.nearestMatches(state.single, closestCandidates, state.closestCount),
       { distanceKey: "distance", omitCategory: category !== "all" });
   }
 
@@ -3052,8 +3053,8 @@
     if (!preparedMatches) return;
     const metricLimit = Number($("#metric-limit").value);
     $("#metric-limit-value").textContent = metricLimit.toFixed(3);
-    const lists = core.rankMatches(preparedMatches, 10, metricLimit, state.closestCount);
     const { selectedName, compareMode } = preparedContext;
+    const lists = core.rankMatches(preparedMatches, 10, metricLimit, state.closestCount, compareMode);
     $("#actual-matches-title").textContent = compareMode
       ? `Up to ${state.closestCount} closest to A: ${preparedMatches.actual.label}`
       : `Up to ${state.closestCount} closest to entered ${selectedName}: ${preparedMatches.actual.label}`;
