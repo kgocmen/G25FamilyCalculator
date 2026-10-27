@@ -6,6 +6,37 @@ const zlib = require("node:zlib");
 const crypto = require("node:crypto");
 const raw = require("./raw_dna.js");
 
+function dnaZip(text, method = 8) {
+  const name = Buffer.from("dna-data/AncestryDNA.txt");
+  const source = Buffer.from(text);
+  const packed = method === 8 ? zlib.deflateRawSync(source) : source;
+  const local = Buffer.alloc(30);
+  local.writeUInt32LE(0x04034b50, 0);
+  local.writeUInt16LE(8, 6); // Data descriptor: lengths come from the central directory.
+  local.writeUInt16LE(method, 8);
+  local.writeUInt16LE(name.length, 26);
+  const descriptor = Buffer.alloc(16);
+  descriptor.writeUInt32LE(0x08074b50, 0);
+  descriptor.writeUInt32LE(packed.length, 8);
+  descriptor.writeUInt32LE(source.length, 12);
+  const central = Buffer.alloc(46);
+  central.writeUInt32LE(0x02014b50, 0);
+  central.writeUInt16LE(8, 8);
+  central.writeUInt16LE(method, 10);
+  central.writeUInt32LE(packed.length, 20);
+  central.writeUInt32LE(source.length, 24);
+  central.writeUInt16LE(name.length, 28);
+  const end = Buffer.alloc(22);
+  end.writeUInt32LE(0x06054b50, 0);
+  end.writeUInt16LE(1, 8);
+  end.writeUInt16LE(1, 10);
+  end.writeUInt32LE(central.length + name.length, 12);
+  end.writeUInt32LE(local.length + name.length + packed.length + descriptor.length, 16);
+  const file = new Blob([local, name, packed, descriptor, central, name, end]);
+  file.name = "dna-data.zip";
+  return file;
+}
+
 test("MyHeritage quoted CSV handles comments, no-calls, sex chromosomes and conflicting duplicates", () => {
   const input = '\uFEFF##reference=build37\r\n# MyHeritage DNA raw data\r\n#RSID,CHROMOSOME,POSITION,RESULT\r\n' +
     '"rs1","1","100","AG"\r\n"rs1","1","100","GA"\r\n' +
@@ -27,10 +58,41 @@ test("MyHeritage split alleles, tab-separated columns and reordered CSV headers"
   const b = raw.parse('RESULT,POSITION,RSID,CHROMOSOME\nAG,123,rs25,1');
   assert.deepEqual([...a.calls], [...b.calls]);
   assert.equal(a.stats.noCalls, 1);
-  assert.throws(() => raw.parse("nonsense\n1,2,3"), /Expected MyHeritage/);
+  assert.throws(() => raw.parse("nonsense\n1,2,3"), /Expected DNA columns/);
   assert.throws(() => raw.parse("# comments"), /empty/);
   assert.throws(() => raw.parse("RSID,CHROMOSOME,POSITION,RESULT\nrs1,1,1,--"), /No usable/);
   assert.throws(() => raw.parse('RSID,CHROMOSOME,POSITION,RESULT\n"rs1,1,1,AG'), /unclosed quote/);
+});
+
+test("AncestryDNA split-allele TXT parses build, no-calls, indels, and duplicate calls", () => {
+  const text = "#AncestryDNA raw data download\n#Data is from genome build 37\n" +
+    "rsid\tchromosome\tposition\tallele1\tallele2\n" +
+    "rs1\t1\t72017\tA\tG\nrs1\t1\t72017\tG\tA\n" +
+    "rs2\t2\t400\tC\tC\nrs3\t3\t500\t0\t0\n" +
+    "rs4\t4\t600\tI\tD\nrs5\t23\t700\tA\tA\n";
+  const { calls, stats } = raw.parse(text);
+  assert.deepEqual([...calls], [[1, 2], [2, 5]]);
+  assert.equal(stats.build, "37");
+  assert.equal(stats.usable, 2);
+  assert.equal(stats.duplicates, 1);
+  assert.equal(stats.noCalls, 2);
+  assert.equal(stats.nonAutosomal, 1);
+  assert.deepEqual([...raw.parse(text.replace("rsid\tchromosome", "#rsid\tchromosome")).calls], [...calls]);
+  assert.deepEqual([...raw.parse("RSID,CHROMOSOME,POSITION,RESULT\nrs1,1,72017,GA\nrs2,2,400,CC").calls],
+    [...calls]);
+});
+
+test("AncestryDNA download ZIP reads its TXT locally, including data-descriptor archives", async () => {
+  const text = "#AncestryDNA raw data download\nrsid\tchromosome\tposition\tallele1\tallele2\nrs1\t1\t100\tA\tG\n";
+  for (const method of [0, 8]) {
+    const extracted = await raw.readRawText(dnaZip(text, method));
+    assert.equal(extracted, text);
+    assert.deepEqual([...raw.parse(extracted).calls], [[1, 2]]);
+  }
+  const plain = new Blob([text]); plain.name = "AncestryDNA.txt";
+  assert.equal(await raw.readRawText(plain), text);
+  const bad = new Blob(["not a zip"]); bad.name = "dna-data.zip";
+  await assert.rejects(raw.readRawText(bad), /ZIP is invalid/);
 });
 
 test("matching counts the published second allele and complements only unambiguous sites", () => {

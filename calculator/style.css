@@ -380,16 +380,6 @@ body:has(#population-panel[open]) { overflow: hidden; }
 .period-controls { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px; margin-left: auto; }
 .modern-pca-filter { min-width: 290px; }
 .deep-analysis-switch { display: flex; align-items: center; gap: 9px; min-height: 36px; padding: 0 4px; white-space: nowrap; }
-.deep-breakdown { margin: 10px 12px 12px; }
-.deep-breakdown-note { margin: 0 0 8px; color: #607286; font-size: 12px; }
-.deep-subregion { margin: 7px 0; border: 1px solid #e1e9ef; border-radius: 8px; background: #f8fbfd; }
-.deep-subregion > summary { display: flex; align-items: center; gap: 10px; padding: 9px 12px; cursor: pointer; list-style: none; }
-.deep-subregion > summary::-webkit-details-marker { display: none; }
-.deep-subregion > summary::before { content: "▸"; color: #607286; }
-.deep-subregion[open] > summary::before { content: "▾"; }
-.deep-subregion > summary strong { margin-left: auto; }
-.deep-source-group > .deep-subregion { margin: 0 10px 8px; background: #fff; }
-.deep-subregion .breakdown-samples { margin: 0; padding: 0 14px 10px 26px; }
 .modern-pca-chooser { position: relative; min-width: 0; }
 .modern-pca-chooser summary { display: flex; align-items: center; gap: 12px; min-height: 36px; padding: 8px 10px; border: 1px solid #cbd8e2; border-radius: 8px; background: #fff; cursor: pointer; list-style: none; font-size: 13px; }
 .modern-pca-chooser summary::-webkit-details-marker { display: none; }

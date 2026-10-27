@@ -5,12 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#14243b">
   <title>G25 Family Calculator</title>
-  <link rel="stylesheet" href="style.css?v=20261026-8">
+  <link rel="stylesheet" href="style.css?v=20261027-4">
   <link rel="stylesheet" href="k12b.css?v=20261026-4">
   <link rel="stylesheet" href="health.css?v=20261026-3">
   <script defer src="references.js?v=20261026-2"></script>
   <script defer src="turkish_references.js?v=20261022-1"></script>
-  <script defer src="modern_pca_references.js?v=20261023-3"></script>
+  <script defer src="modern_pca_references.js?v=20261027-4"></script>
   <script defer src="mixed_pca_references.js?v=20261023-3"></script>
   <script defer src="turkish_modern_pca_references.js?v=20261022-2"></script>
   <script defer src="turkish_mixed_pca_references.js?v=20261022-2"></script>
@@ -18,19 +18,19 @@
   <script defer src="neolithic_references.js?v=20261026-9"></script>
   <script defer src="core.js?v=20261027-1"></script>
   <script defer src="mixture.js?v=20261015-5"></script>
-  <script defer src="medieval.js?v=20261026-3"></script>
+  <script defer src="medieval.js?v=20261027-4"></script>
   <script defer src="neolithic.js?v=20261026-1"></script>
   <script defer src="visualise.js?v=20261020-9"></script>
   <script defer src="clusters.js?v=20261020-1"></script>
   <script defer src="pca.js?v=20261024-5"></script>
-  <script defer src="modern_pca.js?v=20261026-1"></script>
+  <script defer src="modern_pca.js?v=20261027-4"></script>
   <script defer src="pca_layout.js?v=20261024-6"></script>
   <script defer src="k12b_data.js?v=20261026-2"></script>
   <script defer src="health_data.js?v=20261026-3"></script>
   <script defer src="k12b.js?v=20261026-6"></script>
   <script defer src="health.js?v=20261026-3"></script>
-  <script defer src="raw_data_ui.js?v=20261026-5"></script>
-  <script defer src="app.js?v=20261027-3"></script>
+  <script defer src="raw_data_ui.js?v=20261027-5"></script>
+  <script defer src="app.js?v=20261027-4"></script>
 </head>
 <body>
   <main class="shell">
@@ -75,11 +75,11 @@
         <button id="modern-analysis-tab" class="analysis-tab active" type="button" role="tab" aria-selected="true" aria-controls="medieval-breakdown-panel">Modern</button>
       </div>
       <div id="raw-workspace" hidden aria-busy="false">
-        <p class="raw-intro">MyHeritage DNA → Eurogenes K36 &amp; Dodecad K12b → simulated G25</p>
+        <p class="raw-intro">MyHeritage or AncestryDNA → Eurogenes K36 &amp; Dodecad K12b → simulated G25</p>
         <p class="method-note">Your DNA is processed in this browser and is never uploaded or saved.</p>
         <div class="raw-input-grid">
-          <label class="raw-field">MyHeritage raw DNA file
-            <input id="raw-file" type="file" accept=".csv,.txt,.tsv,text/csv,text/plain">
+          <label class="raw-field">MyHeritage or AncestryDNA raw DNA file
+            <input id="raw-file" type="file" accept=".zip,.csv,.txt,.tsv,application/zip,text/csv,text/plain">
           </label>
           <label class="raw-field">Sample name
             <input id="raw-sample-name" type="text" maxlength="120" placeholder="Sample" autocomplete="off">

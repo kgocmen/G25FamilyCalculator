@@ -2,6 +2,105 @@
   "use strict";
 
   const BASES = "ACGT";
+  const MAX_RAW_BYTES = 100 * 1024 * 1024;
+
+  async function readRawText(file) {
+    if (!file || !file.size || file.size > MAX_RAW_BYTES) {
+      throw new Error("Choose a nonempty DNA file smaller than 100 MB.");
+    }
+    const header = new Uint8Array(await file.slice(0, 4).arrayBuffer());
+    const zipped = /\.zip$/i.test(file.name || "") ||
+      (header[0] === 0x50 && header[1] === 0x4b && header[2] === 3 && header[3] === 4);
+    if (!zipped) return file.text();
+
+    const bytes = await file.arrayBuffer();
+    const view = new DataView(bytes);
+    const start = Math.max(0, bytes.byteLength - 65557);
+    let end = -1;
+    for (let offset = bytes.byteLength - 22; offset >= start; offset--) {
+      if (view.getUint32(offset, true) === 0x06054b50 &&
+          offset + 22 + view.getUint16(offset + 20, true) === bytes.byteLength) {
+        end = offset; break;
+      }
+    }
+    if (end < 0 || view.getUint16(end + 4, true) || view.getUint16(end + 6, true)) {
+      throw new Error("The DNA ZIP is invalid or uses multiple archive parts.");
+    }
+    const count = view.getUint16(end + 10, true);
+    let offset = view.getUint32(end + 16, true);
+    const decoder = new TextDecoder();
+    let entry = null;
+    for (let index = 0; index < count; index++) {
+      if (offset + 46 > end || view.getUint32(offset, true) !== 0x02014b50) {
+        throw new Error("The DNA ZIP directory is incomplete.");
+      }
+      const nameLength = view.getUint16(offset + 28, true);
+      const extraLength = view.getUint16(offset + 30, true);
+      const commentLength = view.getUint16(offset + 32, true);
+      const next = offset + 46 + nameLength + extraLength + commentLength;
+      if (next > end) throw new Error("The DNA ZIP directory is incomplete.");
+      const name = decoder.decode(new Uint8Array(bytes, offset + 46, nameLength));
+      if (/\.(txt|csv|tsv)$/i.test(name) && !name.startsWith("__MACOSX/")) {
+        const candidate = { flags: view.getUint16(offset + 8, true),
+          method: view.getUint16(offset + 10, true),
+          compressed: view.getUint32(offset + 20, true),
+          uncompressed: view.getUint32(offset + 24, true),
+          local: view.getUint32(offset + 42, true) };
+        if (/(?:ancestry|dna|genome)/i.test(name)) { entry = candidate; break; }
+        if (!entry) entry = candidate;
+      }
+      offset = next;
+    }
+    if (!entry) throw new Error("The ZIP has no raw DNA TXT or CSV file.");
+    if (entry.flags & 1) throw new Error("Encrypted DNA ZIP files are unsupported. Extract the TXT file first.");
+    if (entry.uncompressed > MAX_RAW_BYTES || entry.compressed > MAX_RAW_BYTES) {
+      throw new Error("The DNA text inside the ZIP exceeds 100 MB.");
+    }
+    if (![0, 8].includes(entry.method)) {
+      throw new Error("This DNA ZIP compression method is unsupported. Extract the TXT file first.");
+    }
+    const local = entry.local;
+    if (local + 30 > bytes.byteLength || view.getUint32(local, true) !== 0x04034b50) {
+      throw new Error("The DNA ZIP entry is incomplete.");
+    }
+    const dataStart = local + 30 + view.getUint16(local + 26, true) + view.getUint16(local + 28, true);
+    if (dataStart + entry.compressed > bytes.byteLength) {
+      throw new Error("The DNA ZIP entry is incomplete.");
+    }
+    const packed = bytes.slice(dataStart, dataStart + entry.compressed);
+    if (entry.method === 0) {
+      if (packed.byteLength !== entry.uncompressed) throw new Error("The DNA ZIP entry has an invalid size.");
+      return decoder.decode(packed);
+    }
+    if (typeof DecompressionStream === "undefined") {
+      throw new Error("This browser cannot open DNA ZIP files. Extract the TXT file first.");
+    }
+    let stream;
+    try { stream = new Blob([packed]).stream().pipeThrough(new DecompressionStream("deflate-raw")); }
+    catch (_) { throw new Error("This browser cannot open DNA ZIP files. Extract the TXT file first."); }
+    const reader = stream.getReader();
+    const chunks = [];
+    let length = 0;
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        length += value.byteLength;
+        if (length > MAX_RAW_BYTES) throw new Error("The DNA text inside the ZIP exceeds 100 MB.");
+        chunks.push(value);
+      }
+    } catch (error) {
+      await reader.cancel().catch(() => {});
+      if (error.message.includes("100 MB")) throw error;
+      throw new Error("The DNA ZIP entry could not be decompressed.");
+    }
+    if (length !== entry.uncompressed) throw new Error("The DNA ZIP entry has an invalid size.");
+    const output = new Uint8Array(length);
+    let at = 0;
+    for (const chunk of chunks) { output.set(chunk, at); at += chunk.byteLength; }
+    return decoder.decode(output);
+  }
+
   function fields(line, delimiter) {
     const result = [];
     let value = "", quoted = false;
@@ -13,7 +112,7 @@
       } else if (c === delimiter && !quoted) { result.push(value.trim()); value = ""; }
       else value += c;
     }
-    if (quoted) throw new Error("A DNA row has an unclosed quote. Use the original MyHeritage export.");
+    if (quoted) throw new Error("A DNA row has an unclosed quote. Use the original DNA export.");
     result.push(value.trim());
     return result;
   }
@@ -39,7 +138,7 @@
         if (columns.result < 0) columns.result = names.indexOf("GENOTYPE");
         if (columns.rs < 0 || columns.chr < 0 || !names.includes("POSITION") ||
             (columns.result < 0 && (columns.a < 0 || columns.b < 0))) {
-          throw new Error("Expected MyHeritage columns: RSID, CHROMOSOME, POSITION, RESULT (or ALLELE1 and ALLELE2).");
+          throw new Error("Expected DNA columns: RSID, CHROMOSOME, POSITION, and RESULT or ALLELE1 and ALLELE2.");
         }
         continue;
       }
@@ -75,7 +174,7 @@
         if (calls.get(rs) !== code) { calls.delete(rs); conflicts.add(rs); }
       } else calls.set(rs, code);
     }
-    if (!columns) throw new Error("The file is empty or has no MyHeritage column header.");
+    if (!columns) throw new Error("The file is empty or has no DNA column header.");
     if (!calls.size) throw new Error("No usable autosomal SNP calls were found in this file.");
     stats.conflicts = conflicts.size;
     stats.usable = calls.size;
@@ -210,7 +309,7 @@
       sum + weight / total * scale * regression.coefficients[i][pc], published ? regression.intercept[pc] : 0));
   }
 
-  const api = { fields, parse, decodeModel, match, simplex, evaluate, fit, regress };
+  const api = { fields, parse, readRawText, decodeModel, match, simplex, evaluate, fit, regress };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.G25RawDNA = api;
 })(typeof self !== "undefined" ? self : globalThis);

@@ -175,8 +175,8 @@ function G25MedievalModule(root) {
     if (unrestricted.groups.length <= groupLimit) return unrestricted;
     const referenceGroup = (row) => groupName(Array.isArray(row) ? row[1] : row.label, groupStyle);
     // The unrestricted deep fit has already examined every eligible reference.
-    // Limit the subset search to its contributing subregions; deep maps can have
-    // dozens of subregions, making an all-combinations search impractical.
+    // Limit the subset search to its contributing clusters; deep maps can have
+    // many references, making an all-combinations search impractical.
     const names = groupStyle === "deep"
       ? unrestricted.groups.map((group) => group.ethnicity).slice(0, 8).sort()
       : [...new Set(references.map(referenceGroup))].sort();
@@ -215,7 +215,7 @@ function G25MedievalModule(root) {
     if (!Array.isArray(references) || !references.length) throw new Error("References are unavailable.");
     // Every eligible row can qualify. As with the regular modern PCA fit,
     // retain the closest samples per group before solving the mixture.
-    const bySubregion = new Map();
+    const byGroup = new Map();
     references.forEach((row, index) => {
       const label = Array.isArray(row) ? row[1] : row.label;
       const values = Array.isArray(row) ? row.slice(2) : row.values;
@@ -225,10 +225,10 @@ function G25MedievalModule(root) {
       const name = groupName(label, "deep");
       const distance = values.reduce((sum, value, dimension) =>
         sum + (value - target.values[dimension]) ** 2, 0);
-      if (!bySubregion.has(name)) bySubregion.set(name, []);
-      bySubregion.get(name).push({ row, index, distance });
+      if (!byGroup.has(name)) byGroup.set(name, []);
+      byGroup.get(name).push({ row, index, distance });
     });
-    const included = new Set([...bySubregion.values()].flatMap((rows) =>
+    const included = new Set([...byGroup.values()].flatMap((rows) =>
       rows.sort((a, b) => a.distance - b.distance || a.index - b.index)
         .slice(0, MAX_SAMPLES_PER_GROUP).map(({ index }) => index)));
     const selected = references.map((row, index) => ({ row, index }))

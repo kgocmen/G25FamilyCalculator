@@ -8,7 +8,7 @@ const core = require("./core.js");
 const modernPca = require("./modern_pca.js");
 const row = (label, first) => ["modern", label, first, ...Array(24).fill(0)];
 
-test("deep mode keeps the main selection and shows whole-result subregion percentages", () => {
+test("deep mode keeps the main selection and shows one level of clusters", () => {
   class Element {
     constructor() {
       this.children = [];
@@ -43,8 +43,8 @@ test("deep mode keeps the main selection and shows whole-result subregion percen
   };
   const main = [row("GroupA: First", 0), row("GroupA: Second", 0.1),
     row("GroupB: First", 1)];
-  const deep = [row("GroupA: Inner: First", 0), row("GroupA: Coast: Second", 0.1),
-    row("GroupB: Inner: First", 1)];
+  const deep = [row("GroupA: First", 0), row("GroupA: Second", 0.1),
+    row("GroupB: First", 1)];
   const window = { G25Core: core, G25ModernPca: modernPca,
     G25MedievalModule() {}, G25ModernPcaModule() {},
     G25_REFERENCES: main,
@@ -109,41 +109,30 @@ test("deep mode keeps the main selection and shows whole-result subregion percen
     ] })) }, true);
   const adjustedGroups = [
     { ethnicity: "Turk Azerbaijan", weight: 0.6, samples: [
-      { label: "Turk Azerbaijan", sample: "Azerbaijan", weight: 0.6 },
+      { label: "Turk Azerbaijan: Gabala", sample: "Gabala", weight: 0.229 },
+      { label: "Turk Azerbaijan: Shaki", sample: "Shaki", weight: 0.172 },
+      { label: "Turk Azerbaijan: Karabakh", sample: "Karabakh", weight: 0.123 },
+      { label: "Turk Azerbaijan: Nakhchivan", sample: "Nakhchivan", weight: 0.076 },
     ] },
     { ethnicity: "Turk Balkans", weight: 0.4, samples: [
-      { label: "Turk Balkans", sample: "Balkans", weight: 0.4 },
+      { label: "Turk Balkans: Thessaly", sample: "Thessaly", weight: 0.266 },
+      { label: "Turk Balkans: Eastern Macedonia", sample: "Eastern Macedonia", weight: 0.091 },
+      { label: "Turk Balkans: Mixed", sample: "Mixed", weight: 0.043 },
     ] },
   ];
   renderDeepFit({ pcaId: "missing", groups: adjustedGroups.map((group) => group.ethnicity),
     fit: { values: state.single.values, distance: 0.5, groups: adjustedGroups },
-    referenceCount: 42, results: [
-      { ethnicity: "Turk Azerbaijan", weight: 0.6, fit: { groups: [
-        { ethnicity: "Turk Azerbaijan: Azerbaijan", weight: 0.6, samples: [
-          { sample: "Gabala", weight: 0.382 }, { sample: "Shaki", weight: 0.286 },
-          { sample: "Karabakh", weight: 0.205 }, { sample: "Nakhchivan", weight: 0.127 },
-        ] },
-      ] } },
-      { ethnicity: "Turk Balkans", weight: 0.4, fit: { groups: [
-        { ethnicity: "Turk Balkans: Balkans", weight: 0.4, samples: [
-          { sample: "Thessaly", weight: 0.664 }, { sample: "Eastern Macedonia", weight: 0.228 },
-          { sample: "Mixed", weight: 0.108 },
-        ] },
-      ] } },
-    ] });
+    referenceCount: 42 });
   const parents = document.querySelector("#medieval-breakdown-list").children;
-  const azerbaijan = parents.find((parent) => parent.dataset.deepGroup === "Turk Azerbaijan");
-  const azerbaijanSubregion = azerbaijan.querySelector(".deep-breakdown").children[1];
+  const azerbaijan = parents[0];
   assert.equal(azerbaijan.children[0].children[1].textContent, "60.0%");
-  assert.equal(azerbaijanSubregion.children[0].children[1].textContent, "60.0%");
-  assert.deepEqual(azerbaijanSubregion.children[1].children.map((sample) =>
+  assert.deepEqual(azerbaijan.children[2].children.map((sample) =>
     sample.children[1].textContent), ["22.9%", "17.2%", "12.3%", "7.6%"]);
-  const balkans = parents.find((parent) => parent.dataset.deepGroup === "Turk Balkans");
-  const subregion = balkans.querySelector(".deep-breakdown").children[1];
+  const balkans = parents[1];
   assert.equal(balkans.children[0].children[1].textContent, "40.0%");
-  assert.equal(subregion.children[0].children[1].textContent, "40.0%");
-  assert.deepEqual(subregion.children[1].children.map((sample) => sample.children[1].textContent),
+  assert.deepEqual(balkans.children[2].children.map((sample) => sample.children[1].textContent),
     ["26.6%", "9.1%", "4.3%"]);
+  assert.ok(parents.every((parent) => parent.children.length === 3));
   assert.equal(document.querySelector("#medieval-breakdown-distance").textContent,
     "Deep fit distance 0.500");
 
@@ -153,8 +142,8 @@ test("deep mode keeps the main selection and shows whole-result subregion percen
   const caucasusMain = [row("North Caucasus:Abkhazian", 3),
     row("Levant:Lebanese", 4), row("North Caucasus:Chechen", 5)];
   const southeastPca = { id: "southeast", title: "Southeast Europe", references: southeastMain,
-    deepReferences: [row("Albanian: North: Albanian_A", 0),
-      row("Slavic Balkans: South: Bulgarian_A", 1)] };
+    deepReferences: [row("Albanian: Albanian_A", 0),
+      row("Slavic Balkans: Bulgarian_A", 1)] };
   window.G25_MODERN_PCAS.push(
     southeastPca,
     { id: "caucasus", title: "West Asia and Caucasus", references: caucasusMain });
@@ -171,47 +160,33 @@ test("deep mode keeps the main selection and shows whole-result subregion percen
   assert.equal(window.plotCount, plotsBeforeMixed);
   assert.equal(document.querySelector("#medieval-pca-plot").textContent, "Calculating fitted groups…");
 
-  const mixedResults = [
-    { ethnicity: "Southeast_Europe", weight: 0.7, sourceGroups: [
-      { ethnicity: "Slavic Balkans", weight: 0.5, subregions: [
-        { ethnicity: "Southeast_Europe:Slavic Balkans: South", weight: 0.5, samples: [
-          { label: "Southeast_Europe:Slavic Balkans: South: Bulgarian_A", sample: "Bulgarian_A", weight: 0.5 },
-        ] },
-      ] },
-      { ethnicity: "Albanian", weight: 0.2, subregions: [
-        { ethnicity: "Southeast_Europe:Albanian: North", weight: 0.2, samples: [
-          { label: "Southeast_Europe:Albanian: North: Albanian_A", sample: "Albanian_A", weight: 0.2 },
-        ] },
-      ] },
+  const mixedGroups = [
+    { ethnicity: "Southeast_Europe", weight: 0.7, samples: [
+      { label: "Southeast_Europe:Bulgarian_A", sample: "Bulgarian_A", weight: 0.5 },
+      { label: "Southeast_Europe:Albanian_A", sample: "Albanian_A", weight: 0.2 },
     ] },
-    { ethnicity: "West_Asia_and_Caucasus", weight: 0.3, sourceGroups: [
-      { ethnicity: "North Caucasus", weight: 0.3, subregions: [
-        { ethnicity: "West_Asia_and_Caucasus:North Caucasus: Highlands", weight: 0.3, samples: [
-          { label: "West_Asia_and_Caucasus:North Caucasus: Highlands: Abkhazian_A",
-            sample: "Abkhazian_A", weight: 0.3 },
-        ] },
-      ] },
+    { ethnicity: "West_Asia_and_Caucasus", weight: 0.3, samples: [
+      { label: "West_Asia_and_Caucasus:Abkhazian_A", sample: "Abkhazian_A", weight: 0.3 },
     ] },
   ];
-  const mixedRows = [row("Southeast_Europe:Slavic Balkans: South: Bulgarian_A", 0),
-    row("Southeast_Europe:Albanian: North: Albanian_A", 1),
-    row("West_Asia_and_Caucasus:North Caucasus: Highlands: Abkhazian_A", 2)];
-  renderDeepFit({ pcaId: "mixed", groups: mixedResults.map((result) => result.ethnicity),
-    fit: { values: state.single.values, distance: 0.3,
-      groups: mixedResults.map((result) => ({ ethnicity: result.ethnicity, weight: result.weight,
-        samples: [{ label: result.ethnicity, sample: result.ethnicity, weight: result.weight }] })) },
-    referenceCount: 3, results: mixedResults, references: mixedRows });
+  renderDeepFit({ pcaId: "mixed", groups: mixedGroups.map((group) => group.ethnicity),
+    fit: { values: state.single.values, distance: 0.3, groups: mixedGroups },
+    mainFit: { components: [
+      { label: "Southeast_Europe:Slavic Balkans", weight: 0.5 },
+      { label: "Southeast_Europe:Albanian", weight: 0.2 },
+      { label: "West_Asia_and_Caucasus:North Caucasus", weight: 0.3 },
+    ] },
+    referenceCount: 3 });
   const mixedParents = document.querySelector("#medieval-breakdown-list").children;
-  const europe = mixedParents.find((parent) => parent.dataset.deepGroup === "Southeast_Europe");
-  const europeSources = europe.querySelector(".deep-breakdown").children;
+  const europe = mixedParents[0];
   assert.equal(europe.children[0].children[1].textContent, "70.0%");
-  assert.deepEqual(europeSources.map((source) => source.children[0].children[0].textContent),
-    ["Slavic Balkans", "Albanian"]);
-  assert.deepEqual(europeSources.map((source) => source.children[0].children[1].textContent),
+  assert.deepEqual(europe.children[2].children.map((sample) => sample.children[0].textContent),
+    ["Bulgarian A", "Albanian A"]);
+  assert.deepEqual(europe.children[2].children.map((sample) => sample.children[1].textContent),
     ["50.0%", "20.0%"]);
-  const caucasus = mixedParents.find((parent) => parent.dataset.deepGroup === "West_Asia_and_Caucasus");
-  assert.equal(caucasus.querySelector(".deep-breakdown").children[0].children[0].children[1].textContent,
-    "30.0%");
+  const caucasus = mixedParents[1];
+  assert.equal(caucasus.children[0].children[1].textContent, "30.0%");
+  assert.ok(mixedParents.every((parent) => parent.children.length === 3));
   assert.deepEqual(window.lastPcaRows.map((reference) => reference[1]), [
     "Southeast_Europe:Albanian:Albanian_Gheg",
     "Southeast_Europe:Slavic Balkans:Bulgarian",
@@ -219,23 +194,6 @@ test("deep mode keeps the main selection and shows whole-result subregion percen
     "West_Asia_and_Caucasus:North Caucasus:Abkhazian",
     "West_Asia_and_Caucasus:North Caucasus:Chechen",
   ]);
-  assert.ok(window.lastPcaRows.every((reference) => !mixedRows.some((deepRow) =>
-    deepRow[1] === reference[1])));
   assert.equal(document.querySelector("#pca-heading-title").textContent, "Mixed · Deep");
 
-  const minus = europeSources[0].children[0].children[2];
-  assert.equal(minus["aria-label"], "Blacklist entire Slavic Balkans group");
-  let prevented = false;
-  let stopped = false;
-  minus.listeners.click({ preventDefault() { prevented = true; },
-    stopPropagation() { stopped = true; } });
-  assert.equal(prevented, true);
-  assert.equal(stopped, true);
-  assert.ok(window.testApi.blacklist.has(JSON.stringify(["modern", "Slavic Balkans", "group"])));
-  assert.ok(window.testApi.allowedPcaReferences(window.G25_MODERN_MIXED_PCA)
-    .every((reference) => reference[1] !== "Southeast_Europe:Slavic Balkans"));
-  assert.ok(window.testApi.allowedPcaReferences(southeastPca)
-    .every((reference) => !reference[1].startsWith("Slavic Balkans:")));
-  assert.ok(window.testApi.allowedDeepPcaReferences(southeastPca)
-    .every((reference) => !reference[1].startsWith("Slavic Balkans:")));
 });

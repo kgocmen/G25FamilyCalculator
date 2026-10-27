@@ -48,15 +48,15 @@ test("large regional maps fit nearest samples from every group", () => {
 });
 
 test("deep references use only groups present in the main PCA fit", () => {
-  const references = [row("Turk Anatolia: Inner: Sample A", 0),
-    row("Turk Anatolia: Aegean: Sample B", 0.1),
-    row("Turk East: Highlands: Sample C", 0.2),
-    row("Turk Anatolia Extended: Inner: Sample D", 0.3)];
+  const references = [row("Turk Anatolia: Sample A", 0),
+    row("Turk Anatolia: Sample B", 0.1),
+    row("Turk East: Sample C", 0.2),
+    row("Turk Anatolia Extended: Sample D", 0.3)];
   assert.deepEqual(selectDeepReferences({ groups: [
     { ethnicity: "Turk Anatolia", weight: 1 },
     { ethnicity: "Turk East", weight: 0 },
   ] }, references).map((reference) => reference[1]),
-  ["Turk Anatolia: Inner: Sample A", "Turk Anatolia: Aegean: Sample B"]);
+  ["Turk Anatolia: Sample A", "Turk Anatolia: Sample B"]);
   assert.deepEqual(selectDeepReferences({ groups: [
     { ethnicity: "Turk Anatolia", weight: 0.6 },
     { ethnicity: "Turk East", weight: 0.4 },
@@ -72,32 +72,29 @@ test("mixed deep references come from each fitted source group only", () => {
   ] };
   const pcas = [
     { title: "Southeast Europe", references: [
-      row("Albanian: North: Albanian_A", 0),
-      row("Balkan Slav: South: Bulgarian_A", 1),
-      row("Greek: Island: Greek_A", 2),
+      row("Albanian: Albanian_A", 0),
+      row("Balkan Slav: Bulgarian_A", 1),
+      row("Balkan Slav: Albanian_A", 0),
+      row("Greek: Greek_A", 2),
     ] },
     { title: "West Asia and Caucasus", references: [
-      row("North Caucasus: Highlands: Abkhazian_A", 3),
-      row("Levant: Coast: Levantine_A", 4),
+      row("North Caucasus: Abkhazian_A", 3),
+      row("Levant: Levantine_A", 4),
     ] },
   ];
   assert.deepEqual(selectMixedDeepReferences(fit, pcas).map((reference) => reference[1]), [
-    "Southeast_Europe:Albanian: North: Albanian_A",
-    "Southeast_Europe:Balkan Slav: South: Bulgarian_A",
-    "West_Asia_and_Caucasus:North Caucasus: Highlands: Abkhazian_A",
+    "Southeast_Europe:Albanian_A",
+    "Southeast_Europe:Bulgarian_A",
+    "West_Asia_and_Caucasus:Abkhazian_A",
   ]);
 });
 
 test("mixed deep plots use fitted population rows from the main PCA files", () => {
-  const results = [
-    { ethnicity: "Southeast_Europe", sourceGroups: [
-      { ethnicity: "Albanian", weight: 0.2 },
-      { ethnicity: "Slavic Balkans", weight: 0.5 },
-    ] },
-    { ethnicity: "West_Asia_and_Caucasus", sourceGroups: [
-      { ethnicity: "North Caucasus", weight: 0.3 },
-    ] },
-  ];
+  const mainFit = { components: [
+    { label: "Southeast_Europe:Albanian", weight: 0.2 },
+    { label: "Southeast_Europe:Slavic Balkans", weight: 0.5 },
+    { label: "West_Asia_and_Caucasus:North Caucasus", weight: 0.3 },
+  ] };
   const pcas = [
     { title: "Southeast Europe", references: [
       row("Albanian:Albanian_Gheg", 0), row("Greek:Greek_Attica", 0.1),
@@ -107,18 +104,18 @@ test("mixed deep plots use fitted population rows from the main PCA files", () =
       row("North Caucasus:Abkhazian", 2), row("Levant:Lebanese", 3),
     ] },
   ];
-  assert.deepEqual(selectMixedMainReferences(results, pcas).map((reference) => reference[1]), [
+  assert.deepEqual(selectMixedMainReferences(mainFit, pcas).map((reference) => reference[1]), [
     "Southeast_Europe:Albanian:Albanian_Gheg",
     "Southeast_Europe:Slavic Balkans:Bulgarian",
     "Southeast_Europe:Albanian:Albanian_Tosk",
     "West_Asia_and_Caucasus:North Caucasus:Abkhazian",
   ]);
-  assert.deepEqual(selectMixedMainReferences(results, [{ title: "Doğu Anadolu", references: [
+  assert.deepEqual(selectMixedMainReferences(mainFit, [{ title: "Doğu Anadolu", references: [
     row("Türk_Doğu:Türk_Artvin", 1), row("Ermeni:Ermeni", 2),
   ] }]).map((reference) => reference[1]), []);
-  assert.deepEqual(selectMixedMainReferences([{
-    ethnicity: "Doğu_Anadolu", sourceGroups: [{ ethnicity: "Türk_Doğu", weight: 1 }],
-  }], [{ title: "Doğu Anadolu", references: [
+  assert.deepEqual(selectMixedMainReferences({ components: [
+    { label: "Doğu_Anadolu:Türk_Doğu", weight: 1 },
+  ] }, [{ title: "Doğu Anadolu", references: [
     row("Türk_Doğu:Türk_Artvin", 1), row("Ermeni:Ermeni", 2),
   ] }]).map((reference) => reference[1]), ["Doğu_Anadolu:Türk_Doğu:Türk_Artvin"]);
 });

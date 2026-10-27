@@ -146,13 +146,13 @@
       cancel(); clearResults();
       const file = $("raw-file").files[0];
       if (!file) return;
-      if (!/\.(csv|txt|tsv)$/i.test(file.name)) { message("Extract the MyHeritage ZIP first, then choose its CSV or TXT file."); return; }
-      if (!file.size || file.size > 100 * 1024 * 1024) { message("Choose a nonempty CSV or TXT file smaller than 100 MB."); return; }
+      if (!/\.(csv|txt|tsv|zip)$/i.test(file.name)) { message("Choose a MyHeritage or AncestryDNA ZIP, CSV, or TXT file."); return; }
+      if (!file.size || file.size > 100 * 1024 * 1024) { message("Choose a nonempty DNA file smaller than 100 MB."); return; }
       if (typeof Worker === "undefined" || location.protocol === "file:") {
         message("Open this calculator through its hosted site or a local web server to process raw DNA."); return;
       }
       try {
-        worker = new Worker(new URL("raw_dna_worker.js?v=20261026-2", document.baseURI));
+        worker = new Worker(new URL("raw_dna_worker.js?v=20261027-5", document.baseURI));
         const current = worker;
         busy(true); message("Starting local DNA analysis…");
         for (const id of modelIds) $("raw-" + id + "-status").textContent = `Calculating ${id === "k36" ? "K36" : "K12b"}…`;

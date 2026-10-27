@@ -18,21 +18,21 @@ test("an exact medieval reference fits at 100%", () => {
   assert.equal(fit.groups[0].weight, 1);
 });
 
-test("deep fit groups by main cluster and subregion", () => {
-  const references = [reference("Turk Anatolia: Inner: Turkish_Nevşehir", 0),
-    reference("Turk Anatolia: Aegean: Turkish_Aydın", 1),
-    reference("Turk East: Highlands: Turkish_Erzurum", 2)];
+test("deep fit groups samples in one cluster layer", () => {
+  const references = [reference("Turk Anatolia: Turkish_Nevşehir", 0),
+    reference("Turk Anatolia: Turkish_Aydın", 1),
+    reference("Turk East: Turkish_Erzurum", 2)];
   const fit = fitDeepAdmixture({ values: Array(25).fill(0) }, references);
   assert.equal(fit.distance, 0);
   assert.equal(fit.groups.length, 1);
-  assert.equal(fit.groups[0].ethnicity, "Turk Anatolia: Inner");
+  assert.equal(fit.groups[0].ethnicity, "Turk Anatolia");
   assert.equal(fit.groups[0].samples[0].sample, "Turkish_Nevşehir");
 });
 
-test("deep group limit fits subregions and improves with a second group", () => {
-  const references = [reference("Turk Anatolia: Inner: Sample A", 0),
-    reference("Turk Anatolia: Aegean: Sample B", 2),
-    reference("Turk Anatolia: Black Sea: Sample C", 5)];
+test("deep group limit fits clusters and improves with a second group", () => {
+  const references = [reference("Turk Anatolia: Sample A", 0),
+    reference("Turk East: Sample B", 2),
+    reference("Turk West: Sample C", 5)];
   const target = { values: [1, ...Array(24).fill(0)] };
   const one = fitDeepAdmixture(target, references, 1);
   const two = fitDeepAdmixture(target, references, 2);

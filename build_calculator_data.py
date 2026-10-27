@@ -252,19 +252,14 @@ def read_modern_pcas(modern_rows: list[list], directory: Path = MODERN_PCA_DIREC
             deep_labels = set()
             for row in deep_rows:
                 parts = [part.strip() for part in row[1].split(":")]
-                if len(parts) < 2 or any(not part for part in parts):
-                    raise ValueError(f"{deep_path.name}: expected Group: Subgroup: Population")
-                # Keep archived rows in the source file without shipping them to the calculator.
-                if parts[0].casefold() == "deprecated":
-                    continue
-                if len(parts) < 3:
-                    raise ValueError(f"{deep_path.name}: expected Group: Subgroup: Population")
+                if len(parts) != 2 or any(not part for part in parts):
+                    raise ValueError(f"{deep_path.name}: expected Group: Population")
                 if parts[0] not in main_groups:
                     raise ValueError(f"{deep_path.name}: unknown main PCA group {parts[0]}")
                 if row[1] in deep_labels:
                     raise ValueError(f"{deep_path.name}: duplicate deep reference {row[1]}")
                 deep_labels.add(row[1])
-                label = parts[-1]
+                label = parts[1]
                 if label_anchors:
                     source = modern_by_label.get(label)
                     if source is None or source[2:] != row[2:]:

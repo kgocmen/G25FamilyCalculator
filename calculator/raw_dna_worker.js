@@ -1,13 +1,13 @@
 "use strict";
-importScripts("raw_dna.js?v=20261026-1");
+importScripts("raw_dna.js?v=20261027-5");
 importScripts("health_data.js?v=20261026-2", "health.js?v=20261026-3");
 
 self.onmessage = async ({ data }) => {
   const send = (type, payload = {}) => self.postMessage({ type, ...payload });
   try {
-    if (!data.file || data.file.size > 100 * 1024 * 1024) throw new Error("Choose an extracted CSV or TXT file smaller than 100 MB.");
-    send("status", { message: "Reading MyHeritage SNP calls…" });
-    const { calls, special, stats } = G25RawDNA.parse(await data.file.text());
+    if (!data.file || !data.file.size || data.file.size > 100 * 1024 * 1024) throw new Error("Choose a nonempty DNA file smaller than 100 MB.");
+    send("status", { message: "Reading DNA SNP calls…" });
+    const { calls, special, stats } = G25RawDNA.parse(await G25RawDNA.readRawText(data.file));
     send("parsed", { stats });
     send("health", { matches: G25Health.matchCalls(calls, special) });
     const readJson = async (file) => {
@@ -36,7 +36,7 @@ self.onmessage = async ({ data }) => {
         if (model.n !== info.snps || model.k !== info.components.length) throw new Error(`${title} model metadata does not match.`);
         const matched = G25RawDNA.match(calls, model);
         send("coverage", { id, stats: matched.stats });
-        if (matched.stats.matched < 10000) throw new Error(`${title}: only ${matched.stats.matched.toLocaleString()} usable model SNPs matched. At least 10,000 are required; check that this is a complete MyHeritage export.`);
+        if (matched.stats.matched < 10000) throw new Error(`${title}: only ${matched.stats.matched.toLocaleString()} usable model SNPs matched. At least 10,000 are required; check that this is a complete MyHeritage or AncestryDNA export.`);
         send("status", { message: `Fitting ${title} to ${matched.stats.matched.toLocaleString()} SNPs…` });
         const fit = G25RawDNA.fit(matched, ({ iteration }) => send("status", {
           message: `Fitting ${title} · iteration ${iteration.toLocaleString()}…`,

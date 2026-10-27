@@ -28,17 +28,31 @@ function G25ModernPcaModule(root) {
   function selectMixedDeepReferences(mainFit, deepPcas) {
     const active = new Set((mainFit?.components || []).filter((part) => part.weight > 0)
       .map((part) => part.label));
-    return deepPcas.flatMap((pca) => {
+    const selected = deepPcas.flatMap((pca) => {
       const prefix = `${pca.title.replaceAll(" ", "_")}:`;
       return pca.references.filter((row) => active.has(`${prefix}${row[1].split(":", 1)[0].trim()}`))
-        .map((row) => [row[0], `${prefix}${row[1]}`, ...row.slice(2)]);
+        .map((row) => [row[0], `${prefix}${row[1].slice(row[1].indexOf(":") + 1).trim()}`,
+          ...row.slice(2)]);
+    });
+    const seen = new Set();
+    return selected.filter((row) => {
+      if (seen.has(row[1])) return false;
+      seen.add(row[1]);
+      return true;
     });
   }
 
-  function selectMixedMainReferences(results, pcas) {
-    const fitted = new Map((results || []).map((result) => [result.ethnicity,
-      new Set((result.sourceGroups || []).filter((group) => group.weight > 0)
-        .map((group) => group.ethnicity))]));
+  function selectMixedMainReferences(mainFit, pcas) {
+    const fitted = new Map();
+    for (const part of mainFit?.components || []) {
+      if (part.weight <= 0) continue;
+      const colon = part.label.indexOf(":");
+      if (colon < 0) continue;
+      const map = part.label.slice(0, colon);
+      const group = part.label.slice(colon + 1);
+      if (!fitted.has(map)) fitted.set(map, new Set());
+      fitted.get(map).add(group);
+    }
     return pcas.flatMap((pca) => {
       const title = pca.title.replaceAll(" ", "_");
       const groups = fitted.get(title);

@@ -613,112 +613,25 @@
         const sendSelection = (fit, pca) => {
           send("selected", { fit, pca });
           if (!data.deepAnalysis) return;
-          if ((pca?.id || data.displayedPcaId) === "mixed") {
-            try {
-              const references = self.G25ModernPca.selectMixedDeepReferences(fit, data.deepPcas || []);
-              const mainReferences = pca?.references || data.references;
-              const selectedSubregions = new Set();
-              const selectedLimits = new Map();
-              for (const component of fit.components) {
-                const rows = references.filter((row) =>
-                  row[1].startsWith(`${component.label}:`));
-                if (!rows.length) throw new Error(`No included deep references for ${component.label}.`);
-                const groupTarget = { values: data.target.values.map((value, dimension) => {
-                  const other = fit.components.filter((part) => part !== component)
-                    .reduce((sum, part) => sum + part.weight *
-                      mainReferences[part.referenceIndex][dimension + 2], 0);
-                  return (value - other) / component.weight;
-                }) };
-                const chosen = data.deepGroupLimit === "auto"
-                  ? self.G25ModernPca.defaultGroupFit(fitSeries(rows, "deep",
-                    (groupLimit) => send("deepProgress", { ethnicity: component.label, groupLimit }),
-                    null, null, groupTarget))
-                  : { groupLimit: data.deepGroupLimit,
-                    fit: self.G25Medieval.fitDeepAdmixture(groupTarget, rows, data.deepGroupLimit) };
-                chosen.fit.groups.forEach((part) => selectedSubregions.add(part.ethnicity));
-                selectedLimits.set(component.label, chosen.groupLimit);
-              }
-              const selectedRows = references.filter((row) =>
-                selectedSubregions.has(row[1].slice(0, row[1].lastIndexOf(":")).trim()));
-              const joint = self.G25Medieval.fitDeepAdmixture(data.target, selectedRows);
-              const byMap = new Map();
-              for (const subregion of joint.groups) {
-                const [map, sourceGroup] = subregion.ethnicity.split(":").map((part) => part.trim());
-                if (!byMap.has(map)) byMap.set(map,
-                  { ethnicity: map, weight: 0, samples: [], sourceGroups: new Map() });
-                const parent = byMap.get(map);
-                parent.weight += subregion.weight;
-                parent.samples.push(...subregion.samples);
-                if (!parent.sourceGroups.has(sourceGroup)) parent.sourceGroups.set(sourceGroup,
-                  { ethnicity: sourceGroup, weight: 0, subregions: [],
-                    groupLimit: selectedLimits.get(`${map}:${sourceGroup}`) });
-                const source = parent.sourceGroups.get(sourceGroup);
-                source.weight += subregion.weight;
-                source.subregions.push(subregion);
-              }
-              const groups = [...byMap.values()].map((parent) => ({
-                ethnicity: parent.ethnicity, weight: parent.weight, samples: parent.samples,
-              })).sort((a, b) => b.weight - a.weight || a.ethnicity.localeCompare(b.ethnicity));
-              const results = groups.map((group) => ({ ethnicity: group.ethnicity,
-                weight: group.weight, sourceGroups: [...byMap.get(group.ethnicity).sourceGroups.values()]
-                  .sort((a, b) => b.weight - a.weight || a.ethnicity.localeCompare(b.ethnicity)) }));
-              send("deep", { fit: { ...joint, groups }, results, pcaId: "mixed",
-                referenceCount: references.length, groups: groups.map((group) => group.ethnicity),
-                references });
-            } catch (error) {
-              send("deep", { error: error.message });
-            }
-            return;
-          }
-          const deep = data.deepPcas?.find((entry) => entry.id === (pca?.id || data.displayedPcaId));
-          if (!deep) return;
-          const mainReferences = pca?.references || data.references;
           try {
-            const references = self.G25ModernPca.selectDeepReferences(fit, deep.references);
-            if (!references.length) throw new Error("No included deep references match the main PCA groups.");
-            const selectedSubregions = new Set();
-            const selectedLimits = new Map();
-            fit.groups.forEach((group) => {
-              const rows = references.filter((row) => row[1].split(":", 1)[0].trim() === group.ethnicity);
-              if (!rows.length) throw new Error(`No included deep references for ${group.ethnicity}.`);
-              // Keep the user's residual; the reconstructed main fit would hide it.
-              const groupTarget = { values: data.target.values.map((value, dimension) => {
-                const other = fit.components.filter((component) => component.ethnicity !== group.ethnicity)
-                  .reduce((sum, component) => sum + component.weight *
-                    mainReferences[component.referenceIndex][dimension + 2], 0);
-                return (value - other) / group.weight;
-              }) };
-              const chosen = data.deepGroupLimit === "auto"
-                ? self.G25ModernPca.defaultGroupFit(fitSeries(rows, "deep",
-                  (groupLimit) => send("deepProgress", { ethnicity: group.ethnicity, groupLimit }),
-                  null, null, groupTarget))
-                : { groupLimit: data.deepGroupLimit,
-                  fit: self.G25Medieval.fitDeepAdmixture(groupTarget, rows, data.deepGroupLimit) };
-              chosen.fit.groups.forEach((part) => selectedSubregions.add(part.ethnicity));
-              selectedLimits.set(group.ethnicity, chosen.groupLimit);
-            });
-            const selectedRows = references.filter((row) =>
-              selectedSubregions.has(row[1].slice(0, row[1].lastIndexOf(":")).trim()));
-            // Fit all selected subregions together so their parent shares can move
-            // away from the main PCA percentages while still totaling 100%.
-            const joint = self.G25Medieval.fitDeepAdmixture(data.target, selectedRows);
-            const byParent = new Map();
-            for (const subregion of joint.groups) {
-              const ethnicity = subregion.ethnicity.split(":", 1)[0].trim();
-              if (!byParent.has(ethnicity)) byParent.set(ethnicity,
-                { ethnicity, weight: 0, samples: [], subregions: [] });
-              const parent = byParent.get(ethnicity);
-              parent.weight += subregion.weight;
-              parent.samples.push(...subregion.samples);
-              parent.subregions.push(subregion);
-            }
-            const groups = [...byParent.values()]
-              .sort((a, b) => b.weight - a.weight || a.ethnicity.localeCompare(b.ethnicity));
-            const results = groups.map((group) => ({ ethnicity: group.ethnicity,
-              weight: group.weight, groupLimit: selectedLimits.get(group.ethnicity),
-              fit: { groups: group.subregions } }));
-            send("deep", { fit: { ...joint, groups }, results, pcaId: deep.id,
-              referenceCount: references.length, groups: groups.map((group) => group.ethnicity) });
+            const mixed = (pca?.id || data.displayedPcaId) === "mixed";
+            const deep = mixed ? null : data.deepPcas?.find((entry) =>
+              entry.id === (pca?.id || data.displayedPcaId));
+            if (!mixed && !deep) return;
+            const references = mixed
+              ? self.G25ModernPca.selectMixedDeepReferences(fit, data.deepPcas || [])
+              : self.G25ModernPca.selectDeepReferences(fit, deep.references);
+            if (!references.length) throw new Error("No included deep references match the main PCA fit.");
+            const chosen = data.deepGroupLimit === "auto"
+              ? self.G25ModernPca.defaultGroupFit(fitSeries(references, "deep",
+                (groupLimit) => send("deepProgress", { groupLimit })))
+              : { groupLimit: data.deepGroupLimit,
+                fit: self.G25Medieval.fitDeepAdmixture(data.target, references, data.deepGroupLimit) };
+            const deepFit = chosen.fit;
+            send("deep", { fit: deepFit, pcaId: mixed ? "mixed" : deep.id,
+              referenceCount: references.length,
+              groups: deepFit.groups.map((group) => group.ethnicity),
+              ...(mixed ? { mainFit: fit } : {}) });
           } catch (error) {
             send("deep", { error: error.message });
           }
@@ -1662,7 +1575,7 @@
       const scope = state.turkish ? "turkish" : "global";
       const fit = window.G25Neolithic.calculate(state.single, scope);
       const parts = fit.components;
-      status.textContent = `${parts.length} ancient proxies · ${scope === "turkish" ? "Turkish" : "All"} references`;
+      status.textContent = `${scope === "turkish" ? "Turkish" : "All"} references`;
       distance.textContent = `Fit distance ${fit.distance.toFixed(3)}`;
       distance.hidden = false;
       parts.forEach((part) => {
@@ -1847,7 +1760,7 @@
     $("#pca-heading-title").textContent = isModern ? "Custom PCA" : "PCA plot";
     $("#medieval-group-limit").value = String(state.medievalGroupLimit);
     $("#modern-group-limit").value = String(state.deepAnalysis ? state.deepGroupLimit : state.modernGroupLimit);
-    $("#modern-group-label").textContent = state.deepAnalysis ? "Max subregions" : "Max groups";
+    $("#modern-group-label").textContent = "Max groups";
     let period = state.analysisView === "early" ? "Early Medieval" : "Late Medieval";
     let periodReferences;
     let closestModern = null;
@@ -1936,7 +1849,7 @@
           return;
         }
         if (data.kind === "deepProgress") {
-          status.textContent = `Calculating ${data.ethnicity} subregions… ${data.groupLimit} ${data.groupLimit === 1 ? "group" : "groups"}`;
+          status.textContent = `Calculating deep PCA… ${data.groupLimit} ${data.groupLimit === 1 ? "group" : "groups"}`;
           return;
         }
         if (data.error) {
@@ -2675,16 +2588,11 @@
         label.textContent = component.sample.replaceAll("_", " ");
         const weight = document.createElement("strong");
         weight.textContent = formatPercent(sampleUnits[sampleIndex]);
-        item.append(label, weight, excludeButton({ label: component.label, category: isModern ? "modern" : "medieval" }));
+        item.append(label, weight, excludeButton({ label: isDeepResult ? component.sample : component.label,
+          category: isModern ? "modern" : "medieval" }));
         samples.append(item);
       });
-      if (isModern && state.deepAnalysis) {
-        details.dataset.deepGroup = group.ethnicity;
-        const nested = document.createElement("div");
-        nested.className = "deep-breakdown";
-        nested.textContent = "Calculating subregions…";
-        details.append(summary, bar, nested);
-      } else details.append(summary, bar, samples);
+      details.append(summary, bar, samples);
       list.append(details);
     });
   }
@@ -2694,107 +2602,12 @@
       : activeModernPcas().find((entry) => entry.id === data.pcaId);
     $("#medieval-breakdown-list").replaceChildren();
     renderMedievalFit(data.fit, true, true);
-    const parents = [...$("#medieval-breakdown-list").children];
-    const mainUnits = allocatePercentUnits(data.results.map((result) => result.weight), 1000);
-    if (data.pcaId === "mixed") {
-      for (const [resultIndex, result] of data.results.entries()) {
-        const parent = parents.find((item) => item.dataset.deepGroup === result.ethnicity);
-        const nested = parent?.querySelector(".deep-breakdown");
-        if (!nested) continue;
-        nested.replaceChildren();
-        const groupUnits = allocatePercentUnits(result.sourceGroups.map((group) => group.weight),
-          mainUnits[resultIndex]);
-        result.sourceGroups.forEach((source, sourceIndex) => {
-          const sourceDetails = document.createElement("details");
-          sourceDetails.className = "deep-subregion deep-source-group";
-          const sourceSummary = document.createElement("summary");
-          const sourceName = document.createElement("span");
-          sourceName.className = "breakdown-name";
-          sourceName.textContent = source.ethnicity.replaceAll("_", " ");
-          const sourceShare = document.createElement("strong");
-          sourceShare.textContent = formatPercent(groupUnits[sourceIndex]);
-          sourceSummary.append(sourceName, sourceShare,
-            excludeGroupButton(source.ethnicity, "modern"));
-          sourceDetails.append(sourceSummary);
-          const subregionUnits = allocatePercentUnits(source.subregions.map((part) => part.weight),
-            groupUnits[sourceIndex]);
-          source.subregions.forEach((part, partIndex) => {
-            const details = document.createElement("details");
-            details.className = "deep-subregion";
-            const summary = document.createElement("summary");
-            const name = document.createElement("span");
-            name.className = "breakdown-name";
-            name.textContent = part.ethnicity.split(":").slice(2).join(":").trim().replaceAll("_", " ");
-            const share = document.createElement("strong");
-            share.textContent = formatPercent(subregionUnits[partIndex]);
-            summary.append(name, share);
-            const samples = document.createElement("ul");
-            samples.className = "breakdown-samples";
-            const sampleUnits = allocatePercentUnits(part.samples.map((sample) => sample.weight),
-              subregionUnits[partIndex]);
-            part.samples.forEach((component, index) => {
-              const item = document.createElement("li");
-              const label = document.createElement("span");
-              label.textContent = component.sample.replaceAll("_", " ");
-              const weight = document.createElement("strong");
-              weight.textContent = formatPercent(sampleUnits[index]);
-              item.append(label, weight, excludeButton({
-                label: component.label.slice(component.label.indexOf(":") + 1), category: "modern",
-              }));
-              samples.append(item);
-            });
-            details.append(summary, samples);
-            sourceDetails.append(details);
-          });
-          nested.append(sourceDetails);
-        });
-      }
-    } else {
-      for (const [resultIndex, result] of data.results.entries()) {
-        const parent = parents.find((item) => item.dataset.deepGroup === result.ethnicity);
-        const nested = parent?.querySelector(".deep-breakdown");
-        if (!nested) continue;
-        nested.replaceChildren();
-        const note = document.createElement("p");
-        note.className = "deep-breakdown-note";
-        note.textContent = `Subregions within ${result.ethnicity.replaceAll("_", " ")}`;
-        nested.append(note);
-        const groupUnits = allocatePercentUnits(result.fit.groups.map((group) => group.weight),
-          mainUnits[resultIndex]);
-        result.fit.groups.forEach((group, groupIndex) => {
-          const details = document.createElement("details");
-          details.className = "deep-subregion";
-          const summary = document.createElement("summary");
-          const name = document.createElement("span");
-          name.className = "breakdown-name";
-          name.textContent = group.ethnicity.slice(result.ethnicity.length + 1).trim().replaceAll("_", " ");
-          const share = document.createElement("strong");
-          share.textContent = formatPercent(groupUnits[groupIndex]);
-          summary.append(name, share);
-          const samples = document.createElement("ul");
-          samples.className = "breakdown-samples";
-          const sampleUnits = allocatePercentUnits(group.samples.map((sample) => sample.weight), groupUnits[groupIndex]);
-          group.samples.forEach((component, index) => {
-            const item = document.createElement("li");
-            const label = document.createElement("span");
-            label.textContent = component.sample.replaceAll("_", " ");
-            const weight = document.createElement("strong");
-            weight.textContent = formatPercent(sampleUnits[index]);
-            item.append(label, weight, excludeButton({ label: component.label, category: "modern" }));
-            samples.append(item);
-          });
-          details.append(summary, samples);
-          nested.append(details);
-        });
-      }
-    }
     $("#medieval-breakdown-status").textContent =
-      `Deep analysis · ${data.groups.length} main ${data.groups.length === 1 ? "group" : "groups"} · ${data.referenceCount} references`;
+      `Deep analysis · ${data.fit.groups.length} ${data.fit.groups.length === 1 ? "group" : "groups"} · ${data.referenceCount} references`;
     const references = data.pcaId === "mixed" ? window.G25ModernPca.selectMixedMainReferences(
-      data.results, activeModernPcas().map((entry) => ({ title: entry.title,
+      data.mainFit, activeModernPcas().map((entry) => ({ title: entry.title,
         references: regularPcaReferences(entry) }))) : pca ? window.G25ModernPca.selectDeepReferences(
-      { groups: data.groups.map((ethnicity) => ({ ethnicity, weight: 1 })) },
-      allowedDeepPcaReferences(pca)) : [];
+      data.fit, allowedDeepPcaReferences(pca)) : [];
     if (references.length < 3) {
       $("#medieval-pca-plot").textContent = "At least three deep references are needed for a PCA plot.";
       $("#medieval-pca-legend").replaceChildren();
@@ -2802,7 +2615,7 @@
     }
     $("#pca-heading-title").textContent = data.pcaId === "mixed" ? "Mixed · Deep" : `${pca.title} · Deep PCA`;
     renderMedievalPca(references, `${data.pcaId === "mixed" ? "Mixed" : pca.title} deep`, true, null, false,
-      { groupStyle: "deep" });
+      { groupStyle: data.pcaId === "mixed" ? "modern" : "deep" });
   }
 
   function allocatePercentUnits(weights, totalUnits) {
