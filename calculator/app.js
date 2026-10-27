@@ -1662,12 +1662,12 @@
       const scope = state.turkish ? "turkish" : "global";
       const fit = window.G25Neolithic.calculate(state.single, scope);
       const parts = fit.components;
-      const units = allocatePercentUnits(parts.map(({ weight }) => weight), 10000);
       status.textContent = `${parts.length} ancient proxies · ${scope === "turkish" ? "Turkish" : "All"} references`;
       distance.textContent = `Fit distance ${fit.distance.toFixed(3)}`;
       distance.hidden = false;
-      parts.forEach((part, index) => {
-        if (scope === "global" && units[index] === 0) return;
+      parts.forEach((part) => {
+        const roundedPercent = Math.round(part.weight * 1000) / 10;
+        if (scope === "global" && roundedPercent === 0) return;
         const row = document.createElement("div");
         row.className = "neolithic-row";
         row.setAttribute("role", "listitem");
@@ -1676,7 +1676,7 @@
         const name = document.createElement("span");
         name.textContent = part.name;
         const percentage = document.createElement("strong");
-        percentage.textContent = formatPercent(units[index], 2);
+        percentage.textContent = `${roundedPercent.toFixed(2)}%`;
         head.append(name, percentage);
         const bar = document.createElement("div");
         bar.className = "breakdown-bar";
@@ -2816,8 +2816,8 @@
     return units;
   }
 
-  function formatPercent(units, decimals = 1) {
-    return `${(units / 10 ** decimals).toFixed(decimals)}%`;
+  function formatPercent(units) {
+    return `${(units / 10).toFixed(1)}%`;
   }
 
   function renderSingleClosestTables() {

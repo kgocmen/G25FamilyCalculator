@@ -338,6 +338,13 @@ api.state.single = row('Neolithic sample', .2);
 api.render();
 assert.deepEqual(document.querySelector('#neolithic-list').children.map((item) =>
   item.children[0].children[1].textContent), ['0.10%', '27.80%', '72.10%']);
+window.G25Neolithic.calculate = () => ({ distance: .123, components:
+  [38.22, 19.78, 18.78, 6.73, 5.36, 3.84, 3.54, 2.43, 1.32]
+    .map((percent, index) => ({ name: `Proxy ${index}`, weight: percent / 100 })) });
+api.render();
+assert.deepEqual(document.querySelector('#neolithic-list').children.map((item) =>
+  item.children[0].children[1].textContent),
+['38.20%', '19.80%', '18.80%', '6.70%', '5.40%', '3.80%', '3.50%', '2.40%', '1.30%']);
 
 refs.push(pcaRow('A', .2), pcaRow('B', .2001));
 api.state.mode = 0;
