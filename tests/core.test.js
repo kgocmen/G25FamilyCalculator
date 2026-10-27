@@ -1,13 +1,13 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
-const { ancestorWeights, calculate, calculateComparison, closestMatches, estimateChildFromKnown, excludeTargetReferences, formatLine, missingAncestorLabel, nearestMatches, parseLine, prepareMatches, rankMatches, resultLabel } = require("./core.js");
+const { ancestorWeights, calculate, calculateComparison, closestMatches, estimateChildFromKnown, excludeTargetReferences, formatLine, missingAncestorLabel, nearestMatches, parseLine, prepareMatches, rankMatches, resultLabel } = require("../calculator/core.js");
 
 function person(label, value) {
   return { label, values: Array(25).fill(value) };
 }
 
 test("target remainders participate in fitting but their result rows are hidden", () => {
-  const { remainingAdmixture, visibleRemainingAdmixture } = require("./core.js");
+  const { remainingAdmixture, visibleRemainingAdmixture } = require("../calculator/core.js");
   const targets = [person("A", 0), person("B", 1)];
   const references = [person("A", 0), person("B", 1), person("Other", 2)];
   const fits = remainingAdmixture(targets[0], targets[1], references);
@@ -21,7 +21,7 @@ test("target remainders participate in fitting but their result rows are hidden"
 });
 
 test("remaining rows exceeding the direct A-B distance are hidden in both directions", () => {
-  const { distance, visibleRemainingAdmixture } = require("./core.js");
+  const { distance, visibleRemainingAdmixture } = require("../calculator/core.js");
   const targets = [person("A", 0), person("B", 1)];
   const references = [person("Other", 2)];
   const between = distance(targets[0].values, targets[1].values);
@@ -35,7 +35,7 @@ test("remaining rows exceeding the direct A-B distance are hidden in both direct
 });
 
 test("remaining admixture supports each step and marks the best row within each group", () => {
-  const { remainingAdmixture, summarizeRemainingAdmixture } = require("./core.js");
+  const { remainingAdmixture, summarizeRemainingAdmixture } = require("../calculator/core.js");
   const target = person("A", 0.17);
   const source = person("B", 1);
   const references = [person("Zero", 0)];
@@ -56,7 +56,7 @@ test("remaining admixture supports each step and marks the best row within each 
 });
 
 test("remaining admixture summary searches whole percentages within each population run", () => {
-  const { remainingAdmixture, summarizeRemainingAdmixture } = require("./core.js");
+  const { remainingAdmixture, summarizeRemainingAdmixture } = require("../calculator/core.js");
   const source = person("B", 1);
   const references = [{ ...person("Zero", 0), category: "modern" }];
   const summarize = (target) => summarizeRemainingAdmixture(
@@ -89,7 +89,7 @@ test("remaining admixture summary searches whole percentages within each populat
 });
 
 test("remaining admixture finds the best single population at every fixed percentage", () => {
-  const { remainingAdmixture, distance } = require("./core.js");
+  const { remainingAdmixture, distance } = require("../calculator/core.js");
   const target = person("A", 0.01);
   const source = person("B", 0.02);
   const references = [
@@ -114,7 +114,7 @@ test("remaining admixture finds the best single population at every fixed percen
 });
 
 test("remaining admixture handles empty references, ties, objects and invalid coordinates", () => {
-  const { remainingAdmixture } = require("./core.js");
+  const { remainingAdmixture } = require("../calculator/core.js");
   const target = person("A", 0);
   assert.ok(remainingAdmixture(target, target, []).every((fit) => fit.best === null));
   const references = ["First", "Second"].map((label) => ({ ...person(label, 0), category: "modern" }));

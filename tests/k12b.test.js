@@ -1,6 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { labels, parseProfile, nearest, twoWay, referenceRows } = require("./k12b.js");
+const { labels, parseProfile, nearest, twoWay, referenceRows } = require("../calculator/k12b.js");
 
 test("parses GEDmatch-style labeled lines in any order and normalizes rounding", () => {
   const input = labels.map((label, i) => `${i + 1} ${label} ${i === 0 ? "50.1" : i === 1 ? "49.8" : "0"}%`).reverse().join("\n");

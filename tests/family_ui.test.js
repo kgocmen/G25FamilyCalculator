@@ -1,7 +1,7 @@
 const fs = require('node:fs');
 const vm = require('node:vm');
 const assert = require('node:assert/strict');
-const core = require('./core.js');
+const core = require('../calculator/core.js');
 const test = require('node:test');
 
 test('family controls enforce locks, restore inputs and discard stale optimisation', async () => {
@@ -39,16 +39,16 @@ window.G25_TURKISH_MEDIEVAL_REFERENCES = {
   early: [pcaRow('Rum:Early', 5, 'medieval')],
   late: [pcaRow('Rum:Late', 6, 'medieval'), pcaRow('Türk:Late', 7, 'medieval')],
 };
-vm.runInNewContext(fs.readFileSync(require('node:path').join(__dirname, 'core.js'), 'utf8'), { window });
+vm.runInNewContext(fs.readFileSync(require('node:path').join(__dirname, '../calculator/core.js'), 'utf8'), { window });
 let workerBlob;
 const revoked = [];
 const workerURLs = { createObjectURL(blob) { workerBlob = blob; return 'blob:null/family-test'; },
   revokeObjectURL(url) { revoked.push(url); } };
 const storage = new Map();
 const sessionStorage = { getItem(key) { return storage.get(key) || null; }, setItem(key, value) { storage.set(key, value); } };
-vm.runInNewContext(fs.readFileSync(require('node:path').join(__dirname, 'mixture.js'), 'utf8'), { window });
+vm.runInNewContext(fs.readFileSync(require('node:path').join(__dirname, '../calculator/mixture.js'), 'utf8'), { window });
 const context={window,document,Worker,URL:workerURLs,Blob,console,sessionStorage};
-let source=fs.readFileSync(require('node:path').join(__dirname, 'app.js'),'utf8');
+let source=fs.readFileSync(require('node:path').join(__dirname, '../calculator/app.js'),'utf8');
 source=source.replace('  render();\n})();','  window.testApi = {state, familyLocks, familyReverts, render, optimiseFamily, setTarget, changeBlacklist, changeWhitelist, allowedReferences, allowedPcaReferences, renderMedievalFit};\n  render();\n})();');
 vm.runInNewContext(source,context);
 const api=window.testApi;
@@ -207,6 +207,12 @@ assert.equal(lastWorker.data.references.length, 2);
 api.changeBlacklist({label: 'Low', category: 'modern'}, true);
 assert.equal(document.querySelector('#whitelist-count').textContent, '1');
 assert.equal(lastWorker.data.references[0][1], 'High');
+assert.equal(document.querySelector('#blacklist-clear').disabled, false);
+assert.equal(document.querySelector('#whitelist-clear').disabled, false);
+document.querySelector('#blacklist-clear').listeners.click();
+assert.equal(document.querySelector('#blacklist-count').textContent, '0');
+assert.equal(document.querySelector('#whitelist-count').textContent, '1');
+assert.equal(lastWorker.data.references[0][1], 'High');
 api.changeWhitelist({label: 'Low', category: 'modern'}, true);
 assert.equal(document.querySelector('#blacklist-count').textContent, '0');
 assert.equal(lastWorker.data.references.length, 2);
@@ -216,9 +222,44 @@ api.changeWhitelist({label: 'Low', category: 'modern'}, false);
 assert.equal(lastWorker.data.references.length, 2);
 api.changeWhitelist({label: 'Not in current set', category: 'ancient'}, true);
 assert.equal(api.allowedReferences(refs).length, 0);
-document.querySelector('#blacklist-clear').listeners.click();
+document.querySelector('#whitelist-clear').listeners.click();
 assert.equal(lastWorker.data.references.length, 2);
 assert.equal(storage.get('g25-temporary-whitelist'), '[]');
+api.changeBlacklist({label: 'High', category: 'modern'}, true);
+api.changeWhitelist({label: 'Low', category: 'modern'}, true);
+document.querySelector('#whitelist-clear').listeners.click();
+assert.equal(document.querySelector('#blacklist-count').textContent, '1');
+assert.equal(lastWorker.data.references.length, 1);
+assert.equal(lastWorker.data.references[0][1], 'Low');
+document.querySelector('#blacklist-clear').listeners.click();
+
+// Clearing custom references also removes their rules and selected inputs,
+// while leaving unrelated rules in place.
+const customPaste = document.querySelector('#custom-paste');
+customPaste.value = ['Custom_A', 'Custom_B'].map((name, index) =>
+  [name, ...Array(25).fill(index ? .3 : .2)].join(',')).join('\n');
+document.querySelector('#custom-add').listeners.click();
+assert.equal(document.querySelector('#custom-count').textContent, '2');
+assert.equal(document.querySelector('#custom-clear').disabled, false);
+assert.equal(JSON.parse(storage.get('g25-temporary-custom-references')).length, 2);
+api.state.single = row('Custom_A', .2);
+api.render();
+api.changeBlacklist({label: 'Custom_A', category: 'modern'}, true);
+api.changeWhitelist({label: 'Custom_B', category: 'modern'}, true);
+api.changeBlacklist({label: 'High', category: 'modern'}, true);
+api.changeWhitelist({label: 'Low', category: 'modern'}, true);
+document.querySelector('#custom-clear').listeners.click();
+assert.equal(document.querySelector('#custom-count').textContent, '0');
+assert.equal(document.querySelector('#custom-clear').disabled, true);
+assert.equal(storage.get('g25-temporary-custom-references'), '[]');
+assert.equal(api.state.single, null);
+assert.equal(document.querySelector('#blacklist-count').textContent, '1');
+assert.equal(document.querySelector('#whitelist-count').textContent, '1');
+assert.deepEqual(api.allowedReferences(refs).map((item) => item[1]), ['Low']);
+assert.equal(document.querySelector('#custom-status').textContent, 'Deleted 2 custom references.');
+document.querySelector('#blacklist-clear').listeners.click();
+document.querySelector('#whitelist-clear').listeners.click();
+api.state.single = row('Sample', .4);
 api.state.mode = 4;
 api.state.offspring = null;
 api.render();

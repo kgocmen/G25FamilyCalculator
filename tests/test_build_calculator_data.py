@@ -1,7 +1,10 @@
 import tempfile
 import unittest
 import json
+import sys
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from build_calculator_data import (ROOT, build_neolithic_data, build_ydnatr, read_global_ancient_rows,
                                    read_global_modern_pcas,
@@ -210,13 +213,14 @@ class ReadRowsTests(unittest.TestCase):
         for row in turkic:
             group, label = row[1].split(":", 1)
             groups.setdefault(group, set()).add(label)
-        self.assertEqual(list(groups), ["Turk East", "Turk Anatolia", "Turk Iraq",
-                                        "Turk Azerbaijan", "Turk Iran", "Turk Yoruk Cepni"])
-        self.assertIn("Turkish_Artvin_(n=7)", groups["Turk East"])
+        self.assertEqual(list(groups), ["Turk Northeast", "Turk East", "Turk Azerbaijan",
+                                        "Turk Iraq", "Turk Anatolia", "Turk Iran",
+                                        "Turk Anatolia (High Turkic)"])
+        self.assertIn("Turkish_Artvin_(n=7)", groups["Turk Northeast"])
         self.assertIn("Iraqi_Turkmen_(n=18)", groups["Turk Iraq"])
         self.assertIn("Azeri_Iran_East_Azerbaijan_Tabriz_(n=6)", groups["Turk Iran"])
         self.assertIn("Azeri_Azerbaijan_(n=6)", groups["Turk Azerbaijan"])
-        self.assertIn("Turkish_Manisa_Yörük_(n=9)", groups["Turk Yoruk Cepni"])
+        self.assertIn("Turkish_Manisa_Yörük_(n=9)", groups["Turk Anatolia (High Turkic)"])
         self.assertEqual({row[1].split(":", 1)[1] for row in west_asia} &
                          {row[1].split(":", 1)[1] for row in turkic},
                          {"Iraqi_Turkmen_(n=18)"})
@@ -423,11 +427,12 @@ class ReadRowsTests(unittest.TestCase):
                             for row in pcas[3]["references"]))
         self.assertTrue(any(row[1].startswith("Amazigh:Berber_")
                             for row in pcas[4]["references"]))
-        self.assertTrue(any(row[1].startswith("Jewish Europe:Ashkenazi_Jew_")
+        self.assertTrue(any(row[1].startswith("Jewish Ashkenazi:Ashkenazi_Jew_")
                             for row in pcas[5]["references"]))
         self.assertEqual({row[1].split(":", 1)[0] for row in pcas[5]["references"]},
-                         {"Jewish Europe", "Jewish Ethiopia", "Jewish Asia",
-                          "Jewish India", "Jewish Middle East"})
+                         {"Jewish Ashkenazi", "Jewish South Europe", "Jewish Crimea",
+                          "Jewish Ethiopia", "Jewish Asia", "Jewish India",
+                          "Jewish Middle East"})
         self.assertTrue(any(row[1].startswith("Sinic:Han_")
                             for row in pcas[7]["references"]))
         self.assertTrue(any(row[1].startswith("Mainland Tai:Thai_")

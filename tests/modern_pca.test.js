@@ -2,16 +2,16 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
 const test = require("node:test");
-const { nearestMatches } = require("./core.js");
+const { nearestMatches } = require("../calculator/core.js");
 const { selectModernPca, rankModernPcas, defaultGroupFit,
   shouldAutoSelectMixed, isIstanbulReference, selectFitReferences, selectDeepReferences,
-  selectMixedDeepReferences, selectMixedMainReferences } = require("./modern_pca.js");
+  selectMixedDeepReferences, selectMixedMainReferences } = require("../calculator/modern_pca.js");
 
 const row = (label, first) => ["modern", label, first, ...Array(24).fill(0)];
 const target = (first) => ({ label: "Input", values: [first, ...Array(24).fill(0)] });
 
 test("bundled modern PCAs match their source files", () => {
-  const bundle = fs.readFileSync(path.join(__dirname, "turkish_modern_pca_references.js"), "utf8");
+  const bundle = fs.readFileSync(path.join(__dirname, "../calculator/turkish_modern_pca_references.js"), "utf8");
   const pcas = JSON.parse(bundle.slice(bundle.indexOf("=") + 1).trim().replace(/;$/, ""));
   const config = JSON.parse(fs.readFileSync(path.join(__dirname, "../data/pca/turkish_pca_config.txt"), "utf8"));
   assert.deepEqual(pcas.map(({ id, title }) => ({ id, title })),
@@ -121,7 +121,7 @@ test("mixed deep plots use fitted population rows from the main PCA files", () =
 });
 
 test("global PCA bundles include deep references only for maps with a deep file", () => {
-  const bundle = fs.readFileSync(path.join(__dirname, "modern_pca_references.js"), "utf8");
+  const bundle = fs.readFileSync(path.join(__dirname, "../calculator/modern_pca_references.js"), "utf8");
   const pcas = JSON.parse(bundle.slice(bundle.indexOf("=") + 1).trim().replace(/;$/, ""));
   const config = JSON.parse(fs.readFileSync(path.join(__dirname,
     "../data/pca/pca_config.txt"), "utf8"));
@@ -275,7 +275,7 @@ test("mixed uses the new threshold above two and keeps the existing rule below i
 });
 
 test("bundled mixed PCA uses the editable dataset with ten groups", () => {
-  const bundle = fs.readFileSync(path.join(__dirname, "turkish_mixed_pca_references.js"), "utf8");
+  const bundle = fs.readFileSync(path.join(__dirname, "../calculator/turkish_mixed_pca_references.js"), "utf8");
   const mixed = JSON.parse(bundle.slice(bundle.indexOf("=") + 1).trim().replace(/;$/, ""));
   const source = fs.readFileSync(path.join(__dirname,
     "../data/pca/turkish_modern_pca_mixed.g25.txt"), "utf8").trim().split(/\r?\n/);

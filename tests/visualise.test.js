@@ -3,9 +3,9 @@ const fs = require("node:fs");
 const path = require("node:path");
 const test = require("node:test");
 const vm = require("node:vm");
-const { fitAncestry, closestContributorReferences } = require("./visualise.js");
-const { nearestMatches } = require("./core.js");
-const { projectPca } = require("./pca.js");
+const { fitAncestry, closestContributorReferences } = require("../calculator/visualise.js");
+const { nearestMatches } = require("../calculator/core.js");
+const { projectPca } = require("../calculator/pca.js");
 
 const reference = (index) => ["modern", `Shared_Group:Population_${index}`,
   ...Array.from({ length: 25 }, (_, coordinate) => coordinate === index ? 1 : 0)];
@@ -160,11 +160,11 @@ test("invalid inputs fail with useful messages", () => {
 });
 
 test("worker serializes the solver and produces unrestricted and capped fits", () => {
-  const app = fs.readFileSync(path.join(__dirname, "app.js"), "utf8");
+  const app = fs.readFileSync(path.join(__dirname, "../calculator/app.js"), "utf8");
   const start = app.indexOf("  function visualiseWorkerMain() {");
   const end = app.indexOf("  function toggleVisualiseLock(row) {", start);
   const modules = ["visualise.js"].map((file) =>
-    fs.readFileSync(path.join(__dirname, file), "utf8")).join("\n");
+    fs.readFileSync(path.join(__dirname, "../calculator", file), "utf8")).join("\n");
   let result;
   const self = { postMessage(message) { result = message; } };
   vm.runInNewContext(`${modules}\n(${app.slice(start, end).trim()})()`, { self, globalThis: self });
@@ -242,7 +242,7 @@ test("handles duplicate and dependent references and satisfies whole-pool optima
 });
 
 test("global modern data converges and capped multi-start fits beat the old greedy results", () => {
-  const bundle = fs.readFileSync(path.join(__dirname, "references.js"), "utf8");
+  const bundle = fs.readFileSync(path.join(__dirname, "../calculator/references.js"), "utf8");
   const references = JSON.parse(bundle.slice(bundle.indexOf("=") + 1).trim().replace(/;$/, ""))
     .filter((row) => row[0] === "modern");
   const input = { values: Array.from({ length: 25 }, (_, coordinate) =>

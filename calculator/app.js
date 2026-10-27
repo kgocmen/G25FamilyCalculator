@@ -286,7 +286,9 @@
     $("#custom-count").textContent = String(customReferences.size);
     $("#custom-toggle").checked = customEnabled;
     const total = blacklist.size + whitelist.size;
-    $("#blacklist-clear").disabled = !total;
+    $("#blacklist-clear").disabled = !blacklist.size;
+    $("#whitelist-clear").disabled = !whitelist.size;
+    $("#custom-clear").disabled = !customReferences.size;
     $("#population-rule-count").textContent = String(total + customReferences.size);
     $("#population-rule-count").hidden = !total && !customReferences.size;
     $("#population-mode-exclude").setAttribute("aria-pressed", String(populationListMode === "exclude"));
@@ -3124,7 +3126,23 @@
   });
   $("#blacklist-clear").addEventListener("click", () => {
     blacklist.clear();
+    refreshBlacklist();
+  });
+  $("#whitelist-clear").addEventListener("click", () => {
     whitelist.clear();
+    refreshBlacklist();
+  });
+  $("#custom-clear").addEventListener("click", () => {
+    if (!customReferences.size) return;
+    const count = customReferences.size;
+    for (const key of customReferences.keys()) {
+      blacklist.delete(key);
+      whitelist.delete(key);
+    }
+    customReferences.clear();
+    persistCustomReferences();
+    updateSelectedReferences(activeReferenceRows());
+    $("#custom-status").textContent = `Deleted ${count} custom ${count === 1 ? "reference" : "references"}.`;
     refreshBlacklist();
   });
   $("#family-optimise").addEventListener("click", optimiseFamily);

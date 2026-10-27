@@ -4,7 +4,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const zlib = require("node:zlib");
 const crypto = require("node:crypto");
-const raw = require("./raw_dna.js");
+const raw = require("../calculator/raw_dna.js");
 
 function dnaZip(text, method = 8) {
   const name = Buffer.from("dna-data/AncestryDNA.txt");
@@ -138,9 +138,9 @@ test("likelihood gradient agrees with finite differences along the simplex", () 
 });
 
 test("bundled model checksums, sizes, reference counts and frequencies are valid", () => {
-  const manifest = require("./raw_data/manifest.json");
+  const manifest = require("../calculator/raw_data/manifest.json");
   for (const [id, info] of Object.entries(manifest.models)) {
-    const compressed = fs.readFileSync(path.join(__dirname, "raw_data", info.file));
+    const compressed = fs.readFileSync(path.join(__dirname, "../calculator/raw_data", info.file));
     assert.equal(compressed.length, info.bytes);
     assert.equal(crypto.createHash("sha256").update(compressed).digest("hex"), info.sha256);
     const bytes = zlib.gunzipSync(compressed);
@@ -158,7 +158,7 @@ test("bundled model checksums, sizes, reference counts and frequencies are valid
 });
 
 test("regression preserves component order and uses fractions, with no second scaling", () => {
-  const regression = require("./raw_data/k36_g25.json");
+  const regression = require("../calculator/raw_data/k36_g25.json");
   const q = Array(36).fill(0); q[0] = 1;
   assert.deepEqual(raw.regress(q, regression, regression.components), regression.coefficients[0]);
   q[0] = 50; q[1] = 50;
@@ -170,12 +170,12 @@ test("regression preserves component order and uses fractions, with no second sc
 });
 
 test("active regression reproduces the published converter's independent reference outputs", () => {
-  const manifest = require("./raw_data/manifest.json");
+  const manifest = require("../calculator/raw_data/manifest.json");
   assert.equal(manifest.regression.file, "k36_g25_vbknethio.json");
-  const bytes = fs.readFileSync(path.join(__dirname, "raw_data", manifest.regression.file));
+  const bytes = fs.readFileSync(path.join(__dirname, "../calculator/raw_data", manifest.regression.file));
   assert.equal(crypto.createHash("sha256").update(bytes).digest("hex"), manifest.regression.sha256);
   const model = JSON.parse(bytes);
-  const reference = require("./raw_data/vbknethio_reference.json");
+  const reference = require("../calculator/raw_data/vbknethio_reference.json");
   assert.equal(model.id, manifest.regression.id);
   assert.equal(model.sourceSha256, reference.sourceSha256);
   assert.equal(model.validation.independentAccuracyEstimate, null);
@@ -187,7 +187,7 @@ test("active regression reproduces the published converter's independent referen
 });
 
 test("published regression applies all intercepts once and converts fractions to percentages", () => {
-  const model = require("./raw_data/k36_g25_vbknethio.json");
+  const model = require("../calculator/raw_data/k36_g25_vbknethio.json");
   const q = Array(36).fill(0); q[0] = .25; q[35] = .75;
   const actual = raw.regress(q, model, model.components);
   actual.forEach((v, pc) => assert.ok(Math.abs(v - (model.intercept[pc] +

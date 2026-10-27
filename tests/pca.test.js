@@ -1,6 +1,6 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
-const { projectPca, projectCoordinates, coordinateExtremes } = require("./pca.js");
+const { projectPca, projectCoordinates, coordinateExtremes } = require("../calculator/pca.js");
 
 function reference(label, x, y) {
   return ["medieval", label, x, y, ...Array(23).fill(0)];

@@ -1,6 +1,6 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
-const { fitClusters, clusterSeries } = require("./clusters.js");
+const { fitClusters, clusterSeries } = require("../calculator/clusters.js");
 
 const row = (label, x, y = 0) => ["modern", label, x, y, ...Array(23).fill(0)];
 

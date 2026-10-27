@@ -2,8 +2,8 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
 const test = require("node:test");
-const { nearestMatches } = require("./core.js");
-const { fitAdmixture, fitDeepAdmixture } = require("./medieval.js");
+const { nearestMatches } = require("../calculator/core.js");
+const { fitAdmixture, fitDeepAdmixture } = require("../calculator/medieval.js");
 
 function reference(label, first, second = 0) {
   return ["medieval", label, first, second, ...Array(23).fill(0)];
@@ -110,7 +110,7 @@ test("modern PCA limits each group to four samples at every group count", () => 
 });
 
 test("modern PCA recovers the four-sample eastern Mediterranean mixture", () => {
-  const bundle = fs.readFileSync(path.join(__dirname, "turkish_modern_pca_references.js"), "utf8");
+  const bundle = fs.readFileSync(path.join(__dirname, "../calculator/turkish_modern_pca_references.js"), "utf8");
   const pcas = JSON.parse(bundle.slice(bundle.indexOf("=") + 1).trim().replace(/;$/, ""));
   const references = pcas.find((pca) => pca.id === "guney-anadolu").references;
   const target = { values: [

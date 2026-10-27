@@ -4,13 +4,13 @@ const path = require("node:path");
 const test = require("node:test");
 const vm = require("node:vm");
 
-const app = fs.readFileSync(path.join(__dirname, "app.js"), "utf8");
+const app = fs.readFileSync(path.join(__dirname, "../calculator/app.js"), "utf8");
 const start = app.indexOf("  function medievalWorkerMain() {");
 const end = app.indexOf("  function mixtureWorkerMain() {", start);
 assert.ok(start >= 0 && end > start);
 const workerSource = `(${app.slice(start, end).trim()})()`;
 const moduleSource = ["medieval.js", "modern_pca.js"].map((file) =>
-  fs.readFileSync(path.join(__dirname, file), "utf8")).join("\n");
+  fs.readFileSync(path.join(__dirname, "../calculator", file), "utf8")).join("\n");
 const row = (label, x, y = 0) => ["modern", label, x, y, ...Array(23).fill(0)];
 const pcas = [-1, 1, 2].map((coordinate, index) => {
   const references = [1, 2, 3].map((multiple) => row(`Group${index}:Sample${multiple}`, coordinate * multiple));

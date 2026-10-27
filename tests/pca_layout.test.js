@@ -1,6 +1,6 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
-const { convexHull, inputLabelLayout } = require("./pca_layout.js");
+const { convexHull, inputLabelLayout } = require("../calculator/pca_layout.js");
 
 test("cluster outline excludes interior points", () => {
   const hull = convexHull([{ x: 0, y: 0 }, { x: 4, y: 0 }, { x: 4, y: 4 },

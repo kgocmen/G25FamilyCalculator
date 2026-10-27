@@ -5,13 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#14243b">
   <title>G25 Family Calculator</title>
-  <link rel="stylesheet" href="style.css?v=20261027-4">
+  <link rel="stylesheet" href="style.css?v=20261027-6">
   <link rel="stylesheet" href="k12b.css?v=20261026-4">
   <link rel="stylesheet" href="health.css?v=20261026-3">
   <script defer src="references.js?v=20261026-2"></script>
   <script defer src="turkish_references.js?v=20261022-1"></script>
-  <script defer src="modern_pca_references.js?v=20261027-4"></script>
-  <script defer src="mixed_pca_references.js?v=20261023-3"></script>
+  <script defer src="modern_pca_references.js?v=20261027-6"></script>
+  <script defer src="mixed_pca_references.js?v=20261027-6"></script>
   <script defer src="turkish_modern_pca_references.js?v=20261022-2"></script>
   <script defer src="turkish_mixed_pca_references.js?v=20261022-2"></script>
   <script defer src="turkish_medieval_references.js?v=20261022-2"></script>
@@ -30,7 +30,7 @@
   <script defer src="k12b.js?v=20261026-6"></script>
   <script defer src="health.js?v=20261026-3"></script>
   <script defer src="raw_data_ui.js?v=20261027-5"></script>
-  <script defer src="app.js?v=20261027-4"></script>
+  <script defer src="app.js?v=20261027-6"></script>
 </head>
 <body>
   <main class="shell">
@@ -574,7 +574,10 @@
         <ul id="blacklist-search-results" class="blacklist-list population-search-results" aria-label="Population search results"></ul>
         <div class="population-managed-heading">
           <h3>Managed populations</h3>
-          <button id="blacklist-clear" type="button" class="text-button" disabled>Clear all</button>
+          <div class="population-clear-actions">
+            <button id="blacklist-clear" type="button" class="text-button" disabled>Clear blacklist</button>
+            <button id="whitelist-clear" type="button" class="text-button" disabled>Clear Only Use</button>
+          </div>
         </div>
         <div id="blacklist-empty" class="population-empty">
           <span class="population-empty-icon" aria-hidden="true">≡</span>
@@ -593,7 +596,10 @@
         <textarea id="custom-paste" rows="5" placeholder="Name,0.123456,0.234567,…" spellcheck="false"></textarea>
         <button id="custom-add" type="button" class="primary-button">Add references</button>
         <p id="custom-status" class="method-note" role="status"></p>
-        <div class="population-managed-heading"><h3>Custom populations</h3></div>
+        <div class="population-managed-heading">
+          <h3>Custom populations</h3>
+          <button id="custom-clear" type="button" class="text-button" disabled>Delete all custom</button>
+        </div>
         <ul id="custom-list" class="blacklist-list population-managed-list" aria-label="Custom populations"></ul>
       </div>
     </div>

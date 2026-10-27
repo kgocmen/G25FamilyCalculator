@@ -1,6 +1,6 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
-const { estimateStrict, estimateRelaxed, estimateRelaxedByCategory } = require("./mixture.js");
+const { estimateStrict, estimateRelaxed, estimateRelaxedByCategory } = require("../calculator/mixture.js");
 
 function row(label, values, category = "modern") {
   return { category, label, values };

@@ -4,8 +4,8 @@ const path = require("node:path");
 const test = require("node:test");
 const vm = require("node:vm");
 
-const core = require("./core.js");
-const modernPca = require("./modern_pca.js");
+const core = require("../calculator/core.js");
+const modernPca = require("../calculator/modern_pca.js");
 const row = (label, first) => ["modern", label, first, ...Array(24).fill(0)];
 
 test("deep mode keeps the main selection and shows one level of clusters", () => {
@@ -64,7 +64,7 @@ test("deep mode keeps the main selection and shows one level of clusters", () =>
   }
   const URL = { createObjectURL() { return "blob:deep-ui-test"; }, revokeObjectURL() {} };
   const sessionStorage = { getItem() { return null; }, setItem() {} };
-  let source = fs.readFileSync(path.join(__dirname, "app.js"), "utf8");
+  let source = fs.readFileSync(path.join(__dirname, "../calculator/app.js"), "utf8");
   source = source.replace("  function renderMedievalPca(", "  function unusedRenderMedievalPca(");
   source = source.replace("  render();\n})();",
     "  function renderMedievalPca(rows) { window.lastPcaRows = rows; window.plotCount = (window.plotCount || 0) + 1; }\n  window.testApi = { state, render, renderMedievalBreakdown, renderMedievalFit, renderDeepFit, blacklist, allowedPcaReferences, allowedDeepPcaReferences };\n  render();\n})();");

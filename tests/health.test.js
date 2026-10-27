@@ -1,7 +1,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const raw = require("./raw_dna.js");
-const health = require("./health.js");
+const raw = require("../calculator/raw_dna.js");
+const health = require("../calculator/health.js");
 
 test("every reference marker has a readable definition", () => {
   assert.equal(Object.keys(health.definitions).length, health.variants.length);

@@ -3,10 +3,10 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
 const vm = require("node:vm");
-const neolithic = require("./neolithic.js");
+const neolithic = require("../calculator/neolithic.js");
 
 test("browser scripts load the fitter and Breakdown tabs follow chronological order", () => {
-  const html = fs.readFileSync(path.join(__dirname, "index.html"), "utf8");
+  const html = fs.readFileSync(path.join(__dirname, "../calculator/index.html"), "utf8");
   const tabs = html.match(/<div id="period-tabs"[^>]*>([\s\S]*?)<\/div>/)[1];
   assert.deepEqual([...tabs.matchAll(/<button id="([^"]+)"/g)].map((match) => match[1]), [
     "neolithic-tab", "early-medieval-tab", "late-medieval-tab", "modern-analysis-tab",
@@ -19,7 +19,7 @@ test("browser scripts load the fitter and Breakdown tabs follow chronological or
   const browserWindow = {};
   const context = { window: browserWindow, self: browserWindow };
   for (const script of scripts) {
-    vm.runInNewContext(fs.readFileSync(path.join(__dirname, script), "utf8"), context);
+    vm.runInNewContext(fs.readFileSync(path.join(__dirname, "../calculator", script), "utf8"), context);
   }
   assert.equal(typeof context.window.G25Medieval.fitUnrestricted, "function");
   const reference = context.window.G25_NEOLITHIC_REFERENCES.turkish[0];

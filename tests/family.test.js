@@ -1,6 +1,6 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
-const core = require("./core.js");
+const core = require("../calculator/core.js");
 
 const person = (label, value, source = "reference") => ({
   label, values: Array.from({ length: 25 }, (_, k) => value * (k + 1) / 100), source, category: "modern",

@@ -57,7 +57,7 @@ From the repository root:
 
 ```sh
 OPENBLAS_NUM_THREADS=1 python build_raw_models.py /path/to/source/files
-node --test calculator/raw_dna.test.js
+node --test tests/raw_dna.test.js
 ```
 
 Also save the published script as `K36vertical.js` in the source directory.
