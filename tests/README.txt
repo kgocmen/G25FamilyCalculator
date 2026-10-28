@@ -4,8 +4,14 @@ Run from the project root:
   python3 -m unittest discover -s tests -p 'test_*.py'
   node tests/deep_pca_selfcheck.js
 
-The deep PCA check uses the editable data/pca/*.g25.txt files and runs each
-population found only in a deep file through the app's main-then-deep worker.
+Each global data/pca/modern_pcaN.g25.txt file contains Main: and Deep: sections.
+The main PCA uses only Main: rows. Deep analysis uses the deduplicated union of
+Main: and Deep: rows; Deep: only needs populations not already listed in Main:.
+Keep each section header on its own line. An empty Deep: section is valid.
+Plain PCA files without section headers remain main-only.
+
+The deep PCA check uses these editable files and runs each
+population listed only under Deep: through the app's main-then-deep worker.
 It passes when that exact deep reference contributes at least 99.9% and the
 deep fit distance is at most 0.001. Results are written to
 tests/results/successful.tsv and tests/results/unsuccessful.tsv. This directory

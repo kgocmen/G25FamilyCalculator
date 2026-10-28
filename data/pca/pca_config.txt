@@ -31,7 +31,7 @@
       "file": "modern_pca6.g25.txt"
     },
     {
-      "id": "global-west-asia-and-caucasus",
+      "id": "global-caucasus",
       "title": "Caucasus",
       "file": "modern_pca7.g25.txt"
     },

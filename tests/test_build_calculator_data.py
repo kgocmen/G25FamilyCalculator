@@ -136,21 +136,49 @@ class ReadRowsTests(unittest.TestCase):
             (path / "turkish_pca_config.txt").write_text(
                 '{"modern":[{"id":"regional","title":"Region","file":"regional.g25.txt"}]}',
                 encoding="utf-8")
-            (path / "regional_deep.g25.txt").write_text(
-                f"Group: Sample,{coordinates}\n", encoding="utf-8")
-            self.assertEqual(read_modern_pcas(modern, path)[0]["deepReferenceAnchors"], ["Sample"])
-            (path / "regional_deep.g25.txt").write_text(
-                f"Other: Sample,{coordinates}\n", encoding="utf-8")
+            main = "Main:\n" + "".join(
+                f"Group:{name},{coordinates}\n" for name in ("One", "Two", "Three"))
+            (path / "regional.g25.txt").write_text(
+                main + f"Deep:\nGroup: Sample,{coordinates}\n", encoding="utf-8")
+            self.assertEqual(read_modern_pcas(modern, path)[0]["deepReferenceAnchors"], ["Sample"] * 4)
+            (path / "regional.g25.txt").write_text(
+                main + f"Deep:\nOther: Sample,{coordinates}\n", encoding="utf-8")
             with self.assertRaisesRegex(ValueError, "unknown main PCA group"):
                 read_modern_pcas(modern, path)
 
-            (path / "regional_deep.g25.txt").write_text(
-                f"Group: Inner: Sample,{coordinates}\n",
+            (path / "regional.g25.txt").write_text(
+                main + f"Deep:\nGroup: Inner: Sample,{coordinates}\n",
                 encoding="utf-8")
             with self.assertRaisesRegex(ValueError, "expected Group: Population"):
                 read_modern_pcas(modern, path)
-            (path / "regional_deep.g25.txt").unlink()
+            (path / "regional.g25.txt").write_text(main + "Deep:\n", encoding="utf-8")
+            self.assertEqual(read_modern_pcas(modern, path)[0]["deepReferenceAnchors"], ["Sample"] * 3)
+            (path / "regional.g25.txt").write_text(main.removeprefix("Main:\n"), encoding="utf-8")
             self.assertNotIn("deepReferences", read_modern_pcas(modern, path)[0])
+
+    def test_pca_sections_keep_main_separate_and_deduplicate_the_deep_union(self):
+        coordinates = ",".join(["0"] * 25)
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "regional.g25.txt"
+            path.write_text(f"Main:\nGroup:One,{coordinates}\n\nDeep:\n"
+                            f"Group: One,{coordinates}\nGroup: Two,{coordinates}\n")
+            self.assertEqual([row[1] for row in read_rows(path, "modern")], ["Group:One"])
+            self.assertEqual([row[1] for row in read_rows(path, "modern", section="deep")],
+                             ["Group: One", "Group: Two"])
+            path.write_text(f"Main:\nGroup:One,{coordinates}\nDeep:\n")
+            self.assertEqual([row[1] for row in read_rows(path, "modern", section="deep")],
+                             ["Group: One"])
+            path.write_text(f"Main:\nGroup:One,{coordinates}\nDeep:\nGroup: One," +
+                            ",".join(["1"] * 25) + "\n")
+            with self.assertRaisesRegex(ValueError, "conflicting coordinates"):
+                read_rows(path, "modern", section="deep")
+
+    def test_pca_section_headers_must_be_in_order_and_unique(self):
+        coordinates = ",".join(["0"] * 25)
+        for text in ("Deep:\n", "Main:\nMain:\n", "Main:\nDeep:\nDeep:\n",
+                     f"Group:One,{coordinates}\nMain:\n"):
+            with self.subTest(text=text), self.assertRaisesRegex(ValueError, "Main: followed by Deep:"):
+                self.read(text, "modern")
 
     def test_mixed_pca_rebuilds_from_regular_maps_without_istanbul(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -199,15 +227,28 @@ class ReadRowsTests(unittest.TestCase):
         self.assertEqual(pcas[6]["title"], "Caucasus")
         self.assertEqual(pcas[17]["title"], "Levant and Mesopotamia")
         self.assertEqual(list(dict.fromkeys(row[1].split(":", 1)[0] for row in caucasus)),
-                         ["North Caucasus", "Armenian", "Georgia"])
+                         ["Armenia", "Ciscaucasia", "Transcaucasia", "Georgia South", "Georgia West"])
         self.assertEqual(list(dict.fromkeys(row[1].split(":", 1)[0] for row in levant_mesopotamia)),
                          ["Levant", "Mesopotamia"])
-        for group, prefix, rows in (("North Caucasus", "Avar_", caucasus),
-                                    ("Armenian", "Armenian_", caucasus),
-                                    ("Georgia", "Georgian_", caucasus),
+        for group, prefix, rows in (("Ciscaucasia", "Avar_", caucasus),
+                                    ("Ciscaucasia", "Lak_", caucasus),
+                                    ("Ciscaucasia", "Circassian_", caucasus),
+                                    ("Transcaucasia", "Andi_(Transcaucasian_Profile)", caucasus),
+                                    ("Transcaucasia", "Karata_(Transcaucasian_Profile)", caucasus),
+                                    ("Armenia", "Armenian_", caucasus),
+                                    ("Armenia", "Armenian_Artsakh_", caucasus),
+                                    ("Georgia West", "Mingrelian_", caucasus),
+                                    ("Georgia South", "Georgian_Kartlian_", caucasus),
+                                    ("Transcaucasia", "Georgian_Tushetian_", caucasus),
+                                    ("Transcaucasia", "Georgian_Khevsurian_", caucasus),
+                                    ("Georgia South", "Turkish_Meskhetian_", caucasus),
                                     ("Levant", "Palestinian_Arab_", levant_mesopotamia),
                                     ("Mesopotamia", "Iraqi_Arab_", levant_mesopotamia)):
             self.assertTrue(any(row[1].startswith(f"{group}:{prefix}") for row in rows))
+        caucasus_labels = {row[1].split(":", 1)[1].strip() for row in pcas[6]["deepReferences"]}
+        self.assertIn("Lak_(n=54)", caucasus_labels)
+        self.assertFalse(any(label.startswith(("Nogai_", "Lak_Iran_", "Lak_Turkey_")) or
+                             "Jew" in label for label in caucasus_labels))
         self.assertEqual(len({row[1] for row in caucasus + levant_mesopotamia}),
                          len(caucasus + levant_mesopotamia))
         for row in caucasus + levant_mesopotamia:
@@ -224,7 +265,8 @@ class ReadRowsTests(unittest.TestCase):
         self.assertIn("Iraqi_Turkmen_(n=18)", groups["Turk Iraq"])
         self.assertIn("Azeri_Iran_East_Azerbaijan_Tabriz_(n=6)", groups["Azerbaijani"])
         self.assertIn("Azeri_Azerbaijan_(n=6)", groups["Azerbaijani"])
-        self.assertIn("Turkish_Manisa_Yörük_(n=9)", groups["Turk Anatolia (High Turkic)"])
+        self.assertIn("Turk Anatolia (High Turkic): Turkish_Manisa_Yörük_(n=9)",
+                      {row[1] for row in pcas[11]["deepReferences"]})
         self.assertIn("Turkish_Manisa_Çepni_(n=1)", groups["Turk Anatolia (High Turkic)"])
         self.assertIn("Turkish_Bursa_(n=6)", groups["Turk Anatolia (High Turkic)"])
         self.assertIn("Turkish_Kayseri_(n=35)", groups["Turk Anatolia"])
@@ -236,8 +278,8 @@ class ReadRowsTests(unittest.TestCase):
         modern = read_rows(ROOT / "data" / "modern_g25.txt", "modern")
         source = {row[1]: row[2:] for row in modern}
         pca12 = read_rows(ROOT / "data" / "pca" / "modern_pca12.g25.txt", "modern")
-        anchors = {row[1].split(":", 1)[1]: row[1].split(":", 1)[0] for row in pca12}
-        deep = read_rows(ROOT / "data" / "pca" / "modern_pca12_deep.g25.txt", "modern")
+        anchors = {row[1].split(":", 1)[1].strip(): row[1].split(":", 1)[0] for row in pca12}
+        deep = read_rows(ROOT / "data" / "pca" / "modern_pca12.g25.txt", "modern", section="deep")
         pcas = read_global_modern_pcas(modern)
         self.assertEqual(pcas[11]["deepReferences"], deep)
         self.assertEqual(pcas[11]["deepReferenceAnchors"],
@@ -290,7 +332,7 @@ class ReadRowsTests(unittest.TestCase):
             ("Khond_(n=14)", "Eastern Adivasi"),
         ):
             self.assertEqual(main[label], group)
-        source_deep = read_rows(ROOT / "data" / "pca" / "modern_pca2_deep.g25.txt", "modern")
+        source_deep = read_rows(ROOT / "data" / "pca" / "modern_pca2.g25.txt", "modern", section="deep")
         deprecated = {row[1].split(": ", 1)[1] for row in source_deep
                       if row[1].startswith("Deprecated: ")}
         self.assertEqual(deprecated, {
@@ -567,7 +609,7 @@ class ReadRowsTests(unittest.TestCase):
         for pca in pcas.values():
             with self.subTest(pca=pca["id"]):
                 self.assertIn("deepReferences", pca)
-                main = {row[1].split(":", 1)[1]: row[1].split(":", 1)[0]
+                main = {row[1].split(":", 1)[1].strip(): row[1].split(":", 1)[0].strip()
                         for row in pca["references"]}
                 deep = {}
                 for row in pca["deepReferences"]:
@@ -576,9 +618,7 @@ class ReadRowsTests(unittest.TestCase):
                     deep.setdefault(label, set()).add(group)
                 missing = {label for label, group in main.items()
                            if group not in deep.get(label, set())}
-                expected_missing = ({"Ashkenazi_Jew_(n=1209)"}
-                                    if pca["id"] == "global-jewish" else set())
-                self.assertEqual(missing, expected_missing)
+                self.assertEqual(missing, set())
 
         def deep_labels(pca_id, group):
             return {row[1].split(": ", 1)[1]

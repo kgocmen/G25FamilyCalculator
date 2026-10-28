@@ -9,6 +9,7 @@ const path = require("node:path");
 const vm = require("node:vm");
 const core = require("../calculator/core.js");
 const modern = require("../calculator/modern_pca.js");
+const { readPcaSource } = require("./pca_source.js");
 
 const root = path.resolve(__dirname, "..");
 const calculator = path.join(root, "calculator");
@@ -21,19 +22,6 @@ function option(name) {
     throw new Error(`${name} needs a value.`);
   }
   return process.argv[index + 1];
-}
-
-function readRows(filename) {
-  return fs.readFileSync(path.join(pcaDirectory, filename), "utf8")
-    .split(/\r?\n/).filter((line) => line.trim() && !line.trimStart().startsWith("#"))
-    .map((line) => {
-      const [label, ...cells] = line.split(",");
-      const values = cells.map(Number);
-      if (!label || values.length !== 25 || values.some((value) => !Number.isFinite(value))) {
-        throw new Error(`${filename}: invalid G25 row: ${label}`);
-      }
-      return ["modern", label.trim(), ...values];
-    });
 }
 
 function populationName(row) {
@@ -77,10 +65,12 @@ function run() {
   const outputDir = path.resolve(option("--output-dir") || path.join(__dirname, "results"));
   const config = JSON.parse(fs.readFileSync(path.join(pcaDirectory, "pca_config.txt"), "utf8"));
   const pcas = config.modern.filter((entry) => !pcaFilter || entry.id === pcaFilter)
-    .map((entry) => ({ id: entry.id, title: entry.title,
-      references: readRows(entry.file),
-      deepReferences: readRows(entry.file.replace(/\.g25\.txt$/, "_deep.g25.txt"))
-        .filter((row) => !row[1].startsWith("Deprecated:")) }));
+    .map((entry) => {
+      const source = readPcaSource(path.join(pcaDirectory, entry.file));
+      return { id: entry.id, title: entry.title, references: source.references,
+        deepReferences: (source.deepReferences || source.references)
+          .filter((row) => !row[1].startsWith("Deprecated:")) };
+    });
   if (!pcas.length) throw new Error(`No PCA found for ${pcaFilter}.`);
   const candidates = pcas.flatMap((pca) => {
     const mainNames = new Set(pca.references.map(populationName));

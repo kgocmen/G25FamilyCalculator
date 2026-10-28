@@ -120,10 +120,23 @@ def build_ydnatr(directory: Path = ydnatr_DIRECTORY, k12b_output: Path = K12B_OU
     print(f"Bundled {len(health['variants'])} Health markers into {health_output}")
 
 
-def read_rows(path: Path, category: str) -> list[list]:
-    rows = []
+def read_row_sections(path: Path, category: str) -> dict[str, list[list]]:
+    sections = {"main": []}
+    current = "main"
+    headers = []
     with path.open(encoding="utf-8", newline="") as file:
         for number, row in enumerate(csv.reader(file), 1):
+            if not row or all(not cell.strip() for cell in row):
+                continue
+            if len(row) == 1 and row[0].strip() in {"Main:", "Deep:"}:
+                header = row[0].strip()[:-1].lower()
+                if (header == "main" and (headers or sections["main"]) or
+                        header == "deep" and headers != ["main"]):
+                    raise ValueError(f"{path}:{number}: expected Main: followed by Deep:")
+                headers.append(header)
+                current = header
+                sections.setdefault(current, [])
+                continue
             # Combined exports include a category before the label. Accept
             # matching prefixes even when they occur midway through a file.
             if len(row) == 27 and row[0].strip() == category:
@@ -135,8 +148,31 @@ def read_rows(path: Path, category: str) -> list[list]:
             values = [float(value) for value in row[1:]]
             if not all(math.isfinite(value) for value in values):
                 raise ValueError(f"{path}:{number}: coordinates must be finite")
-            rows.append([category, row[0], *values])
-    return rows
+            sections[current].append([category, row[0], *values])
+    return sections
+
+
+def merge_pca_rows(main_rows: list[list], deep_rows: list[list], path: Path) -> list[list]:
+    """Return the main/deep union, treating separator whitespace as equivalent."""
+    merged = {}
+    for row in main_rows + deep_rows:
+        parts = [part.strip() for part in row[1].split(":")]
+        if len(parts) != 2 or not all(parts):
+            raise ValueError(f"{path}: expected Group: Population")
+        label = ": ".join(parts)
+        if label in merged and merged[label][2:] != row[2:]:
+            raise ValueError(f"{path}: conflicting coordinates for {label}")
+        merged.setdefault(label, [row[0], label, *row[2:]])
+    return list(merged.values())
+
+
+def read_rows(path: Path, category: str, section: str = "main") -> list[list]:
+    sections = read_row_sections(path, category)
+    if section == "main":
+        return sections["main"]
+    if section == "deep":
+        return merge_pca_rows(sections["main"], sections.get("deep", []), path)
+    raise ValueError(f"Unknown reference section: {section}")
 
 
 def read_global_ancient_rows(path: Path = ROOT / "data" / "ancient_g25.txt") -> list[list]:
@@ -223,13 +259,15 @@ def read_modern_pcas(modern_rows: list[list], directory: Path = MODERN_PCA_DIREC
         if filename in filenames:
             raise ValueError(f"Duplicate modern PCA file: {filename}")
         filenames.add(filename)
-        rows = read_rows(directory / filename, "modern")
+        source_path = directory / filename
+        sections = read_row_sections(source_path, "modern")
+        rows = sections["main"]
         if len(rows) < 3:
             raise ValueError(f"{filename}: PCA needs at least three references")
         anchors = []
         for row in rows:
             if label_anchors:
-                label = row[1].split(":", 1)[-1]
+                label = row[1].split(":", 1)[-1].strip()
                 source = modern_by_label.get(label)
                 if source is None or source[2:] != row[2:]:
                     raise ValueError(f"{filename}: {row[1]} does not match the global modern dataset")
@@ -241,34 +279,25 @@ def read_modern_pcas(modern_rows: list[list], directory: Path = MODERN_PCA_DIREC
         pca = {"id": entry["id"], "title": entry["title"],
                "references": rows, "referenceAnchors": anchors,
                "anchorLabels": list(dict.fromkeys(anchors))}
-        deep_path = directory / filename.replace(".g25.txt", "_deep.g25.txt")
-        if deep_path.exists():
-            deep_rows = read_rows(deep_path, "modern")
-            if not deep_rows:
-                raise ValueError(f"{deep_path.name}: deep PCA needs references")
+        if "deep" in sections:
+            deep_rows = merge_pca_rows(rows, sections["deep"], source_path)
             main_groups = {row[1].split(":", 1)[0].strip() for row in rows}
             active_deep_rows = []
             deep_anchors = []
-            deep_labels = set()
             for row in deep_rows:
                 parts = [part.strip() for part in row[1].split(":")]
-                if len(parts) != 2 or any(not part for part in parts):
-                    raise ValueError(f"{deep_path.name}: expected Group: Population")
                 deprecated = parts[0] == "Deprecated"
                 if not deprecated and parts[0] not in main_groups:
-                    raise ValueError(f"{deep_path.name}: unknown main PCA group {parts[0]}")
-                if row[1] in deep_labels:
-                    raise ValueError(f"{deep_path.name}: duplicate deep reference {row[1]}")
-                deep_labels.add(row[1])
+                    raise ValueError(f"{filename}: unknown main PCA group {parts[0]}")
                 label = parts[1]
                 if label_anchors:
                     source = modern_by_label.get(label)
                     if source is None or source[2:] != row[2:]:
-                        raise ValueError(f"{deep_path.name}: {row[1]} does not match the global modern dataset")
+                        raise ValueError(f"{filename}: {row[1]} does not match the global modern dataset")
                 else:
                     label = modern_by_coordinates.get(tuple(row[2:]))
                     if label is None:
-                        raise ValueError(f"{deep_path.name}: {row[1]} is not in the Turkish modern dataset")
+                        raise ValueError(f"{filename}: {row[1]} is not in the Turkish modern dataset")
                 if deprecated:
                     continue
                 active_deep_rows.append(row)

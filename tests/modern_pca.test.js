@@ -1,7 +1,9 @@
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
+const os = require("node:os");
 const test = require("node:test");
+const { readPcaSource } = require("./pca_source.js");
 const { nearestMatches } = require("../calculator/core.js");
 const { selectModernPca, rankModernPcas, defaultGroupFit,
   shouldAutoSelectMixed, isIstanbulReference, selectFitReferences, selectDeepReferences,
@@ -9,6 +11,28 @@ const { selectModernPca, rankModernPcas, defaultGroupFit,
 
 const row = (label, first) => ["modern", label, first, ...Array(24).fill(0)];
 const target = (first) => ({ label: "Input", values: [first, ...Array(24).fill(0)] });
+
+test("sectioned PCA sources deduplicate main rows in the deep union", (t) => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "g25-pca-source-"));
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  const filename = path.join(directory, "pca.g25.txt");
+  const coordinates = Array(25).fill(0).join(",");
+  fs.writeFileSync(filename, `Main:\nGroup:One,${coordinates}\n\nDeep:\n` +
+    `Group: One,${coordinates}\nGroup: Two,${coordinates}\n`);
+  assert.deepEqual(readPcaSource(filename), {
+    references: [row("Group:One", 0)],
+    deepReferences: [row("Group: One", 0), row("Group: Two", 0)],
+  });
+  fs.writeFileSync(filename, `Main:\nGroup:One,${coordinates}\nDeep:\n`);
+  assert.deepEqual(readPcaSource(filename).deepReferences, [row("Group: One", 0)]);
+  fs.writeFileSync(filename, `Main:\nGroup:One,${coordinates}\nDeep:\n` +
+    `Group: One,${Array(25).fill(1).join(",")}\n`);
+  assert.throws(() => readPcaSource(filename), /conflicting coordinates/);
+  for (const source of ["Deep:\n", "Main:\nMain:\n", "Main:\nDeep:\nDeep:\n"]) {
+    fs.writeFileSync(filename, source);
+    assert.throws(() => readPcaSource(filename), /Main: followed by Deep:/);
+  }
+});
 
 test("bundled modern PCAs match their source files", () => {
   const bundle = fs.readFileSync(path.join(__dirname, "../calculator/turkish_modern_pca_references.js"), "utf8");
@@ -120,7 +144,7 @@ test("mixed deep plots use fitted population rows from the main PCA files", () =
   ] }]).map((reference) => reference[1]), ["Doğu_Anadolu:Türk_Doğu:Türk_Artvin"]);
 });
 
-test("global PCA bundles include deep references only for maps with a deep file", () => {
+test("global PCA bundles use Main for regular references and the union for deep references", () => {
   const bundle = fs.readFileSync(path.join(__dirname, "../calculator/modern_pca_references.js"), "utf8");
   const pcas = JSON.parse(bundle.slice(bundle.indexOf("=") + 1).trim().replace(/;$/, ""));
   const config = JSON.parse(fs.readFileSync(path.join(__dirname,
@@ -131,19 +155,10 @@ test("global PCA bundles include deep references only for maps with a deep file"
   for (const [index, entry] of config.modern.entries()) {
     assert.equal(pcas[index].title, entry.title);
     const mainPath = path.join(__dirname, "../data/pca", entry.file);
-    const main = fs.readFileSync(mainPath, "utf8").trim().split(/\r?\n/)
-      .map((line) => line.split(",", 1)[0]);
-    assert.deepEqual(pcas[index].references.map((reference) => reference[1]), main);
-    const deepPath = path.join(__dirname, "../data/pca",
-      entry.file.replace(/\.g25\.txt$/, "_deep.g25.txt"));
-    if (!fs.existsSync(deepPath)) {
-      assert.equal(pcas[index].deepReferences, undefined);
-      continue;
-    }
-    const source = fs.readFileSync(deepPath, "utf8").trim().split(/\r?\n/)
-      .map((line) => line.split(",", 1)[0])
-      .filter((label) => label.split(":", 1)[0].trim().toLowerCase() !== "deprecated");
-    assert.deepEqual(pcas[index].deepReferences.map((reference) => reference[1]), source);
+    const { references, deepReferences } = readPcaSource(mainPath);
+    assert.deepEqual(pcas[index].references, references);
+    const source = deepReferences.filter((row) => row[1].split(":", 1)[0] !== "Deprecated");
+    assert.deepEqual(pcas[index].deepReferences, source);
     assert.equal(pcas[index].deepReferenceAnchors.length, source.length);
   }
 });

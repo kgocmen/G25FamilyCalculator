@@ -4,6 +4,7 @@
 import csv
 import json
 from pathlib import Path
+from build.build_calculator_data import read_rows
 
 
 ROOT = Path(__file__).resolve().parent
@@ -24,12 +25,12 @@ def main():
     modern = {name for _, name in names(DATA / "modern_g25.txt")}
     covered = set()
     for entry in config["modern"]:
-        filename = entry["file"].replace(".g25.txt", "_deep.g25.txt")
-        path = PCA / filename
-        for line_number, label in names(path):
+        path = PCA / entry["file"]
+        for row in read_rows(path, "modern", section="deep"):
+            label = row[1]
             group, separator, population = label.partition(":")
             if not separator or not group.strip() or not population.strip():
-                raise ValueError(f"{path}:{line_number}: expected Group: Population")
+                raise ValueError(f"{path}: expected Group: Population")
             if group.strip() != "Deprecated":
                 covered.add(population.strip())
 
