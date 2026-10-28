@@ -10,8 +10,8 @@
   <link rel="stylesheet" href="health.css?v=20261026-3">
   <script defer src="references.js?v=20261026-2"></script>
   <script defer src="turkish_references.js?v=20261022-1"></script>
-  <script defer src="modern_pca_references.js?v=20261027-6"></script>
-  <script defer src="mixed_pca_references.js?v=20261027-6"></script>
+  <script defer src="modern_pca_references.js?v=20261028-11"></script>
+  <script defer src="mixed_pca_references.js?v=20261028-10"></script>
   <script defer src="turkish_modern_pca_references.js?v=20261022-2"></script>
   <script defer src="turkish_mixed_pca_references.js?v=20261022-2"></script>
   <script defer src="turkish_medieval_references.js?v=20261022-2"></script>
@@ -23,14 +23,14 @@
   <script defer src="visualise.js?v=20261020-9"></script>
   <script defer src="clusters.js?v=20261020-1"></script>
   <script defer src="pca.js?v=20261024-5"></script>
-  <script defer src="modern_pca.js?v=20261027-4"></script>
+  <script defer src="modern_pca.js?v=20261028-1"></script>
   <script defer src="pca_layout.js?v=20261024-6"></script>
   <script defer src="k12b_data.js?v=20261026-2"></script>
   <script defer src="health_data.js?v=20261026-3"></script>
   <script defer src="k12b.js?v=20261026-6"></script>
   <script defer src="health.js?v=20261026-3"></script>
   <script defer src="raw_data_ui.js?v=20261027-5"></script>
-  <script defer src="app.js?v=20261027-6"></script>
+  <script defer src="app.js?v=20261028-1"></script>
 </head>
 <body>
   <main class="shell">
@@ -598,7 +598,11 @@
         <p id="custom-status" class="method-note" role="status"></p>
         <div class="population-managed-heading">
           <h3>Custom populations</h3>
-          <button id="custom-clear" type="button" class="text-button" disabled>Delete all custom</button>
+          <div class="population-clear-actions">
+            <button id="custom-blacklist-all" type="button" class="text-button" disabled>Blacklist all custom</button>
+            <button id="custom-only-all" type="button" class="text-button" disabled>Only use all custom</button>
+            <button id="custom-clear" type="button" class="text-button" disabled>Delete all custom</button>
+          </div>
         </div>
         <ul id="custom-list" class="blacklist-list population-managed-list" aria-label="Custom populations"></ul>
       </div>

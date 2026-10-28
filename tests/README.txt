@@ -13,3 +13,5 @@ is ignored by Git. The command exits with status 1 if any entries fail.
 
 Use --pca ID to check one PCA or --limit N for a short smoke test. Use
 --output-dir DIR to put the reports elsewhere.
+Use --per-pca-limit 1 to check one deep-only population from every configured
+PCA without running the full deep check.

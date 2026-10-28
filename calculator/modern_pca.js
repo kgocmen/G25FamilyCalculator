@@ -5,16 +5,17 @@ function G25ModernPcaModule(root) {
     return row[1].split(":", 1)[0] === "Türk_İstanbul";
   }
 
-  function selectFitReferences(target, references, nearestMatches, perGroup = 12) {
+  function selectFitReferences(target, references, nearestMatches, perGroup = null) {
     const groups = new Map();
     for (const row of references) {
       const name = row[1].split(":", 1)[0];
       if (!groups.has(name)) groups.set(name, []);
       groups.get(name).push(row);
     }
+    const limit = perGroup ?? (groups.size > 8 ? 6 : 12);
     const selected = new Set();
     for (const rows of groups.values()) {
-      for (const match of nearestMatches(target, rows, perGroup)) selected.add(rows[match.id]);
+      for (const match of nearestMatches(target, rows, limit)) selected.add(rows[match.id]);
     }
     return references.filter((row) => selected.has(row));
   }

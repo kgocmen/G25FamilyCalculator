@@ -56,7 +56,7 @@ write.table(K12b.12.F, "K12b.12.F", quote=FALSE, row.names=FALSE, col.names=FALS
 From the repository root:
 
 ```sh
-OPENBLAS_NUM_THREADS=1 python build_raw_models.py /path/to/source/files
+OPENBLAS_NUM_THREADS=1 python build/build_raw_models.py /path/to/source/files
 node --test tests/raw_dna.test.js
 ```
 

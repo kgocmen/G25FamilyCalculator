@@ -289,6 +289,10 @@
     $("#blacklist-clear").disabled = !blacklist.size;
     $("#whitelist-clear").disabled = !whitelist.size;
     $("#custom-clear").disabled = !customReferences.size;
+    $("#custom-blacklist-all").disabled = !customReferences.size ||
+      [...customReferences.keys()].every((key) => blacklist.has(key));
+    $("#custom-only-all").disabled = !customReferences.size ||
+      [...customReferences.keys()].every((key) => whitelist.has(key));
     $("#population-rule-count").textContent = String(total + customReferences.size);
     $("#population-rule-count").hidden = !total && !customReferences.size;
     $("#population-mode-exclude").setAttribute("aria-pressed", String(populationListMode === "exclude"));
@@ -388,6 +392,23 @@
     persistCustomReferences();
     $("#custom-paste").value = "";
     status.textContent = `Added ${added.length} custom ${added.length === 1 ? "reference" : "references"}.`;
+    refreshBlacklist();
+  }
+
+  function setAllCustomReferences(only) {
+    if (!customReferences.size) return;
+    for (const row of customReferences.values()) {
+      const item = { category: row[0], label: row[1] };
+      const key = populationKey(item);
+      if (only) {
+        blacklist.delete(key);
+        whitelist.set(key, item);
+      } else {
+        whitelist.delete(key);
+        blacklist.set(key, item);
+      }
+    }
+    $("#custom-status").textContent = `${customReferences.size} custom ${customReferences.size === 1 ? "reference" : "references"} ${only ? "added to Only use" : "blacklisted"}.`;
     refreshBlacklist();
   }
 
@@ -3118,6 +3139,8 @@
     $(selector).addEventListener("click", () => addMatchingPopulations(category));
   }
   $("#custom-add").addEventListener("click", addCustomReferences);
+  $("#custom-blacklist-all").addEventListener("click", () => setAllCustomReferences(false));
+  $("#custom-only-all").addEventListener("click", () => setAllCustomReferences(true));
   $("#custom-toggle").addEventListener("change", (event) => {
     customEnabled = event.currentTarget.checked;
     persistCustomReferences();

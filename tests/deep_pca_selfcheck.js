@@ -59,7 +59,7 @@ function worker() {
 
 function run() {
   if (process.argv.includes("--help")) {
-    console.log("Usage: node tests/deep_pca_selfcheck.js [--pca ID] [--limit N] [--output-dir DIR]");
+    console.log("Usage: node tests/deep_pca_selfcheck.js [--pca ID] [--limit N] [--per-pca-limit N] [--output-dir DIR]");
     console.log("Tests deep-only populations with the app's main-then-deep worker; writes successful.tsv and unsuccessful.tsv.");
     return;
   }
@@ -69,17 +69,23 @@ function run() {
   if (!(limit === Infinity || Number.isSafeInteger(limit) && limit > 0)) {
     throw new Error("--limit needs a positive integer.");
   }
+  const rawPerPcaLimit = option("--per-pca-limit");
+  const perPcaLimit = rawPerPcaLimit === null ? Infinity : Number(rawPerPcaLimit);
+  if (!(perPcaLimit === Infinity || Number.isSafeInteger(perPcaLimit) && perPcaLimit > 0)) {
+    throw new Error("--per-pca-limit needs a positive integer.");
+  }
   const outputDir = path.resolve(option("--output-dir") || path.join(__dirname, "results"));
   const config = JSON.parse(fs.readFileSync(path.join(pcaDirectory, "pca_config.txt"), "utf8"));
   const pcas = config.modern.filter((entry) => !pcaFilter || entry.id === pcaFilter)
     .map((entry) => ({ id: entry.id, title: entry.title,
       references: readRows(entry.file),
-      deepReferences: readRows(entry.file.replace(/\.g25\.txt$/, "_deep.g25.txt")) }));
+      deepReferences: readRows(entry.file.replace(/\.g25\.txt$/, "_deep.g25.txt"))
+        .filter((row) => !row[1].startsWith("Deprecated:")) }));
   if (!pcas.length) throw new Error(`No PCA found for ${pcaFilter}.`);
   const candidates = pcas.flatMap((pca) => {
     const mainNames = new Set(pca.references.map(populationName));
     return pca.deepReferences.filter((row) => !mainNames.has(populationName(row)))
-      .map((row) => ({ pca, row }));
+      .slice(0, perPcaLimit).map((row) => ({ pca, row }));
   }).slice(0, limit);
   const calculate = worker();
   const successful = [], unsuccessful = [];

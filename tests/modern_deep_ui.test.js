@@ -53,7 +53,7 @@ test("deep mode keeps the main selection and shows one level of clusters", () =>
       { id: "regional", title: "Regional", references: main, deepReferences: deep },
     ],
     G25_MODERN_MIXED_PCA: { id: "mixed", title: "Mixed PCA", references: [
-      row("Southeast_Europe:Albanian", 0), row("Southeast_Europe:Slavic Balkans", 1),
+      row("Southeast_Europe:Albanian", 0), row("Southeast_Europe:Balkans", 1),
       row("West_Asia_and_Caucasus:North Caucasus", 2),
     ] } };
   let lastWorker;
@@ -137,13 +137,13 @@ test("deep mode keeps the main selection and shows one level of clusters", () =>
     "Deep fit distance 0.500");
 
   const southeastMain = [row("Albanian:Albanian_Gheg", 0),
-    row("Slavic Balkans:Bulgarian", 1), row("Albanian:Albanian_Tosk", 0.1),
+    row("Balkans:Bulgarian", 1), row("Albanian:Albanian_Tosk", 0.1),
     row("Greek:Greek_Attica", 2)];
   const caucasusMain = [row("North Caucasus:Abkhazian", 3),
     row("Levant:Lebanese", 4), row("North Caucasus:Chechen", 5)];
   const southeastPca = { id: "southeast", title: "Southeast Europe", references: southeastMain,
     deepReferences: [row("Albanian: Albanian_A", 0),
-      row("Slavic Balkans: Bulgarian_A", 1)] };
+      row("Balkans: Bulgarian_A", 1)] };
   window.G25_MODERN_PCAS.push(
     southeastPca,
     { id: "caucasus", title: "West Asia and Caucasus", references: caucasusMain });
@@ -172,7 +172,7 @@ test("deep mode keeps the main selection and shows one level of clusters", () =>
   renderDeepFit({ pcaId: "mixed", groups: mixedGroups.map((group) => group.ethnicity),
     fit: { values: state.single.values, distance: 0.3, groups: mixedGroups },
     mainFit: { components: [
-      { label: "Southeast_Europe:Slavic Balkans", weight: 0.5 },
+      { label: "Southeast_Europe:Balkans", weight: 0.5 },
       { label: "Southeast_Europe:Albanian", weight: 0.2 },
       { label: "West_Asia_and_Caucasus:North Caucasus", weight: 0.3 },
     ] },
@@ -189,7 +189,7 @@ test("deep mode keeps the main selection and shows one level of clusters", () =>
   assert.ok(mixedParents.every((parent) => parent.children.length === 3));
   assert.deepEqual(window.lastPcaRows.map((reference) => reference[1]), [
     "Southeast_Europe:Albanian:Albanian_Gheg",
-    "Southeast_Europe:Slavic Balkans:Bulgarian",
+    "Southeast_Europe:Balkans:Bulgarian",
     "Southeast_Europe:Albanian:Albanian_Tosk",
     "West_Asia_and_Caucasus:North Caucasus:Abkhazian",
     "West_Asia_and_Caucasus:North Caucasus:Chechen",

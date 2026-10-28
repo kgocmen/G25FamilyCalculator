@@ -1,6 +1,6 @@
 """Build browser models from the public source files listed in raw_data/README.md.
 
-Usage: python build_raw_models.py /path/to/downloaded/source/files
+Usage: python build/build_raw_models.py /path/to/downloaded/source/files
 Requires numpy; convert the two K12b RData objects to whitespace tables with R first.
 No personal DNA files are used in this build.
 """
@@ -15,7 +15,7 @@ import sys
 
 import numpy as np
 
-ROOT = Path(__file__).parent / "calculator" / "raw_data"
+ROOT = Path(__file__).resolve().parents[1] / "calculator" / "raw_data"
 K12B = ["Gedrosia", "Siberian", "Northwest_African", "Southeast_Asian",
         "Atlantic_Med", "North_European", "South_Asian", "East_African",
         "Southwest_Asian", "East_Asian", "Caucasus", "Sub_Saharan"]

@@ -242,6 +242,21 @@ document.querySelector('#custom-add').listeners.click();
 assert.equal(document.querySelector('#custom-count').textContent, '2');
 assert.equal(document.querySelector('#custom-clear').disabled, false);
 assert.equal(JSON.parse(storage.get('g25-temporary-custom-references')).length, 2);
+assert.equal(document.querySelector('#custom-blacklist-all').disabled, false);
+assert.equal(document.querySelector('#custom-only-all').disabled, false);
+document.querySelector('#custom-blacklist-all').listeners.click();
+assert.equal(document.querySelector('#blacklist-count').textContent, '2');
+assert.equal(document.querySelector('#custom-blacklist-all').disabled, true);
+assert.equal(document.querySelector('#custom-only-all').disabled, false);
+assert.deepEqual(JSON.parse(storage.get('g25-temporary-blacklist')).map((item) => item.label),
+  ['Custom_A', 'Custom_B']);
+document.querySelector('#custom-only-all').listeners.click();
+assert.equal(document.querySelector('#blacklist-count').textContent, '0');
+assert.equal(document.querySelector('#whitelist-count').textContent, '2');
+assert.equal(document.querySelector('#custom-only-all').disabled, true);
+assert.equal(document.querySelector('#custom-blacklist-all').disabled, false);
+assert.deepEqual(JSON.parse(storage.get('g25-temporary-whitelist')).map((item) => item.label),
+  ['Custom_A', 'Custom_B']);
 api.state.single = row('Custom_A', .2);
 api.render();
 api.changeBlacklist({label: 'Custom_A', category: 'modern'}, true);

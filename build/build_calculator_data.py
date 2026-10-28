@@ -9,7 +9,7 @@ import re
 from pathlib import Path
 
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parents[1]
 OUTPUT = ROOT / "calculator" / "references.js"
 TURKISH_OUTPUT = ROOT / "calculator" / "turkish_references.js"
 MEDIEVAL_OUTPUT = ROOT / "calculator" / "turkish_medieval_references.js"
@@ -254,7 +254,8 @@ def read_modern_pcas(modern_rows: list[list], directory: Path = MODERN_PCA_DIREC
                 parts = [part.strip() for part in row[1].split(":")]
                 if len(parts) != 2 or any(not part for part in parts):
                     raise ValueError(f"{deep_path.name}: expected Group: Population")
-                if parts[0] not in main_groups:
+                deprecated = parts[0] == "Deprecated"
+                if not deprecated and parts[0] not in main_groups:
                     raise ValueError(f"{deep_path.name}: unknown main PCA group {parts[0]}")
                 if row[1] in deep_labels:
                     raise ValueError(f"{deep_path.name}: duplicate deep reference {row[1]}")
@@ -268,6 +269,8 @@ def read_modern_pcas(modern_rows: list[list], directory: Path = MODERN_PCA_DIREC
                     label = modern_by_coordinates.get(tuple(row[2:]))
                     if label is None:
                         raise ValueError(f"{deep_path.name}: {row[1]} is not in the Turkish modern dataset")
+                if deprecated:
+                    continue
                 active_deep_rows.append(row)
                 deep_anchors.append(label)
             if active_deep_rows:

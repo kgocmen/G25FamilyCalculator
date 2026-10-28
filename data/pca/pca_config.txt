@@ -32,7 +32,7 @@
     },
     {
       "id": "global-west-asia-and-caucasus",
-      "title": "West Asia and Caucasus",
+      "title": "Caucasus",
       "file": "modern_pca7.g25.txt"
     },
     {
@@ -79,6 +79,16 @@
       "id": "global-arabian-peninsula",
       "title": "Arabian Peninsula",
       "file": "modern_pca16.g25.txt"
+    },
+    {
+      "id": "global-iranic",
+      "title": "Iranic",
+      "file": "modern_pca17.g25.txt"
+    },
+    {
+      "id": "global-levant-mesopotamia",
+      "title": "Levant and Mesopotamia",
+      "file": "modern_pca18.g25.txt"
     }
   ]
 }

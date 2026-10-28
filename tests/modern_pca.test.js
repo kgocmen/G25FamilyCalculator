@@ -67,14 +67,14 @@ test("deep references use only groups present in the main PCA fit", () => {
 test("mixed deep references come from each fitted source group only", () => {
   const fit = { components: [
     { label: "Southeast_Europe:Albanian", weight: 0.4 },
-    { label: "Southeast_Europe:Balkan Slav", weight: 0.3 },
+    { label: "Southeast_Europe:Balkans", weight: 0.3 },
     { label: "West_Asia_and_Caucasus:North Caucasus", weight: 0.3 },
   ] };
   const pcas = [
     { title: "Southeast Europe", references: [
       row("Albanian: Albanian_A", 0),
-      row("Balkan Slav: Bulgarian_A", 1),
-      row("Balkan Slav: Albanian_A", 0),
+      row("Balkans: Bulgarian_A", 1),
+      row("Balkans: Albanian_A", 0),
       row("Greek: Greek_A", 2),
     ] },
     { title: "West Asia and Caucasus", references: [
@@ -92,13 +92,13 @@ test("mixed deep references come from each fitted source group only", () => {
 test("mixed deep plots use fitted population rows from the main PCA files", () => {
   const mainFit = { components: [
     { label: "Southeast_Europe:Albanian", weight: 0.2 },
-    { label: "Southeast_Europe:Slavic Balkans", weight: 0.5 },
+    { label: "Southeast_Europe:Balkans", weight: 0.5 },
     { label: "West_Asia_and_Caucasus:North Caucasus", weight: 0.3 },
   ] };
   const pcas = [
     { title: "Southeast Europe", references: [
       row("Albanian:Albanian_Gheg", 0), row("Greek:Greek_Attica", 0.1),
-      row("Slavic Balkans:Bulgarian", 1), row("Albanian:Albanian_Tosk", 0.2),
+      row("Balkans:Bulgarian", 1), row("Albanian:Albanian_Tosk", 0.2),
     ] },
     { title: "West Asia and Caucasus", references: [
       row("North Caucasus:Abkhazian", 2), row("Levant:Lebanese", 3),
@@ -106,7 +106,7 @@ test("mixed deep plots use fitted population rows from the main PCA files", () =
   ];
   assert.deepEqual(selectMixedMainReferences(mainFit, pcas).map((reference) => reference[1]), [
     "Southeast_Europe:Albanian:Albanian_Gheg",
-    "Southeast_Europe:Slavic Balkans:Bulgarian",
+    "Southeast_Europe:Balkans:Bulgarian",
     "Southeast_Europe:Albanian:Albanian_Tosk",
     "West_Asia_and_Caucasus:North Caucasus:Abkhazian",
   ]);
@@ -125,8 +125,15 @@ test("global PCA bundles include deep references only for maps with a deep file"
   const pcas = JSON.parse(bundle.slice(bundle.indexOf("=") + 1).trim().replace(/;$/, ""));
   const config = JSON.parse(fs.readFileSync(path.join(__dirname,
     "../data/pca/pca_config.txt"), "utf8"));
+  assert.equal(config.modern.length, 18);
+  assert.equal(pcas.length, 18);
   assert.deepEqual(pcas.map((pca) => pca.id), config.modern.map((entry) => entry.id));
   for (const [index, entry] of config.modern.entries()) {
+    assert.equal(pcas[index].title, entry.title);
+    const mainPath = path.join(__dirname, "../data/pca", entry.file);
+    const main = fs.readFileSync(mainPath, "utf8").trim().split(/\r?\n/)
+      .map((line) => line.split(",", 1)[0]);
+    assert.deepEqual(pcas[index].references.map((reference) => reference[1]), main);
     const deepPath = path.join(__dirname, "../data/pca",
       entry.file.replace(/\.g25\.txt$/, "_deep.g25.txt"));
     if (!fs.existsSync(deepPath)) {

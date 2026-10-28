@@ -152,7 +152,7 @@ test("deep analysis jointly refits parent percentages", () => {
 
 test("mixed deep analysis fits source groups from their own files and jointly refits them", () => {
   const references = [row("Southeast_Europe:Albanian", 0, 0),
-    row("Southeast_Europe:Balkan Slav", 1, 0),
+    row("Southeast_Europe:Balkans", 1, 0),
     row("West_Asia_and_Caucasus:North Caucasus", 0, 1)];
   const result = calculate({ target: { values: [0.3, 0.3, ...Array(23).fill(0)] },
     references, selectedPcaId: "mixed", displayedPcaId: "mixed", groupStyle: "mixed",
@@ -160,7 +160,7 @@ test("mixed deep analysis fits source groups from their own files and jointly re
     deepPcas: [
       { id: "southeast", title: "Southeast Europe", references: [
         row("Albanian: Albanian_A", -0.2, 0),
-        row("Balkan Slav: Bulgarian_A", 1, 0),
+        row("Balkans: Bulgarian_A", 1, 0),
         row("Greek: Greek_A", 0.3, 0.3),
       ] },
       { id: "caucasus", title: "West Asia and Caucasus", references: [
