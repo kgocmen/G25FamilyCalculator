@@ -1,6 +1,6 @@
 "use strict";
 importScripts("raw_dna.js?v=20261027-5");
-importScripts("health_data.js?v=20261026-2", "health.js?v=20261026-3");
+importScripts("health_data.js?v=20261026-2", "health.js?v=20261029-1");
 
 self.onmessage = async ({ data }) => {
   const send = (type, payload = {}) => self.postMessage({ type, ...payload });
@@ -16,7 +16,7 @@ self.onmessage = async ({ data }) => {
       return response.json();
     };
     const manifest = await readJson("manifest.json");
-    for (const id of ["k36", "k12b"]) {
+    for (const id of ["k12b", "k36"]) {
       const title = id === "k36" ? "K36" : "K12b";
       try {
         const info = manifest.models[id];

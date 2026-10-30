@@ -6,6 +6,7 @@
     const $ = (id) => document.getElementById(id);
     let worker = null, results = {}, inputStats = null, g25 = null;
     const modelIds = ["k12b", "k36"], settledModels = new Set(), copyTimers = new WeakMap();
+    const tabIds = [...modelIds, "health"];
     let selectedModel = "k12b";
     const cleanName = () => ($("raw-sample-name").value.trim() || "Sample").replace(/[\r\n,\t]/g, "_").slice(0, 120);
     const line = () => `${cleanName()}_simulated_scaled,${g25.map((v) => v.toFixed(6)).join(",")}`;
@@ -13,7 +14,7 @@
 
     function selectModel(id) {
       selectedModel = id;
-      for (const model of modelIds) {
+      for (const model of tabIds) {
         const active = model === id, tab = $("raw-" + model + "-tab");
         tab.classList.toggle("active", active);
         tab.setAttribute("aria-selected", String(active));
@@ -44,7 +45,10 @@
       selectModel("k12b");
       for (const id of ["k36", "k12b"]) {
         $("raw-" + id + "-status").textContent = "";
-        if (id === "k36") $("raw-k36-components").replaceChildren();
+        if (id === "k36") {
+          $("raw-k36-chart").replaceChildren();
+          $("raw-k36-table").replaceChildren();
+        }
         for (const format of ["row", "table"]) {
           const button = $("raw-" + id + "-copy-" + format);
           button.disabled = true;
@@ -105,20 +109,13 @@
         (low ? " Low SNP coverage: results may be unstable." : "") +
         ` ${data.stats.flipped.toLocaleString()} strand complements; ${data.stats.incompatible.toLocaleString()} incompatible calls excluded.`;
       if (data.id === "k12b") {
-        selectModel("k12b");
         window.G25K12BUI?.setProfile(data.fit.proportions);
       }
       else {
-        const fragment = document.createDocumentFragment();
-        data.components.forEach((component, i) => {
-          const row = document.createElement("div"); row.className = "raw-component";
-          const label = document.createElement("span"); label.textContent = component.replaceAll("_", " ");
-          const value = document.createElement("strong"); value.textContent = (data.fit.proportions[i] * 100).toFixed(2) + "%";
-          const bar = document.createElement("span"); bar.className = "raw-component-bar"; bar.setAttribute("aria-hidden", "true");
-          bar.style.width = (data.fit.proportions[i] * 100).toFixed(3) + "%";
-          row.append(label, value, bar); fragment.append(row);
+        window.G25AdmixtureCharts.render({
+          chart: $("raw-k36-chart"), table: $("raw-k36-table"),
+          components: data.components, values: data.fit.proportions,
         });
-        $(prefix + "-components").replaceChildren(fragment);
       }
       for (const format of ["row", "table"]) {
         const button = $(prefix + "-copy-" + format);
@@ -152,7 +149,7 @@
         message("Open this calculator through its hosted site or a local web server to process raw DNA."); return;
       }
       try {
-        worker = new Worker(new URL("raw_dna_worker.js?v=20261027-5", document.baseURI));
+        worker = new Worker(new URL("raw_dna_worker.js?v=20261029-1", document.baseURI));
         const current = worker;
         busy(true); message("Starting local DNA analysis…");
         for (const id of modelIds) $("raw-" + id + "-status").textContent = `Calculating ${id === "k36" ? "K36" : "K12b"}…`;
@@ -186,18 +183,18 @@
     });
     $("raw-cancel").addEventListener("click", () => { cancel(); stopPendingModels("Calculation cancelled."); message("Calculation cancelled. Completed results remain below."); });
     $("raw-reset").addEventListener("click", reset);
+    for (const id of tabIds) $("raw-" + id + "-tab").addEventListener("click", () => selectModel(id));
     for (const id of modelIds) {
-      $("raw-" + id + "-tab").addEventListener("click", () => selectModel(id));
       for (const format of ["row", "table"]) $("raw-" + id + "-copy-" + format).addEventListener("click", (event) => copy(profile(id, format), event.currentTarget));
     }
     $("raw-model-tabs").addEventListener("keydown", (event) => {
-      let index = modelIds.indexOf(selectedModel);
-      if (event.key === "ArrowLeft" || event.key === "ArrowRight") index = 1 - index;
+      let index = tabIds.indexOf(selectedModel);
+      if (event.key === "ArrowLeft" || event.key === "ArrowRight") index = (index + (event.key === "ArrowRight" ? 1 : tabIds.length - 1)) % tabIds.length;
       else if (event.key === "Home") index = 0;
-      else if (event.key === "End") index = 1;
+      else if (event.key === "End") index = tabIds.length - 1;
       else return;
       event.preventDefault();
-      selectModel(modelIds[index]);
+      selectModel(tabIds[index]);
       $("raw-" + selectedModel + "-tab").focus();
     });
     $("raw-g25-copy").addEventListener("click", (event) => copy(line(), event.currentTarget));

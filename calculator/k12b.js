@@ -74,8 +74,7 @@
   if (!root.document) return;
 
   const $ = (id) => root.document.getElementById(id);
-  const svgNS = "http://www.w3.org/2000/svg";
-  const views = ["chart", "oracle", "health"];
+  const views = ["chart", "oracle"];
   let selectedView = "chart";
   let currentValues = null;
   const error = (message) => { $("k12b-error").textContent = message; $("k12b-error").hidden = !message; };
@@ -95,39 +94,6 @@
       tab.tabIndex = active ? 0 : -1;
       $("raw-k12b-" + name).hidden = !active;
     }
-  }
-  function piePath(start, end) {
-    const point = (angle) => [150 + 135 * Math.cos(angle), 150 + 135 * Math.sin(angle)];
-    const [x1, y1] = point(start), [x2, y2] = point(end);
-    return `M150 150 L${x1} ${y1} A135 135 0 ${end - start > Math.PI ? 1 : 0} 1 ${x2} ${y2} Z`;
-  }
-  function drawChart(values) {
-    const svg = root.document.createElementNS(svgNS, "svg");
-    svg.setAttribute("viewBox", "0 0 300 300");
-    svg.setAttribute("aria-hidden", "true");
-    let angle = -Math.PI / 2;
-    values.forEach((value, i) => {
-      if (value <= 0) return;
-      const next = angle + Math.PI * 2 * value / 100;
-      const path = root.document.createElementNS(svgNS, value >= 99.999999 ? "circle" : "path");
-      if (value >= 99.999999) {
-        path.setAttribute("cx", "150"); path.setAttribute("cy", "150"); path.setAttribute("r", "135");
-      } else path.setAttribute("d", piePath(angle, next));
-      path.setAttribute("fill", colors[i]);
-      const title = root.document.createElementNS(svgNS, "title");
-      title.textContent = `${labels[i]} ${value.toFixed(2)}%`;
-      path.append(title); svg.append(path); angle = next;
-    });
-    $("k12b-chart").replaceChildren(svg);
-  }
-  function renderTable(values) {
-    const table = $("k12b-table"); table.replaceChildren();
-    labels.forEach((label, i) => {
-      const row = appendText(table, "div", "", "k12b-component");
-      const swatch = appendText(row, "span", "", "k12b-swatch"); swatch.style.backgroundColor = colors[i];
-      appendText(row, "span", label.replaceAll("_", " "), "k12b-component-name");
-      appendText(row, "strong", values[i] < 0.005 ? "–" : `${values[i].toFixed(2)}%`);
-    });
   }
   function renderSummary(values) {
     const container = $("k12b-summary"); container.replaceChildren();
@@ -176,9 +142,11 @@
       return;
     }
     currentValues = values;
-    drawChart(values); renderTable(values); renderSummary(values); renderMatches(values);
+    root.G25AdmixtureCharts.render({ chart: $("k12b-chart"), table: $("k12b-table"), components: labels, values, colors });
+    renderSummary(values); renderMatches(values);
   }
   function reset() {
+    selectView("chart");
     currentValues = null;
     $("k12b-input").value = "";
     for (const id of ["k12b-chart", "k12b-table", "k12b-summary", "k12b-matches"]) $(id).replaceChildren();
@@ -190,7 +158,6 @@
     if (!Array.isArray(proportions) || proportions.length !== 12 || !proportions.every((v) => Number.isFinite(v) && v >= 0)) return;
     $("k12b-input").value = proportions.map((v, i) => `${labels[i]}\t${(v * 100).toFixed(5)}`).join("\n");
     generate();
-    if (selectedView !== "health") selectView("oracle");
   }
   for (const view of views) $("raw-k12b-" + view + "-tab").addEventListener("click", () => selectView(view));
   root.document.querySelector(".k12b-subtabs").addEventListener("keydown", (event) => {

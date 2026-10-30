@@ -7,14 +7,15 @@
 .k12b-error { margin: 10px 0; color: #9c2f30; font-weight: 700; }
 .k12b-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-top: 20px; }
 .k12b-reference-filter { margin-left: auto; }
-.k12b-chart-grid { display: grid; grid-template-columns: minmax(220px, 330px) minmax(0, 1fr); align-items: center; gap: 36px; margin-top: 12px; }
-.k12b-chart { width: 100%; max-width: 330px; margin: auto; }
-.k12b-chart svg { display: block; width: 100%; height: auto; }
-.k12b-table { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 7px 16px; }
-.k12b-component { display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #e6edf1; padding: 5px 0; min-width: 0; font-size: 12px; }
-.k12b-swatch { flex: 0 0 12px; width: 12px; height: 12px; border-radius: 3px; }
-.k12b-component-name { flex: 1; overflow-wrap: anywhere; }
-.k12b-component strong { color: #176e8d; font-variant-numeric: tabular-nums; }
+.admixture-chart-grid { display: grid; grid-template-columns: minmax(220px, 330px) minmax(0, 1fr); align-items: center; gap: 36px; margin-top: 12px; }
+.admixture-chart { width: 100%; max-width: 330px; margin: auto; }
+#raw-k36 .admixture-chart { align-self: start; margin-top: 0; }
+.admixture-chart svg { display: block; width: 100%; height: auto; }
+.admixture-table { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 7px 16px; }
+.admixture-component { display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #e6edf1; padding: 5px 0; min-width: 0; font-size: 12px; }
+.admixture-swatch { flex: 0 0 12px; width: 12px; height: 12px; border-radius: 3px; }
+.admixture-component-name { flex: 1; overflow-wrap: anywhere; }
+.admixture-component strong { color: #176e8d; font-variant-numeric: tabular-nums; }
 .k12b-summary { display: grid; gap: 12px; margin-top: 24px; }
 .k12b-summary[hidden], .k12b-matches[hidden] { display: none; }
 .k12b-summary-card { background: #f3f8fa; border: 1px solid #dce9ee; border-radius: 10px; padding: 14px 16px; }
@@ -27,5 +28,5 @@
 .k12b-match-set li { display: flex; gap: 10px; border-top: 1px solid #e8edf1; padding: 7px 0; font-size: 12px; overflow-wrap: anywhere; }
 .k12b-match-set li:first-child { border-top: 0; }
 .k12b-distance { flex: 0 0 46px; color: #176e8d; font-weight: 700; font-variant-numeric: tabular-nums; }
-@media (max-width: 700px) { .k12b-chart-grid { grid-template-columns: 1fr; gap: 18px; } .k12b-matches { grid-template-columns: 1fr; } }
-@media (max-width: 460px) { .k12b-table { grid-template-columns: 1fr; } }
+@media (max-width: 700px) { .admixture-chart-grid { grid-template-columns: 1fr; gap: 18px; } .k12b-matches { grid-template-columns: 1fr; } }
+@media (max-width: 460px) { .admixture-table { grid-template-columns: 1fr; } }

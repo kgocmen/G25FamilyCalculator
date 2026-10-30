@@ -41,17 +41,17 @@
     return element;
   }
   function reset() {
-    $("k12b-health-status").textContent = "Sağlık sonuçları için yukarıdaki ham DNA analizini çalıştırın.";
-    $("k12b-health-report").replaceChildren();
-    $("k12b-health-report").hidden = true;
+    $("raw-health-status").textContent = "Sağlık sonuçları için yukarıdaki ham DNA analizini çalıştırın.";
+    $("raw-health-report").replaceChildren();
+    $("raw-health-report").hidden = true;
   }
   function setMatches(matches) {
-    const report = $("k12b-health-report");
+    const report = $("raw-health-report");
     report.replaceChildren();
     const valid = (matches || []).filter((item) => byId.has(item.id) &&
       /^[ACGT]{1,2}$/.test(item.genotype) && ["positive", "neutral", "negative"].includes(item.flag) &&
       typeof item.meaning === "string");
-    $("k12b-health-status").textContent = valid.length
+    $("raw-health-status").textContent = valid.length
       ? `Ham DNA dosyanızda ${variants.length} sağlık belirtecinden ${valid.length} tanesi bulundu.`
       : "Ham DNA dosyanızda eşleşen sağlık belirteci bulunamadı.";
     for (const [category, heading] of categories) {

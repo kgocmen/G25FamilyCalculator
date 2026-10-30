@@ -6,12 +6,12 @@
   <meta name="theme-color" content="#14243b">
   <title>G25 Family Calculator</title>
   <link rel="stylesheet" href="style.css?v=20261027-6">
-  <link rel="stylesheet" href="k12b.css?v=20261026-4">
-  <link rel="stylesheet" href="health.css?v=20261026-3">
+  <link rel="stylesheet" href="k12b.css?v=20261029-1">
+  <link rel="stylesheet" href="health.css?v=20261029-1">
   <script defer src="references.js?v=20261026-2"></script>
   <script defer src="turkish_references.js?v=20261022-1"></script>
-  <script defer src="modern_pca_references.js?v=20261028-11"></script>
-  <script defer src="mixed_pca_references.js?v=20261028-10"></script>
+  <script defer src="modern_pca_references.js?v=20261028-12"></script>
+  <script defer src="mixed_pca_references.js?v=20261028-11"></script>
   <script defer src="turkish_modern_pca_references.js?v=20261022-2"></script>
   <script defer src="turkish_mixed_pca_references.js?v=20261022-2"></script>
   <script defer src="turkish_medieval_references.js?v=20261022-2"></script>
@@ -27,9 +27,10 @@
   <script defer src="pca_layout.js?v=20261024-6"></script>
   <script defer src="k12b_data.js?v=20261026-2"></script>
   <script defer src="health_data.js?v=20261026-3"></script>
-  <script defer src="k12b.js?v=20261026-6"></script>
-  <script defer src="health.js?v=20261026-3"></script>
-  <script defer src="raw_data_ui.js?v=20261027-5"></script>
+  <script defer src="admixture_charts.js?v=20261029-1"></script>
+  <script defer src="k12b.js?v=20261029-1"></script>
+  <script defer src="health.js?v=20261029-1"></script>
+  <script defer src="raw_data_ui.js?v=20261029-1"></script>
   <script defer src="app.js?v=20261028-1"></script>
 </head>
 <body>
@@ -107,6 +108,7 @@
           <div id="raw-model-tabs" class="analysis-tabs raw-model-tabs" role="tablist" aria-label="Raw DNA results">
             <button id="raw-k12b-tab" class="analysis-tab active" type="button" role="tab" aria-selected="true" aria-controls="raw-k12b">K12b</button>
             <button id="raw-k36-tab" class="analysis-tab" type="button" role="tab" aria-selected="false" aria-controls="raw-k36" tabindex="-1">K36</button>
+            <button id="raw-health-tab" class="analysis-tab" type="button" role="tab" aria-selected="false" aria-controls="raw-health" tabindex="-1">Health</button>
           </div>
           <section id="raw-k12b" class="raw-result raw-model-panel" role="tabpanel" aria-labelledby="raw-k12b-tab">
             <div class="section-head"><h2 id="raw-k12b-title">Dodecad K12b</h2>
@@ -117,12 +119,11 @@
             <div class="analysis-tabs k12b-subtabs" role="tablist" aria-label="K12b view">
               <button id="raw-k12b-chart-tab" class="analysis-tab active" type="button" role="tab" aria-selected="true" aria-controls="raw-k12b-chart">Chart</button>
               <button id="raw-k12b-oracle-tab" class="analysis-tab" type="button" role="tab" aria-selected="false" aria-controls="raw-k12b-oracle" tabindex="-1">Oracle</button>
-              <button id="raw-k12b-health-tab" class="analysis-tab" type="button" role="tab" aria-selected="false" aria-controls="raw-k12b-health" tabindex="-1">Health</button>
             </div>
             <div id="raw-k12b-chart" role="tabpanel" aria-labelledby="raw-k12b-chart-tab">
-              <div class="k12b-chart-grid">
-                <div id="k12b-chart" class="k12b-chart" role="img" aria-label="K12b component pie chart"></div>
-                <div id="k12b-table" class="k12b-table"></div>
+              <div class="admixture-chart-grid">
+                <div id="k12b-chart" class="admixture-chart" role="img" aria-label="K12b component pie chart"></div>
+                <div id="k12b-table" class="admixture-table"></div>
               </div>
             </div>
             <div id="raw-k12b-oracle" role="tabpanel" aria-labelledby="raw-k12b-oracle-tab" hidden>
@@ -143,10 +144,6 @@
               <div id="k12b-summary" class="k12b-summary" hidden></div>
               <div id="k12b-matches" class="k12b-matches" hidden></div>
             </div>
-            <div id="raw-k12b-health" role="tabpanel" aria-labelledby="raw-k12b-health-tab" lang="tr" hidden>
-              <p id="k12b-health-status" class="method-note" role="status"></p>
-              <div id="k12b-health-report" class="health-report" hidden></div>
-            </div>
           </section>
           <section id="raw-k36" class="raw-result raw-model-panel" role="tabpanel" aria-labelledby="raw-k36-tab" hidden>
             <div class="section-head"><h2 id="raw-k36-title">Eurogenes K36</h2>
@@ -154,7 +151,15 @@
                 <button id="raw-k36-copy-table" class="text-button" type="button" disabled>Copy table</button></div>
             </div>
             <p id="raw-k36-status" class="method-note"></p>
-            <div id="raw-k36-components" class="raw-components"></div>
+            <div class="admixture-chart-grid">
+              <div id="raw-k36-chart" class="admixture-chart" role="img" aria-label="K36 component pie chart"></div>
+              <div id="raw-k36-table" class="admixture-table"></div>
+            </div>
+          </section>
+          <section id="raw-health" class="raw-result raw-model-panel" role="tabpanel" aria-labelledby="raw-health-tab" lang="tr" hidden>
+            <div class="section-head"><h2>Health</h2></div>
+            <p id="raw-health-status" class="method-note" role="status"></p>
+            <div id="raw-health-report" class="health-report" hidden></div>
           </section>
         </div>
       </div>

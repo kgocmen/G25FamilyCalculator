@@ -1,4 +1,4 @@
-#raw-k12b-health { padding-top: 10px; }
+#raw-health { padding-top: 10px; }
 .health-report { display: grid; gap: 24px; margin-top: 22px; }
 .health-report[hidden] { display: none; }
 .health-section h3 { margin: 0 0 12px; font-size: 16px; color: #14243b; }

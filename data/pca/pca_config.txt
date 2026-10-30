@@ -66,8 +66,8 @@
       "file": "modern_pca13.g25.txt"
     },
     {
-      "id": "global-balto-slavic",
-      "title": "Balto-Slavic",
+      "id": "global-east-europe",
+      "title": "East Europe",
       "file": "modern_pca14.g25.txt"
     },
     {
