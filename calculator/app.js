@@ -220,6 +220,11 @@
       referenceAnchors: pca.deepReferenceAnchors || [] });
   }
 
+  function allowedDeepMixedPcaReferences(pca) {
+    return allowedPcaReferences({ references: pca.deepMixedReferences || [],
+      referenceAnchors: pca.deepMixedReferenceAnchors || [] });
+  }
+
   function regularPcaReferences(pca) {
     return allowedPcaReferences(pca).filter((row) =>
       !window.G25ModernPca.isIstanbulReference(row));
@@ -1659,6 +1664,7 @@
     const rows = pcaId === "mixed"
       ? window.G25ModernPca.selectMixedDeepReferences(fit, activeModernPcas().map((pca) => ({
         title: pca.title, references: allowedDeepPcaReferences(pca),
+        deepMixedReferences: allowedDeepMixedPcaReferences(pca),
       })))
       : window.G25ModernPca.selectDeepReferences(fit,
         allowedDeepPcaReferences(activeModernPcas().find((pca) => pca.id === pcaId) || {}));
@@ -1984,7 +1990,8 @@
         deepPcas: isModern && state.deepAnalysis ? activeModernPcas()
           .filter((pca) => pca.deepReferences?.length)
           .map((pca) => ({ id: pca.id, title: pca.title,
-            references: allowedDeepPcaReferences(pca) })) : [],
+            references: allowedDeepPcaReferences(pca),
+            deepMixedReferences: allowedDeepMixedPcaReferences(pca) })) : [],
         closestPcaId, closestPcaIds,
         closestPopulationDistance: closestModern?.distance,
         modernPcas: scanModernPcas ? [
@@ -2687,7 +2694,8 @@
       `Deep analysis · ${data.fit.groups.length} ${data.fit.groups.length === 1 ? "group" : "groups"} · ${data.referenceCount} references`;
     const references = data.pcaId === "mixed" ? window.G25ModernPca.selectMixedDeepReferences(
       data.mainFit, activeModernPcas().map((entry) => ({ title: entry.title,
-        references: allowedDeepPcaReferences(entry) }))) : pca ? window.G25ModernPca.selectDeepReferences(
+        references: allowedDeepPcaReferences(entry),
+        deepMixedReferences: allowedDeepMixedPcaReferences(entry) }))) : pca ? window.G25ModernPca.selectDeepReferences(
       data.mainFit || data.fit, allowedDeepPcaReferences(pca)) : [];
     if (references.length < 3) {
       $("#medieval-pca-plot").textContent = "At least three deep references are needed for a PCA plot.";

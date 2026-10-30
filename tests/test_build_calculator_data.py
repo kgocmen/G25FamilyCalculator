@@ -177,8 +177,9 @@ class ReadRowsTests(unittest.TestCase):
     def test_pca_section_headers_must_be_in_order_and_unique(self):
         coordinates = ",".join(["0"] * 25)
         for text in ("Deep:\n", "Main:\nMain:\n", "Main:\nDeep:\nDeep:\n",
+                     "Main:\nDeep Mixed:\n", "Main:\nDeep:\nDeep Mixed:\nDeep Mixed:\n",
                      f"Group:One,{coordinates}\nMain:\n"):
-            with self.subTest(text=text), self.assertRaisesRegex(ValueError, "Main: followed by Deep:"):
+            with self.subTest(text=text), self.assertRaisesRegex(ValueError, "Main:, Deep:, then Deep Mixed:"):
                 self.read(text, "modern")
 
     def test_mixed_pca_rebuilds_from_regular_maps_without_istanbul(self):
@@ -321,7 +322,9 @@ class ReadRowsTests(unittest.TestCase):
         self.assertEqual(len(main), len(pca["references"]))
         self.assertEqual(len(deep), len(pca["deepReferences"]))
         self.assertTrue(all(deep.get(label) == group for label, group in main.items()))
-        self.assertFalse(any(label.startswith(("Hazara_", "Rajbanshi_", "Pashtun_", "Balochi_", "Brahui_", "Makrani_"))
+        self.assertFalse(any(label.startswith(("Hazara_", "Rajbanshi_", "Balochi_", "Brahui_", "Makrani_"))
+                             for label in main | deep))
+        self.assertFalse(any(label.startswith("Pashtun_") and not label.startswith("Pashtun_India_")
                              for label in main | deep))
         for label, group in (
             ("Punjabi_Jat_Sikh_(n=60)", "Punjab and North India"),
@@ -355,7 +358,7 @@ class ReadRowsTests(unittest.TestCase):
                 for row in pca["deepReferences"]}
         self.assertEqual(set(main.values()), {
             "Kurdish", "Persian and Lur", "Caspian and Tati", "Baloch and Makran",
-            "Pashtun", "Tajik", "Pamir and Yaghnob", "Hazara"})
+            "Pashtun", "Tajik", "Pamir and Yaghnob"})
         self.assertTrue(all(deep.get(label) == group for label, group in main.items()))
         self.assertFalse(any(label.startswith("Ossetian_") for label in main | deep))
         iranian_language_prefixes = (
@@ -364,17 +367,20 @@ class ReadRowsTests(unittest.TestCase):
             "Gilak_", "Mazandarani_", "Talysh_", "Tat_", "Tatavi_",
             "Balochi_", "Makrani_", "Pashtun_", "Ormur_",
             "Tajik_", "Pamiri_", "Wakhi_", "Yaghnobi_", "Hazara_")
-        self.assertEqual(set(deep), {label for label in source
-                                     if label.startswith(iranian_language_prefixes)
-                                     and "Mixed" not in label and "_Jew_" not in label} |
-                         {"Brahui_(n=23)"})
+        excluded = {"Hazara_Afghanistan_(n=8)", "Hazara_Pakistan_(n=24)", "Tatavi_(n=3)",
+                    "Pashtun_India_Uttarakhand_(n=1)",
+                    "Pashtun_India_Madhya_Pradesh_(n=2)",
+                    "Pashtun_India_Uttar_Pradesh_(n=5)"}
+        self.assertEqual(set(deep), ({label for label in source
+                                      if label.startswith(iranian_language_prefixes)
+                                      and "Mixed" not in label and "_Jew_" not in label} |
+                                     {"Brahui_(n=23)"}) - excluded)
         for label, group in (
             ("Kurdish_(n=19)", "Kurdish"),
             ("Balochi_Pakistan_(n=17)", "Baloch and Makran"),
             ("Brahui_(n=23)", "Baloch and Makran"),
             ("Pashtun_Durrani_(n=13)", "Pashtun"),
             ("Tajik_(n=16)", "Tajik"),
-            ("Hazara_Pakistan_(n=24)", "Hazara"),
         ):
             self.assertIn(label, source)
             self.assertEqual(deep[label], group)
@@ -637,6 +643,30 @@ class ReadRowsTests(unittest.TestCase):
         self.assertEqual(sum(row[1].startswith("Roma:") for row in pca["references"]), 6)
         self.assertIn("Jewish South Europe: Romaniote_Jew_(n=7)",
                       {row[1] for row in pca["deepReferences"]})
+
+    def test_global_deep_mixed_rows_are_complete_and_separate(self):
+        modern = read_rows(ROOT / "data" / "modern_g25.txt", "modern")
+        source = {row[1]: row[2:] for row in modern}
+        pcas = read_global_modern_pcas(modern)
+        config = json.loads((ROOT / "data" / "pca" / "pca_config.txt").read_text())
+        assigned = {}
+        for pca, entry in zip(pcas, config["modern"]):
+            text = (ROOT / "data" / "pca" / entry["file"]).read_text()
+            self.assertEqual(text.count("\nDeep Mixed:\n"), 1, entry["file"])
+            regular = {row[1].split(":", 1)[1].strip() for row in pca["deepReferences"]}
+            main_groups = {row[1].split(":", 1)[0].strip() for row in pca["references"]}
+            for row in pca.get("deepMixedReferences", []):
+                group, label = (part.strip() for part in row[1].split(":", 1))
+                self.assertIn(group, main_groups)
+                self.assertNotIn(label, regular)
+                self.assertNotIn(label, assigned)
+                self.assertEqual(row[2:], source[label])
+                assigned[label] = (pca["title"], group)
+        self.assertEqual(len(assigned), 289)
+        self.assertEqual(assigned["Anglo-American_Kentucky_(n=125)"],
+                         ("Northwest Europe", "British Isles"))
+        self.assertEqual(assigned["Bolivian_Mestizo_(n=5)"],
+                         ("Indigenous America", "Andes"))
 
     def test_all_global_modern_maps_have_usable_deep_references(self):
         modern = read_rows(ROOT / "data" / "modern_g25.txt", "modern")

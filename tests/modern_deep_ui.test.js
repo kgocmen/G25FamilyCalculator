@@ -171,7 +171,8 @@ test("deep mode keeps the main selection and shows one level of clusters", () =>
     row("Levant:Lebanese", 4), row("North Caucasus:Chechen", 5)];
   const southeastPca = { id: "southeast", title: "Southeast Europe", references: southeastMain,
     deepReferences: [row("Albanian: Albanian_A", 0),
-      row("Balkans: Bulgarian_A", 1)] };
+      row("Balkans: Bulgarian_A", 1)],
+    deepMixedReferences: [row("Balkans: Albanian_A_Mixed", 0.5)] };
   window.G25_MODERN_PCAS.push(
     southeastPca,
     { id: "caucasus", title: "West Asia and Caucasus", references: caucasusMain,
@@ -219,6 +220,7 @@ test("deep mode keeps the main selection and shows one level of clusters", () =>
   assert.deepEqual(window.lastPcaRows.map((reference) => reference[1]), [
     "Southeast_Europe:Albanian_A",
     "Southeast_Europe:Bulgarian_A",
+    "Southeast_Europe:Albanian_A_Mixed",
     "West_Asia_and_Caucasus:Abkhazian_A",
   ]);
   assert.equal(document.querySelector("#pca-heading-title").textContent, "Mixed · Deep");

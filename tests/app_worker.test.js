@@ -234,6 +234,25 @@ test("mixed deep analysis refits only the selected source groups", () => {
   assert.ok(deep.fit.distance < 1e-6);
 });
 
+test("Mixed deep analysis can fit a Deep Mixed profile", () => {
+  const references = [row("Northwest_Europe:British Isles", 0),
+    row("Indigenous_America:Andes", 1), row("Southwest_Europe:Iberia", 2)];
+  const result = calculate({ references, selectedPcaId: "mixed",
+    displayedPcaId: "mixed", groupStyle: "mixed", groupLimit: 1,
+    modernPcas: null, deepAnalysis: true,
+    deepPcas: [{ id: "northwest", title: "Northwest Europe",
+      references: [row("British Isles: English", 0.2)],
+      deepMixedReferences: [row("British Isles: Anglo-American_Kentucky_(n=125)", 0)],
+    }] });
+  const deep = result.messages.find((message) => message.kind === "deep");
+  assert.equal(deep.error, undefined);
+  assert.equal(deep.fit.components.length, 1);
+  assert.equal(deep.fit.components[0].label,
+    "Northwest_Europe:Anglo-American_Kentucky_(n=125)");
+  assert.equal(deep.fit.components[0].weight, 1);
+  assert.ok(deep.fit.distance < 1e-9);
+});
+
 test("automatic group search stops when one group fits below one", () => {
   const references = [row("GroupA: First", 0.0098),
     row("GroupA: Second", 0.0098), row("GroupA: Third", 0.0098),

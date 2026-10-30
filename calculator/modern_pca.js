@@ -31,7 +31,8 @@ function G25ModernPcaModule(root) {
       .map((part) => part.label));
     const selected = deepPcas.flatMap((pca) => {
       const prefix = `${pca.title.replaceAll(" ", "_")}:`;
-      return pca.references.filter((row) => active.has(`${prefix}${row[1].split(":", 1)[0].trim()}`))
+      return [...pca.references, ...(pca.deepMixedReferences || [])]
+        .filter((row) => active.has(`${prefix}${row[1].split(":", 1)[0].trim()}`))
         .map((row) => [row[0], `${prefix}${row[1].slice(row[1].indexOf(":") + 1).trim()}`,
           ...row.slice(2)]);
     });

@@ -128,11 +128,12 @@ def read_row_sections(path: Path, category: str) -> dict[str, list[list]]:
         for number, row in enumerate(csv.reader(file), 1):
             if not row or all(not cell.strip() for cell in row):
                 continue
-            if len(row) == 1 and row[0].strip() in {"Main:", "Deep:"}:
+            if len(row) == 1 and row[0].strip() in {"Main:", "Deep:", "Deep Mixed:"}:
                 header = row[0].strip()[:-1].lower()
                 if (header == "main" and (headers or sections["main"]) or
-                        header == "deep" and headers != ["main"]):
-                    raise ValueError(f"{path}:{number}: expected Main: followed by Deep:")
+                        header == "deep" and headers != ["main"] or
+                        header == "deep mixed" and headers != ["main", "deep"]):
+                    raise ValueError(f"{path}:{number}: expected Main:, Deep:, then Deep Mixed:")
                 headers.append(header)
                 current = header
                 sections.setdefault(current, [])
@@ -305,6 +306,22 @@ def read_modern_pcas(modern_rows: list[list], directory: Path = MODERN_PCA_DIREC
             if active_deep_rows:
                 pca["deepReferences"] = active_deep_rows
                 pca["deepReferenceAnchors"] = deep_anchors
+        if "deep mixed" in sections:
+            mixed_rows = merge_pca_rows([], sections["deep mixed"], source_path)
+            mixed_anchors = []
+            for row in mixed_rows:
+                group, label = (part.strip() for part in row[1].split(":", 1))
+                if group not in main_groups:
+                    raise ValueError(f"{filename}: unknown mixed deep PCA group {group}")
+                source = modern_by_label.get(label) if label_anchors else None
+                if label_anchors and (source is None or source[2:] != row[2:]):
+                    raise ValueError(f"{filename}: {row[1]} does not match the global modern dataset")
+                if not label_anchors and tuple(row[2:]) not in modern_by_coordinates:
+                    raise ValueError(f"{filename}: {row[1]} is not in the Turkish modern dataset")
+                mixed_anchors.append(label if label_anchors else modern_by_coordinates[tuple(row[2:])])
+            if mixed_rows:
+                pca["deepMixedReferences"] = mixed_rows
+                pca["deepMixedReferenceAnchors"] = mixed_anchors
         result.append(pca)
     return result
 

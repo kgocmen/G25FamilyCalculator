@@ -1,19 +1,20 @@
 const fs = require("node:fs");
 
 function readPcaSource(filename) {
-  const main = [], extra = [];
+  const main = [], extra = [], mixed = [];
   let section = main;
   const headers = [];
   for (const [index, raw] of fs.readFileSync(filename, "utf8").split(/\r?\n/).entries()) {
     const line = raw.trim();
     if (!line) continue;
-    if (line === "Main:" || line === "Deep:") {
+    if (line === "Main:" || line === "Deep:" || line === "Deep Mixed:") {
       if ((line === "Main:" && (headers.length || main.length)) ||
-          (line === "Deep:" && (headers.length !== 1 || headers[0] !== "Main:"))) {
-        throw new Error(`${filename}:${index + 1}: expected Main: followed by Deep:`);
+          (line === "Deep:" && (headers.length !== 1 || headers[0] !== "Main:")) ||
+          (line === "Deep Mixed:" && (headers.length !== 2 || headers[1] !== "Deep:"))) {
+        throw new Error(`${filename}:${index + 1}: expected Main:, Deep:, then Deep Mixed:`);
       }
       headers.push(line);
-      section = line === "Main:" ? main : extra;
+      section = line === "Main:" ? main : line === "Deep:" ? extra : mixed;
       continue;
     }
     const [label, ...cells] = line.split(",");
@@ -38,7 +39,8 @@ function readPcaSource(filename) {
     }
     if (!previous) union.set(label, ["modern", label, ...row.slice(2)]);
   }
-  return { references: main, deepReferences: [...union.values()] };
+  return { references: main, deepReferences: [...union.values()],
+    ...(headers.includes("Deep Mixed:") ? { deepMixedReferences: mixed } : {}) };
 }
 
 module.exports = { readPcaSource };

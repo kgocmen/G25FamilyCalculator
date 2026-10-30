@@ -27,11 +27,17 @@ test("sectioned PCA sources deduplicate main rows in the deep union", (t) => {
   fs.writeFileSync(filename, `Main:\nGroup:One,${coordinates}\nDeep:\n`);
   assert.deepEqual(readPcaSource(filename).deepReferences, [row("Group: One", 0)]);
   fs.writeFileSync(filename, `Main:\nGroup:One,${coordinates}\nDeep:\n` +
+    `Group: Two,${coordinates}\nDeep Mixed:\nGroup: Mixed,${coordinates}\n`);
+  assert.deepEqual(readPcaSource(filename).deepReferences,
+    [row("Group: One", 0), row("Group: Two", 0)]);
+  assert.deepEqual(readPcaSource(filename).deepMixedReferences,
+    [row("Group: Mixed", 0)]);
+  fs.writeFileSync(filename, `Main:\nGroup:One,${coordinates}\nDeep:\n` +
     `Group: One,${Array(25).fill(1).join(",")}\n`);
   assert.throws(() => readPcaSource(filename), /conflicting coordinates/);
   for (const source of ["Deep:\n", "Main:\nMain:\n", "Main:\nDeep:\nDeep:\n"]) {
     fs.writeFileSync(filename, source);
-    assert.throws(() => readPcaSource(filename), /Main: followed by Deep:/);
+    assert.throws(() => readPcaSource(filename), /expected Main:, Deep:, then Deep Mixed:/);
   }
 });
 
@@ -114,6 +120,19 @@ test("mixed deep references come from each fitted source group only", () => {
   ]);
 });
 
+test("Deep Mixed rows appear only in Mixed deep analysis", () => {
+  const mainFit = { groups: [{ ethnicity: "British Isles", weight: 1 }],
+    components: [{ label: "Northwest_Europe:British Isles", weight: 1 }] };
+  const pca = { title: "Northwest Europe",
+    references: [row("British Isles: English", 0)],
+    deepMixedReferences: [row("British Isles: Anglo-American_Kentucky_(n=125)", 0),
+      row("Germanic West: German-American", 1)] };
+  assert.deepEqual(selectDeepReferences(mainFit, pca.references).map((part) => part[1]),
+    ["British Isles: English"]);
+  assert.deepEqual(selectMixedDeepReferences(mainFit, [pca]).map((part) => part[1]),
+    ["Northwest_Europe:English", "Northwest_Europe:Anglo-American_Kentucky_(n=125)"]);
+});
+
 test("mixed deep plots use fitted population rows from the main PCA files", () => {
   const mainFit = { components: [
     { label: "Southeast_Europe:Albanian", weight: 0.2 },
@@ -156,11 +175,14 @@ test("global PCA bundles use Main for regular references and the union for deep 
   for (const [index, entry] of config.modern.entries()) {
     assert.equal(pcas[index].title, entry.title);
     const mainPath = path.join(__dirname, "../data/pca", entry.file);
-    const { references, deepReferences } = readPcaSource(mainPath);
+    const { references, deepReferences, deepMixedReferences } = readPcaSource(mainPath);
     assert.deepEqual(pcas[index].references, references);
     const source = deepReferences.filter((row) => row[1].split(":", 1)[0] !== "Deprecated");
     assert.deepEqual(pcas[index].deepReferences, source);
     assert.equal(pcas[index].deepReferenceAnchors.length, source.length);
+    assert.deepEqual(pcas[index].deepMixedReferences || [], deepMixedReferences);
+    assert.equal(pcas[index].deepMixedReferenceAnchors?.length || 0,
+      deepMixedReferences.length);
   }
 });
 
