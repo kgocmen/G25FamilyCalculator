@@ -17,8 +17,8 @@ class PcaMapTests(unittest.TestCase):
                          "13-Northwest Europe-DeepMixed:British Isles")
         self.assertEqual(entries["Bolivian_Mestizo_(n=5)"],
                          "11-Indigenous America-DeepMixed:Andes")
-        self.assertIn(", 6-Jewish and Roma-Deep:Jewish Middle East",
-                      entries["Algerian_Jew_(n=9)"])
+        self.assertEqual(entries["Algerian_Jew_(n=9)"],
+                         "6-Jewish and Roma-Deep:Jewish Middle East")
 
 
 if __name__ == "__main__":

@@ -22,7 +22,7 @@
     },
     {
       "id": "global-north-africa",
-      "title": "North Africa",
+      "title": "North Africa and the Horn",
       "file": "modern_pca5.g25.txt"
     },
     {

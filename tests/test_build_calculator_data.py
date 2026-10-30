@@ -602,9 +602,9 @@ class ReadRowsTests(unittest.TestCase):
             with self.subTest(prefix=prefix):
                 self.assertTrue(any(label.startswith(prefix + "_") for label in east_asia))
                 self.assertFalse(any(label.startswith(prefix + "_") for label in south_asia))
-        self.assertTrue(any(row[1].startswith("Horn of Africa:Somali_")
-                            for row in pcas[3]["references"]))
-        self.assertTrue(any(row[1].startswith("Amazigh:Berber_")
+        self.assertTrue(any(row[1].startswith("Somalia:Somali_")
+                            for row in pcas[4]["references"]))
+        self.assertTrue(any(row[1].startswith("Maghreb:Berber_")
                             for row in pcas[4]["references"]))
         self.assertTrue(any(row[1].startswith("Jewish Ashkenazi:Ashkenazi_Jew_")
                             for row in pcas[5]["references"]))
@@ -624,8 +624,6 @@ class ReadRowsTests(unittest.TestCase):
             self.assertEqual(len(pca["references"]), len(pca["referenceAnchors"]))
             self.assertEqual(len({row[1] for row in pca["references"]}),
                              len(pca["references"]))
-            self.assertFalse(any("mixed" in row[1].lower() for row in pca["references"]),
-                             f"{pca['title']} contains a mixed-profile reference")
             for row, anchor in zip(pca["references"], pca["referenceAnchors"]):
                 self.assertEqual(row[2:], by_label[anchor][2:])
 
@@ -643,6 +641,175 @@ class ReadRowsTests(unittest.TestCase):
         self.assertEqual(sum(row[1].startswith("Roma:") for row in pca["references"]), 6)
         self.assertIn("Jewish South Europe: Romaniote_Jew_(n=7)",
                       {row[1] for row in pca["deepReferences"]})
+
+    def test_sub_saharan_groups_follow_ethnolinguistic_lines(self):
+        modern = read_rows(ROOT / "data" / "modern_g25.txt", "modern")
+        pca = next(pca for pca in read_global_modern_pcas(modern)
+                   if pca["id"] == "global-sub-saharan-africa")
+        groups = {row[1].split(":", 1)[1].strip(): row[1].split(":", 1)[0]
+                  for row in pca["references"]}
+        self.assertEqual(set(groups.values()), {
+            "West African", "Fulani", "Central African", "Pygmy",
+            "East African", "Swahili Coast", "Southern Bantu", "Khoe-San",
+        })
+        self.assertEqual(len(pca["references"]), 53)
+        self.assertEqual(len(pca["deepReferences"]), 133)
+        for population, group in (
+            ("Mandinka_Gambia_(n=232)", "West African"),
+            ("Fulani_Senegal_(n=25)", "Fulani"),
+            ("Fulani_Burkina_Faso_(SSA_Profile)_(n=6)", "Fulani"),
+            ("Yoruba_Nigeria_(n=38)", "West African"),
+            ("Hausa_(n=4)", "West African"),
+            ("Baka_(n=3)", "Pygmy"),
+            ("Kongo_Republic_of_the_Congo_(n=2)", "Central African"),
+            ("Dinka_(n=33)", "East African"),
+            ("Kaba_(n=2)", "Central African"),
+            ("Mada_(n=2)", "West African"),
+            ("Kikuyu_(n=6)", "East African"),
+            ("Hadza_(n=9)", "East African"),
+            ("Sandawe_(n=30)", "East African"),
+            ("Swahili_Kenya_Faza_(n=18)", "Swahili Coast"),
+            ("Swahili_Kenya_Ndau_(n=19)", "Swahili Coast"),
+            ("Yao_(n=29)", "Southern Bantu"),
+            ("Nama_(n=10)", "Khoe-San"),
+        ):
+            self.assertEqual(groups[population], group)
+        self.assertNotIn("Baster_(n=30)", groups)
+        self.assertNotIn("Coloured_(n=18)", groups)
+        self.assertNotIn("Cape_Verdean_(n=14)", groups)
+        self.assertEqual({label for label, group in groups.items() if group == "Pygmy"},
+                         {"Baka_(n=3)", "Biaka_(n=8)", "Mbuti_(n=5)", "Twa_Uganda_(n=5)"})
+        self.assertEqual({label for label, group in groups.items() if group == "Fulani"}, {
+            "Fulani_Senegal_(n=25)", "Fulani_Gambia_(North_African-Mixed)_(n=73)",
+            "Fulani_Burkina_Faso_(SSA_Profile)_(n=6)",
+            "Fulani_Guinea_(SSA_Profile)_(n=17)",
+        })
+        self.assertEqual({label for label, group in groups.items() if group == "Swahili Coast"}, {
+            "Swahili_Kenya_Faza_(n=18)", "Swahili_Kenya_Ndau_(n=19)",
+            "Swahili_Kenya_Pate_(n=6)", "Swahili_Kenya_Siyu_(n=7)",
+            "Swahili_Kenya_Wasini_(n=10)",
+        })
+        deep_groups = {row[1].split(":", 1)[1].strip(): row[1].split(":", 1)[0]
+                       for row in pca["deepReferences"]}
+        self.assertEqual({label for label, group in deep_groups.items() if group == "Pygmy"}, {
+            "Bedzan_(n=2)", "Baka_(n=3)", "Bakola_(n=2)",
+            "Biaka_(n=8)", "Mbuti_(n=5)", "Twa_Uganda_(n=5)",
+        })
+        self.assertEqual(deep_groups["Duma_San_(n=5)"], "Southern Bantu")
+        self.assertEqual(deep_groups["Xun_(n=13)"], "Khoe-San")
+        self.assertEqual(deep_groups["Laal_(n=1)"], "West African")
+        self.assertEqual(deep_groups["Laka_(n=2)"], "Central African")
+        self.assertEqual(deep_groups["Nuer_(n=14)"], "East African")
+        self.assertNotIn("Sahel and Nile", deep_groups.values())
+        self.assertNotIn("East African Foragers", deep_groups.values())
+        self.assertNotIn("Sahel and Nile", {
+            row[1].split(":", 1)[0] for row in pca["deepMixedReferences"]})
+
+        north_africa = next(pca for pca in read_global_modern_pcas(modern)
+                            if pca["id"] == "global-north-africa")
+        north_groups = {row[1].split(":", 1)[1].strip(): row[1].split(":", 1)[0]
+                        for row in north_africa["references"]}
+        self.assertEqual(north_groups["Somali_(n=14)"], "Somalia")
+        self.assertEqual(north_groups["Amhara_(n=175)"], "Ethiopia")
+        self.assertEqual(north_groups["Ari_(n=2)"], "Ari")
+
+    def test_sahara_sahel_references_belong_to_north_africa(self):
+        modern = read_rows(ROOT / "data" / "modern_g25.txt", "modern")
+        pcas = {pca["id"]: pca for pca in read_global_modern_pcas(modern)}
+        sub_saharan = pcas["global-sub-saharan-africa"]
+        north_africa = pcas["global-north-africa"]
+
+        def labels(rows):
+            return {row[1].split(":", 1)[1].strip() for row in rows}
+
+        def in_groups(rows, groups):
+            return [row for row in rows if row[1].split(":", 1)[0] in groups]
+
+        moved = {
+            "Baggara_Chad_(Arabian-Mixed)_(n=7)",
+            "Baggara_Chad_(Highly_Arabian-Mixed)_(n=12)",
+            "Baggara_Chad_(SSA_Profile)_(n=6)",
+            "Baggara_Messiria_Sudan_(n=3)",
+            "Baggara_Sudan_(n=17)",
+            "Bulala_(n=2)",
+            "Daju_Sudan_(n=17)",
+            "Toubou_Daza_Chad_(n=18)",
+            "Toubou_Teda_(n=2)",
+            "Zaghawa_Chad_(n=11)",
+            "Zaghawa_Sudan_(n=31)",
+        }
+        self.assertFalse(moved & labels(sub_saharan["deepReferences"]))
+        self.assertTrue(moved <= labels(in_groups(
+            north_africa["deepReferences"] + north_africa["deepMixedReferences"],
+            {"Sahara-Sahel"})))
+        self.assertEqual(labels(in_groups(north_africa["references"], {"Sahara-Sahel"})),
+                         moved - {"Baggara_Messiria_Sudan_(n=3)",
+                                  "Baggara_Chad_(Highly_Arabian-Mixed)_(n=12)"})
+
+        north_groups = {row[1].split(":", 1)[1].strip(): row[1].split(":", 1)[0]
+                        for row in north_africa["references"]}
+        self.assertEqual(set(north_groups.values()), {
+            "Maghreb", "Oasis Communities", "Egypt", "Nile Valley", "Sahara-Sahel",
+            "Ethiopia",
+            "Somalia", "East African Pastoralist", "Ari",
+        })
+        self.assertEqual(sum(group == "Oasis Communities" for group in north_groups.values()), 6)
+        for population, group in (
+            ("Berber_Algeria_Kabyle_(n=25)", "Maghreb"),
+            ("Hartani_Berber_(Mozabite)_Algeria_(n=3)", "Oasis Communities"),
+            ("Hartani_Berber_(Gourara)_Algeria_Timimoun_(n=10)", "Oasis Communities"),
+            ("Shwashin_Arab_Tunisia_(n=3)", "Oasis Communities"),
+            ("Nubian_Danagla_(n=10)", "Nile Valley"),
+            ("Sudanese_Arab_Kababish_(n=17)", "Nile Valley"),
+        ):
+            self.assertEqual(north_groups[population], group)
+        deep_groups = {row[1].split(":", 1)[1].strip(): row[1].split(":", 1)[0]
+                       for row in north_africa["deepReferences"]}
+        for population, group in (
+            ("Bedouin_Libya_(n=6)", "Maghreb"),
+            ("Nubian_Nobiin_Mahas_(n=13)", "Nile Valley"),
+            ("Sudanese_Arab_Ja'alin_(n=13)", "Nile Valley"),
+            ("Toubou_Daza_Chad_(n=18)", "Sahara-Sahel"),
+            ("Hartani_Arab_Western_Sahara_(n=1)", "Oasis Communities"),
+            ("Shwashin_Arab_Tunisia_Douz_(n=2)", "Oasis Communities"),
+        ):
+            self.assertEqual(deep_groups[population], group)
+        self.assertNotIn("Bedouin_Sudan_Rashaida_(n=20)", deep_groups)
+
+    def test_east_african_pastoralists_stay_north_and_swahili_return_to_sub_saharan(self):
+        modern = read_rows(ROOT / "data" / "modern_g25.txt", "modern")
+        pcas = {pca["id"]: pca for pca in read_global_modern_pcas(modern)}
+        sub_saharan = pcas["global-sub-saharan-africa"]
+        north_africa = pcas["global-north-africa"]
+
+        def group_labels(pca, group, section="references"):
+            return {row[1].split(":", 1)[1].strip() for row in pca[section]
+                    if row[1].startswith(group + ":")}
+
+        pastoralist = {
+            "Datog_(n=3)", "Kalenjin_Kenya_(n=1)", "Masai_Kenya_(n=64)",
+            "Ogiek_Kenya_(n=2)", "Sengwer_(n=2)", "Tutsi_(n=4)",
+            "Hima_(n=2)", "Tutsi_Banyamulenge_(n=5)",
+            "Tutsi_Burundi_(n=4)", "Tutsi_Rwanda_(n=8)",
+        }
+        swahili = {
+            "Swahili_Kenya_Faza_(n=18)", "Swahili_Kenya_Ndau_(n=19)",
+            "Swahili_Kenya_Pate_(n=6)", "Swahili_Kenya_Siyu_(n=7)",
+            "Swahili_Kenya_Tchundwa_(n=8)", "Swahili_Kenya_Wasini_(n=10)",
+            "Swahili_Zanzibar_(n=1)",
+        }
+        self.assertEqual(group_labels(north_africa, "East African Pastoralist"), pastoralist)
+        self.assertEqual(group_labels(north_africa, "Swahili Coast"), set())
+        sub_saharan_labels = {row[1].split(":", 1)[1].strip()
+                              for row in sub_saharan["deepReferences"]}
+        north_african_labels = {row[1].split(":", 1)[1].strip()
+                                for row in north_africa["deepReferences"]}
+        self.assertFalse(pastoralist & sub_saharan_labels)
+        self.assertFalse(swahili & north_african_labels)
+        self.assertTrue(swahili <= group_labels(sub_saharan, "Swahili Coast",
+                                                "deepReferences"))
+        self.assertTrue({"Swahili_Kenya_(n=1)", "Swahili_Kenya_Jomvu_(n=12)"}
+                        <= group_labels(sub_saharan, "East African", "deepReferences"))
 
     def test_global_deep_mixed_rows_are_complete_and_separate(self):
         modern = read_rows(ROOT / "data" / "modern_g25.txt", "modern")
@@ -662,11 +829,19 @@ class ReadRowsTests(unittest.TestCase):
                 self.assertNotIn(label, assigned)
                 self.assertEqual(row[2:], source[label])
                 assigned[label] = (pca["title"], group)
-        self.assertEqual(len(assigned), 289)
+        self.assertEqual(len(assigned), 301)
         self.assertEqual(assigned["Anglo-American_Kentucky_(n=125)"],
                          ("Northwest Europe", "British Isles"))
         self.assertEqual(assigned["Bolivian_Mestizo_(n=5)"],
                          ("Indigenous America", "Andes"))
+        self.assertEqual(assigned["Babur-Bura_(n=1)"],
+                         ("Sub-Saharan Africa", "Central African"))
+        self.assertEqual(assigned["Malagasy_Temoro_(n=24)"],
+                         ("Sub-Saharan Africa", "Southern Bantu"))
+        self.assertEqual(assigned["Namibian_Bantu_(Coloured-Mixed)_(n=4)"],
+                         ("Sub-Saharan Africa", "Southern Bantu"))
+        self.assertEqual(assigned["Baggara_Chad_(Highly_Arabian-Mixed)_(n=12)"],
+                         ("North Africa", "Sahara-Sahel"))
 
     def test_all_global_modern_maps_have_usable_deep_references(self):
         modern = read_rows(ROOT / "data" / "modern_g25.txt", "modern")
@@ -692,10 +867,10 @@ class ReadRowsTests(unittest.TestCase):
                     for row in pcas[pca_id]["deepReferences"]
                     if row[1].startswith(group + ": ")}
 
-        self.assertIn("Yao_(n=29)", deep_labels("global-sub-saharan-africa", "Southern Africa"))
+        self.assertIn("Yao_(n=29)", deep_labels("global-sub-saharan-africa", "Southern Bantu"))
         self.assertNotIn("Yao_(n=29)", deep_labels("global-east-asia", "Southern China"))
         self.assertIn("Kom_(n=2)", deep_labels("global-east-asia", "Northeast India"))
-        self.assertNotIn("Kom_(n=2)", deep_labels("global-sub-saharan-africa", "Central Africa"))
+        self.assertNotIn("Kom_(n=2)", deep_labels("global-sub-saharan-africa", "Central African"))
         self.assertIn("Dai_Yunnan_Xishuangbanna_(n=101)",
                       deep_labels("global-east-asia", "Southern China") &
                       deep_labels("global-southeast-asia", "Mainland Tai"))
@@ -746,6 +921,7 @@ class ReadRowsTests(unittest.TestCase):
         self.assertEqual(deep["Saudi_Arab_Najd_(n=16)"], "Saudi")
         self.assertEqual(deep["Yemeni_Mehri_Mahra_(n=9)"], "Yemeni")
         self.assertEqual(deep["Bedouin_Sinai_(n=3)"], "Bedouin")
+        self.assertEqual(deep["Bedouin_Sudan_Rashaida_(n=20)"], "Gulf")
         self.assertEqual(deep["Jordanian_Arab_Muslim_(n=42)"], "Jordan")
         self.assertEqual(deep["Egyptian_Copt_(n=27)"], "Coptic")
         self.assertIn("Jordanian_Arab_Muslim_(n=42)", levant_mesopotamia["referenceAnchors"])
