@@ -3,6 +3,8 @@ const fs = require("node:fs");
 const path = require("node:path");
 const test = require("node:test");
 const vm = require("node:vm");
+const core = require("../calculator/core.js");
+const modern = require("../calculator/modern_pca.js");
 
 const app = fs.readFileSync(path.join(__dirname, "../calculator/app.js"), "utf8");
 const start = app.indexOf("  function medievalWorkerMain() {");
@@ -44,7 +46,7 @@ test("deep analysis uses only the selected main PCA groups", () => {
   ] }];
   for (const modernPcas of [pcas, null]) {
     const result = calculate({ selectedPcaId: "first", displayedPcaId: "first",
-      groupLimit: 1, modernPcas, deepAnalysis: true, deepGroupLimit: "auto", deepPcas });
+      groupLimit: 1, modernPcas, deepAnalysis: true, deepPcas });
     const deep = result.messages.find((message) => message.kind === "deep");
     assert.ok(deep);
     assert.deepEqual([...deep.groups], ["Group0"]);
@@ -55,13 +57,30 @@ test("deep analysis uses only the selected main PCA groups", () => {
   }
 });
 
+test("enabling deep analysis reuses the completed main fit without rescanning PCA maps", () => {
+  const main = calculate({ selectedPcaId: "first", groupLimit: 1, modernPcas: pcas });
+  const result = calculate({ deepOnly: true, mainFit: main.fit, mainPcaId: "first",
+    mainReferences: pcas[0].references,
+    deepAnalysis: true, deepPcas: [{ id: "first", references: [
+      row("Group0: Allowed A", -1), row("Group0: Allowed B", -2),
+      row("Group1: Excluded", 0),
+    ] }], modernPcas: pcas, references: [] });
+  assert.equal(result.fit, main.fit);
+  assert.equal(result.pcaFitDistances.length, 0);
+  assert.ok(!result.messages.some((message) => message.kind === "progress"));
+  const deep = result.messages.find((message) => message.kind === "deep");
+  assert.equal(deep.error, undefined);
+  assert.deepEqual([...deep.groups], ["Group0"]);
+  assert.equal(deep.referenceCount, 2);
+});
+
 test("deep fit distance retains the input error left by the main PCA", () => {
   const references = [row("GroupA: Sample A", 1), row("GroupA: Sample B", 1),
     row("GroupA: Sample C", 1)];
   const result = calculate({ target: { values: [1.1, ...Array(24).fill(0)] },
     references, selectedPcaId: "single", displayedPcaId: "single",
     groupLimit: 1, modernPcas: [{ id: "single", references }],
-    deepAnalysis: true, deepGroupLimit: 1,
+    deepAnalysis: true,
     deepPcas: [{ id: "single", references: [row("GroupA: Sample", 1)] }] });
   const deep = result.messages.find((message) => message.kind === "deep");
   assert.ok(Math.abs(deep.fit.distance - 10) < 1e-9);
@@ -69,7 +88,7 @@ test("deep fit distance retains the input error left by the main PCA", () => {
 
 test("deep analysis does not borrow references from unfitted main groups", () => {
   const result = calculate({ selectedPcaId: "first", displayedPcaId: "first",
-    groupLimit: 1, deepAnalysis: true, deepGroupLimit: "auto", deepPcas: [{ id: "first", references: [
+    groupLimit: 1, deepAnalysis: true, deepPcas: [{ id: "first", references: [
       row("Group1: Excluded", 0),
     ] }] });
   const deep = result.messages.find((message) => message.kind === "deep");
@@ -77,9 +96,9 @@ test("deep analysis does not borrow references from unfitted main groups", () =>
   assert.ok(result.fit);
 });
 
-test("deep mode uses the main PCA selector and applies the group limit within it", () => {
+test("deep mode uses the main PCA selector and retains its fitted groups", () => {
   const result = calculate({ selectedPcaId: "second", displayedPcaId: "second",
-    groupLimit: "auto", deepAnalysis: true, deepGroupLimit: 1, deepPcas: [{
+    groupLimit: "auto", deepAnalysis: true, deepPcas: [{
       id: "second",
       references: [row("Group1: Sample A", 1),
         row("Group1: Sample B", 2)],
@@ -100,7 +119,7 @@ test("deep analysis uses manually selected main groups instead of the automatic 
   const settings = { target: { values: [0.6, 0.8, ...Array(23).fill(0)] },
     references, selectedPcaId: "manual", displayedPcaId: "manual",
     modernPcas: [{ id: "manual", references }], deepAnalysis: true,
-    deepGroupLimit: 2, deepPcas };
+    deepPcas };
   const automatic = calculate({ ...settings, groupLimit: "auto" });
   assert.deepEqual([...automatic.messages.find((message) => message.kind === "deep").groups],
     ["GroupB"]);
@@ -109,14 +128,14 @@ test("deep analysis uses manually selected main groups instead of the automatic 
     new Set(["GroupA", "GroupB"]));
 });
 
-test("deep analysis fits the selected main groups in one flat fit", () => {
+test("deep analysis fits only children of the selected main groups", () => {
   const map = { id: "regional", title: "Regional", references: [
     row("GroupA: A", -1), row("GroupA: B", 0), row("GroupA: C", -2),
     row("GroupB: A", 2), row("GroupB: B", 3), row("GroupB: C", 4),
   ] };
   const result = calculate({ target: { values: [1, ...Array(24).fill(0)] },
     selectedPcaId: "regional", displayedPcaId: "regional", groupLimit: 2,
-    modernPcas: [map], deepAnalysis: true, deepGroupLimit: "auto",
+    modernPcas: [map], deepAnalysis: true,
     deepPcas: [{ id: "regional", references: [
       row("GroupA: A", 0), row("GroupA: B", -1),
       row("GroupB: A", 2), row("GroupB: B", 3),
@@ -130,33 +149,64 @@ test("deep analysis fits the selected main groups in one flat fit", () => {
   }
 });
 
-test("deep analysis jointly refits parent percentages", () => {
+test("deep analysis can replace a mixed main fit with one exact child sample", () => {
   const references = [row("GroupA: Main", 0), row("GroupA: Alternate", 0),
     row("GroupB: Main", 1)];
   const result = calculate({ target: { values: [0.5, ...Array(24).fill(0)] },
     references, selectedPcaId: "reweight", displayedPcaId: "reweight",
     groupLimit: 2, modernPcas: [{ id: "reweight", references }],
-    deepAnalysis: true, deepGroupLimit: 2, deepPcas: [{ id: "reweight", references: [
-      row("GroupA: Sample", 0), row("GroupB: Sample", 0.8),
+    deepAnalysis: true, deepPcas: [{ id: "reweight", references: [
+      row("GroupA: Sample", 0), row("GroupB: Exact", 0.5),
     ] }] });
   const deep = result.messages.find((message) => message.kind === "deep");
   const mainWeights = Object.fromEntries(result.fit.groups.map((group) =>
     [group.ethnicity, group.weight]));
-  const deepWeights = Object.fromEntries(deep.fit.groups.map((group) =>
-    [group.ethnicity, group.weight]));
   assert.ok(Math.abs(mainWeights.GroupB - 0.5) < 1e-6);
-  assert.ok(Math.abs(deepWeights.GroupB - 0.625) < 1e-6);
-  assert.ok(Math.abs(deepWeights.GroupA - 0.375) < 1e-6);
-  assert.ok(Math.abs(deep.fit.distance) < 1e-6);
+  assert.equal(deep.fit.groups.length, 1);
+  assert.equal(deep.fit.groups[0].ethnicity, "GroupB");
+  assert.equal(deep.fit.groups[0].weight, 1);
+  assert.equal(deep.fit.components[0].label, "GroupB: Exact");
+  assert.ok(deep.fit.distance < 1e-9);
 });
 
-test("mixed deep analysis fits source groups from their own files and jointly refits them", () => {
+test("Ukrainian Pontic resolves to its exact deep reference", () => {
+  const source = fs.readFileSync(path.join(__dirname,
+    "../data/pca/modern_pca14.g25.txt"), "utf8");
+  const sections = { Main: [], Deep: [] };
+  let section = null;
+  for (const line of source.split(/\r?\n/)) {
+    if (line === "Main:" || line === "Deep:") {
+      section = line.slice(0, -1);
+      continue;
+    }
+    if (!line.trim() || !section) continue;
+    const [label, ...coordinates] = line.split(",");
+    sections[section].push(["modern", label, ...coordinates.map(Number)]);
+  }
+  const pontic = sections.Deep.find((reference) =>
+    reference[1] === "Slavic: Ukrainian_Pontic_(n=3)");
+  assert.ok(pontic);
+  const pca = { id: "northeast", references: sections.Main };
+  const result = calculate({ target: { values: pontic.slice(2) },
+    references: pca.references, selectedPcaId: pca.id, displayedPcaId: pca.id,
+    groupLimit: 2, modernPcas: [pca], deepAnalysis: true,
+    deepPcas: [{ id: pca.id, references: sections.Deep }] });
+  assert.ok(result.fit.groups.some((group) => group.ethnicity === "Slavic"));
+  const deep = result.messages.find((message) => message.kind === "deep");
+  assert.equal(deep.error, undefined);
+  assert.equal(deep.fit.components.length, 1);
+  assert.equal(deep.fit.components[0].label, pontic[1]);
+  assert.equal(deep.fit.components[0].weight, 1);
+  assert.ok(deep.fit.distance < 1e-9);
+});
+
+test("mixed deep analysis refits only the selected source groups", () => {
   const references = [row("Southeast_Europe:Albanian", 0, 0),
     row("Southeast_Europe:Balkans", 1, 0),
     row("West_Asia_and_Caucasus:North Caucasus", 0, 1)];
   const result = calculate({ target: { values: [0.3, 0.3, ...Array(23).fill(0)] },
     references, selectedPcaId: "mixed", displayedPcaId: "mixed", groupStyle: "mixed",
-    groupLimit: 2, modernPcas: null, deepAnalysis: true, deepGroupLimit: 2,
+    groupLimit: 2, modernPcas: null, deepAnalysis: true,
     deepPcas: [
       { id: "southeast", title: "Southeast Europe", references: [
         row("Albanian: Albanian_A", -0.2, 0),
@@ -181,7 +231,22 @@ test("mixed deep analysis fits source groups from their own files and jointly re
   assert.ok(Math.abs(deep.fit.groups.reduce((sum, group) => sum + group.weight, 0) - 1) < 1e-9);
   assert.ok(Math.abs(result.fit.groups.find((group) => group.ethnicity === "Southeast_Europe").weight - 0.7) < 1e-6);
   assert.ok(Math.abs(deep.fit.groups.find((group) => group.ethnicity === "Southeast_Europe").weight - 0.75) < 1e-6);
-  assert.ok(Math.abs(deep.fit.distance) < 1e-6);
+  assert.ok(deep.fit.distance < 1e-6);
+});
+
+test("automatic group search stops when one group fits below one", () => {
+  const references = [row("GroupA: First", 0.0098),
+    row("GroupA: Second", 0.0098), row("GroupA: Third", 0.0098),
+    row("GroupB: First", -0.0098)];
+  const result = calculate({ references, selectedPcaId: "threshold",
+    displayedPcaId: "threshold", groupLimit: "auto",
+    modernPcas: [{ id: "threshold", references }] });
+  assert.equal(result.fit.groups.length, 1);
+  assert.equal(result.fit.groups[0].ethnicity, "GroupA");
+  assert.ok(Math.abs(result.fit.distance - 0.98) < 1e-9);
+  assert.equal(result.pcaFitDistances[0].groupLimit, 1);
+  assert.ok(!result.messages.some((message) =>
+    message.kind === "progress" && message.groupLimit > 1));
 });
 
 test("automatic PCA stays regular even when the combined references fit better", () => {
@@ -191,7 +256,7 @@ test("automatic PCA stays regular even when the combined references fit better",
   assert.equal(result.pcaFitDistances.length, 3);
 });
 
-test("above two, auto selects the lowest regular fit instead of the closest PCA", () => {
+test("auto selects the lowest regular fit above two and when it clears the ratio below two", () => {
   const near = { id: "near", title: "Near", references: [
     row("Near:A", 0.1), row("Near:B", 0.2), row("Near:C", 0.3),
   ] };
@@ -205,7 +270,7 @@ test("above two, auto selects the lowest regular fit instead of the closest PCA"
     result.pcaFitDistances.find((entry) => entry.id === "near").distance);
   const lowDistance = calculate({ groupLimit: "auto", closestPopulationDistance: 2,
     closestPcaId: "near", modernPcas: [near, better] });
-  assert.equal(lowDistance.pca.id, "near");
+  assert.equal(lowDistance.pca.id, "better");
 });
 
 test("mixed becomes automatic above a closest-population distance of two when its fit wins", () => {
@@ -230,7 +295,7 @@ test("automatic Mixed selection continues into deep analysis", () => {
   ] };
   const result = calculate({ groupLimit: "auto", closestPopulationDistance: 2.001,
     modernPcas: [...pcas, mixed],
-    deepAnalysis: true, deepGroupLimit: "auto", deepPcas: [
+    deepAnalysis: true, deepPcas: [
       { id: "first", title: "First", references: [row("Group0: A", 0)] },
     ] });
   assert.equal(result.pca.id, "mixed");
@@ -240,7 +305,7 @@ test("automatic Mixed selection continues into deep analysis", () => {
   assert.deepEqual([...deep.groups], ["First"]);
 });
 
-test("below two, auto stays with the closest population despite better fit elsewhere", () => {
+test("below two, a substantially better regular fit overrides the closest PCA", () => {
   const closest = { id: "closest", title: "Closest", references: [
     row("Closest:A", 0.03), row("Closest:B", 0.04), row("Closest:C", 0.05),
   ] };
@@ -253,8 +318,30 @@ test("below two, auto stays with the closest population despite better fit elsew
   const result = calculate({ closestPcaId: "closest", closestPopulationDistance: 1.999,
     modernPcas: [closest, mixed, better],
     groupLimit: "auto" });
-  assert.equal(result.pca.id, "closest");
+  assert.equal(result.pca.id, "better");
   assert.ok(result.pcaFitDistances.find((entry) => entry.id === "better").distance < 2);
+});
+
+test("Udi selects Caucasus over the closer West Turkistan PCA without selecting Mixed", () => {
+  const source = fs.readFileSync(path.join(__dirname, "../data/modern_g25.txt"), "utf8")
+    .split(/\r?\n/).find((line) => line.startsWith("Udi_(n=3),"));
+  const target = core.parseLine(source);
+  const bundle = fs.readFileSync(path.join(__dirname,
+    "../calculator/modern_pca_references.js"), "utf8");
+  const allPcas = JSON.parse(bundle.slice(bundle.indexOf("=") + 1).trim().replace(/;$/, ""));
+  const mixedBundle = fs.readFileSync(path.join(__dirname,
+    "../calculator/mixed_pca_references.js"), "utf8");
+  const mixed = JSON.parse(mixedBundle.slice(mixedBundle.indexOf("=") + 1).trim().replace(/;$/, ""));
+  const regular = ["global-anatolian-turks-and-azerbaijanis", "global-caucasus"]
+    .map((id) => allPcas.find((pca) => pca.id === id))
+    .map((pca) => ({ ...pca,
+      references: modern.selectFitReferences(target, pca.references, core.nearestMatches) }));
+  const result = calculate({ target, groupLimit: "auto", closestPopulationDistance: 0,
+    closestPcaId: regular[0].id, modernPcas: [...regular, mixed] });
+  assert.equal(result.pca.id, "global-caucasus");
+  const fits = Object.fromEntries(result.pcaFitDistances.map(({ id, distance }) => [id, distance]));
+  assert.ok(fits["global-caucasus"] < fits["global-anatolian-turks-and-azerbaijanis"] * 0.75);
+  assert.ok(fits.mixed > fits["global-caucasus"]);
 });
 
 test("mixed needs a 25 percent fit improvement over the best regular PCA", () => {

@@ -100,10 +100,16 @@ function G25ModernPcaModule(root) {
     if (!fits.length) return null;
     let selected = fits[0];
     for (const candidate of fits.slice(1)) {
+      if (selected.fit.distance < 1) break;
       if (candidate.fit.distance < selected.fit.distance * ratio) selected = candidate;
       else break;
     }
     return selected;
+  }
+
+  function shouldAutoSelectBestRegular(closestFitDistance, bestFitDistance, ratio = 0.75) {
+    return Number.isFinite(closestFitDistance) && Number.isFinite(bestFitDistance) &&
+      bestFitDistance < closestFitDistance * ratio;
   }
 
   function shouldAutoSelectMixed(closestPopulationDistance, bestRegularFitDistance, mixedFitDistance) {
@@ -115,7 +121,7 @@ function G25ModernPcaModule(root) {
 
   const api = { selectModernPca, rankModernPcas, selectFitReferences, selectDeepReferences,
     selectMixedDeepReferences, selectMixedMainReferences, defaultGroupFit,
-    shouldAutoSelectMixed, isIstanbulReference };
+    shouldAutoSelectBestRegular, shouldAutoSelectMixed, isIstanbulReference };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else {
     root.G25ModernPca = api;

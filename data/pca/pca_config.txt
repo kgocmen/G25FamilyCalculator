@@ -27,7 +27,7 @@
     },
     {
       "id": "global-jewish",
-      "title": "Jewish",
+      "title": "Jewish and Roma",
       "file": "modern_pca6.g25.txt"
     },
     {
@@ -61,13 +61,13 @@
       "file": "modern_pca12.g25.txt"
     },
     {
-      "id": "global-north-europe",
-      "title": "North Europe",
+      "id": "global-northwest-europe",
+      "title": "Northwest Europe",
       "file": "modern_pca13.g25.txt"
     },
     {
-      "id": "global-east-europe",
-      "title": "East Europe",
+      "id": "global-northeast-europe",
+      "title": "Northeast Europe",
       "file": "modern_pca14.g25.txt"
     },
     {
@@ -89,6 +89,11 @@
       "id": "global-levant-mesopotamia",
       "title": "Levant and Mesopotamia",
       "file": "modern_pca18.g25.txt"
+    },
+    {
+      "id": "global-west-siberia",
+      "title": "West Siberia",
+      "file": "modern_pca19.g25.txt"
     }
   ]
 }

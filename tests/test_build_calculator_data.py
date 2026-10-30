@@ -1,6 +1,7 @@
 import tempfile
 import unittest
 import json
+import math
 import sys
 from pathlib import Path
 
@@ -382,7 +383,7 @@ class ReadRowsTests(unittest.TestCase):
         modern = read_rows(ROOT / "data" / "modern_g25.txt", "modern")
         source = {row[1]: row[2:] for row in modern}
         pca = next(pca for pca in read_global_modern_pcas(modern)
-                   if pca["id"] == "global-north-europe")
+                   if pca["id"] == "global-northwest-europe")
         main = {row[1].split(":", 1)[1]: row[1].split(":", 1)[0]
                 for row in pca["references"]}
         expected_groups = {"Germanic East", "Germanic West", "Germanic South",
@@ -406,9 +407,9 @@ class ReadRowsTests(unittest.TestCase):
         source = {row[1]: row[2:] for row in modern}
         pcas = {pca["id"]: pca for pca in read_global_modern_pcas(modern)}
         south = pcas["global-southwest-europe"]
-        north = pcas["global-north-europe"]
+        north = pcas["global-northwest-europe"]
         self.assertEqual(south["title"], "Southwest Europe")
-        self.assertEqual(north["title"], "North Europe")
+        self.assertEqual(north["title"], "Northwest Europe")
 
         south_main = {row[1].split(":", 1)[1] for row in south["references"]
                       if row[1].startswith("South France:")}
@@ -438,13 +439,14 @@ class ReadRowsTests(unittest.TestCase):
         for label, row in (south_deep | north_deep).items():
             self.assertEqual(row[2:], source[label], label)
 
-    def test_southwest_southeast_and_east_europe_maps_partition_references(self):
+    def test_southwest_southeast_east_europe_and_uralic_maps_partition_references(self):
         modern = read_rows(ROOT / "data" / "modern_g25.txt", "modern")
         source_labels = {row[1] for row in modern}
         pcas = {pca["id"]: pca for pca in read_global_modern_pcas(modern)}
         southwest = pcas["global-southwest-europe"]
         southeast = pcas["global-southeast-europe"]
-        east_europe = pcas["global-east-europe"]
+        east_europe = pcas["global-northeast-europe"]
+        uralic = pcas["global-west-siberia"]
 
         def groups(pca):
             return {row[1].split(":", 1)[0] for row in pca["references"]}
@@ -458,9 +460,9 @@ class ReadRowsTests(unittest.TestCase):
                          {"South France", "Basque", "Iberia", "Corsica", "Italy", "Sardinia"})
         self.assertEqual(groups(southeast), {"South Italy", "Albanian", "Greek",
                                              "Greek Asia Minor", "Balkans", "Turk Balkans",
-                                             "Turk Thrace"})
+                                             "Turk Thrace", "Crimea"})
         self.assertEqual(groups(east_europe),
-                         {"Slavic", "Central Europe", "Finnic", "Baltic"})
+                         {"Slavic", "Central Europe", "Baltic"})
         self.assertFalse(labels(southwest, "Italy") & labels(southeast, "South Italy"))
         self.assertFalse(labels(southwest, "Italy", True) &
                          labels(southeast, "South Italy", True))
@@ -495,13 +497,14 @@ class ReadRowsTests(unittest.TestCase):
         self.assertEqual(central | slavic,
                          {label for label in source_labels if label.startswith(central_slavic_prefixes)})
         for pca, group, prefixes in (
-            (east_europe, "Finnic", ("Estonian_", "Finnish_", "Ingrian_",
-                                      "Karelian_", "Veps_", "Votian_")),
-            (east_europe, "Baltic", ("Latvian_", "Lithuanian_")),
+            (uralic, "Finnic", ("Estonian_", "Finnish_", "Ingrian_",
+                                      "Karelian_", "Veps_", "Votian_",
+                                      "Russian_Arkhangelsk_")),
+            (east_europe, "Baltic", ("Estonian_", "Latvian_", "Lithuanian_")),
         ):
             self.assertEqual(labels(pca, group, True),
                              {label for label in source_labels if label.startswith(prefixes)})
-        self.assertEqual({label for group in ("Greek", "Greek Asia Minor", "Turk Balkans")
+        self.assertEqual({label for group in ("Greek", "Greek Asia Minor", "Turk Balkans", "Crimea")
                           for label in labels(southeast, group, True)
                           if label.startswith("Greek_")},
                          {label for label in source_labels if label.startswith("Greek_")})
@@ -526,7 +529,7 @@ class ReadRowsTests(unittest.TestCase):
         self.assertTrue({"Lithuanian_East_Aukštaitija_(n=78)",
                          "Finnish_North_(n=9)"} <=
                         (labels(east_europe, "Baltic", True) |
-                         labels(east_europe, "Finnic", True)))
+                         labels(uralic, "Finnic", True)))
         for pca in (southwest, southeast, east_europe):
             main = {row[1].split(":", 1)[0]: set() for row in pca["references"]}
             for row in pca["references"]:
@@ -535,17 +538,37 @@ class ReadRowsTests(unittest.TestCase):
             for group, group_labels in main.items():
                 self.assertTrue(group_labels <= labels(pca, group, True))
 
+    def test_southeast_greek_boundary_uses_peloponnese_and_crete(self):
+        modern = read_rows(ROOT / "data" / "modern_g25.txt", "modern")
+        source = {row[1]: row[2:] for row in modern}
+        pca = next(pca for pca in read_global_modern_pcas(modern)
+                   if pca["id"] == "global-southeast-europe")
+        peloponnese = source["Greek_Peloponnese_Arcadia_(n=34)"]
+        crete = source["Greek_Crete_(n=16)"]
+        self.assertLessEqual(len(pca["references"]), 60)
+        main_groups = {row[1].split(":", 1)[1].strip(): row[1].split(":", 1)[0]
+                       for row in pca["references"]}
+        self.assertEqual(main_groups["Greek_Western_Anatolia_Smyrna_(n=9)"], "Greek")
+        self.assertEqual(main_groups["Greek_Crete_Heraklion_(n=93)"], "Greek Asia Minor")
+        for row in pca["deepReferences"]:
+            group, label = (part.strip() for part in row[1].split(":", 1))
+            if group not in {"Greek", "Greek Asia Minor"} or not label.startswith("Greek_"):
+                continue
+            expected = ("Greek" if math.dist(source[label], peloponnese) <
+                        math.dist(source[label], crete) else "Greek Asia Minor")
+            self.assertEqual(group, expected, label)
+
     def test_global_modern_maps_have_requested_regions_and_valid_anchors(self):
         modern = read_rows(ROOT / "data" / "modern_g25.txt", "modern")
         by_label = {row[1]: row for row in modern}
         pcas = read_global_modern_pcas(modern)
         self.assertEqual([pca["title"] for pca in pcas],
                          ["Southwest Europe", "South Asia", "Central Asia and Siberia",
-                          "Sub-Saharan Africa", "North Africa", "Jewish", "Caucasus",
+                          "Sub-Saharan Africa", "North Africa", "Jewish and Roma", "Caucasus",
                           "East Asia", "Southeast Asia", "Australia and Pacific",
-                          "Indigenous America", "West Turkistan", "North Europe",
-                          "East Europe", "Southeast Europe", "Arabian Peninsula", "Iranic",
-                          "Levant and Mesopotamia"])
+                          "Indigenous America", "West Turkistan", "Northwest Europe",
+                          "Northeast Europe", "Southeast Europe", "Arabian Peninsula", "Iranic",
+                          "Levant and Mesopotamia", "West Siberia"])
         europe = pcas[0]
         groups = list(dict.fromkeys(row[1].split(":", 1)[0] for row in europe["references"]))
         self.assertEqual(groups, ["South France", "Basque", "Iberia", "Corsica",
@@ -582,7 +605,7 @@ class ReadRowsTests(unittest.TestCase):
         self.assertEqual({row[1].split(":", 1)[0] for row in pcas[5]["references"]},
                          {"Jewish Ashkenazi", "Jewish South Europe", "Jewish Crimea",
                           "Jewish Ethiopia", "Jewish Asia", "Jewish India",
-                          "Jewish Middle East"})
+                          "Jewish Middle East", "Roma"})
         self.assertTrue(any(row[1].startswith("Sinic:Han_")
                             for row in pcas[7]["references"]))
         self.assertTrue(any(row[1].startswith("Mainland Tai:Thai_")
@@ -600,11 +623,26 @@ class ReadRowsTests(unittest.TestCase):
             for row, anchor in zip(pca["references"], pca["referenceAnchors"]):
                 self.assertEqual(row[2:], by_label[anchor][2:])
 
+    def test_jewish_and_roma_pca_covers_every_roma_source(self):
+        modern = read_rows(ROOT / "data" / "modern_g25.txt", "modern")
+        source = {row[1]: row[2:] for row in modern}
+        pca = next(pca for pca in read_global_modern_pcas(modern)
+                   if pca["id"] == "global-jewish")
+        self.assertEqual(pca["title"], "Jewish and Roma")
+        roma = {row[1].split(":", 1)[1].strip(): row[2:]
+                for row in pca["deepReferences"] if row[1].startswith("Roma:")}
+        self.assertEqual(set(roma), {label for label in source if label.startswith("Roma_")})
+        for label, coordinates in roma.items():
+            self.assertEqual(coordinates, source[label], label)
+        self.assertEqual(sum(row[1].startswith("Roma:") for row in pca["references"]), 6)
+        self.assertIn("Jewish South Europe: Romaniote_Jew_(n=7)",
+                      {row[1] for row in pca["deepReferences"]})
+
     def test_all_global_modern_maps_have_usable_deep_references(self):
         modern = read_rows(ROOT / "data" / "modern_g25.txt", "modern")
         source = {row[1]: row[2:] for row in modern}
         pcas = {pca["id"]: pca for pca in read_global_modern_pcas(modern)}
-        self.assertEqual(len(pcas), 18)
+        self.assertEqual(len(pcas), 19)
         for pca in pcas.values():
             with self.subTest(pca=pca["id"]):
                 self.assertIn("deepReferences", pca)
@@ -634,6 +672,28 @@ class ReadRowsTests(unittest.TestCase):
         self.assertIn("Greek_Cyprus_(n=41)",
                       deep_labels("global-southeast-europe", "Greek Asia Minor") &
                       deep_labels("global-levant-mesopotamia", "Levant"))
+
+    def test_west_siberia_map_covers_uralic_turkic_ket_and_arkhangelsk_populations(self):
+        modern = read_rows(ROOT / "data" / "modern_g25.txt", "modern")
+        pcas = {pca["id"]: pca for pca in read_global_modern_pcas(modern)}
+        uralic = pcas["global-west-siberia"]
+        prefixes = ("Saami_", "Estonian_", "Finnish_", "Ingrian_", "Karelian_",
+                    "Veps_", "Votian_", "Besermyan_", "Komi_", "Mari_",
+                    "Mordvin_", "Udmurt_", "Khanty_", "Mansi_", "Enets_",
+                    "Nenets_", "Nganasan_", "Selkup_", "Bashkir_", "Chuvash_",
+                    "Tatar_", "Nogai_", "Crimean_Tatar_", "Ket_",
+                    "Russian_Arkhangelsk_")
+        expected = {row[1] for row in modern if row[1].startswith(prefixes)}
+        actual = {anchor for anchor in uralic["deepReferenceAnchors"]}
+        expected -= {"Nogai_Dagestan_(Ciscaucasian_Profile)_(n=3)",
+                     "Crimean_Tatar_Coast_(n=4)"}
+        self.assertEqual(actual, expected)
+        self.assertFalse(any(label.startswith("Hungarian_") for label in actual))
+        previous_maps = (pcas["global-central-asia"], pcas["global-northeast-europe"])
+        for pca in previous_maps:
+            moved = {label for label in expected
+                     if not label.startswith(("Ket_", "Russian_Arkhangelsk_", "Estonian_"))}
+            self.assertFalse(moved & set(pca["deepReferenceAnchors"]))
 
     def test_arabian_peninsula_has_its_own_main_and_deep_groups(self):
         modern = read_rows(ROOT / "data" / "modern_g25.txt", "modern")

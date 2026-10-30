@@ -6,7 +6,8 @@ const test = require("node:test");
 const { readPcaSource } = require("./pca_source.js");
 const { nearestMatches } = require("../calculator/core.js");
 const { selectModernPca, rankModernPcas, defaultGroupFit,
-  shouldAutoSelectMixed, isIstanbulReference, selectFitReferences, selectDeepReferences,
+  shouldAutoSelectBestRegular, shouldAutoSelectMixed, isIstanbulReference,
+  selectFitReferences, selectDeepReferences,
   selectMixedDeepReferences, selectMixedMainReferences } = require("../calculator/modern_pca.js");
 
 const row = (label, first) => ["modern", label, first, ...Array(24).fill(0)];
@@ -149,8 +150,8 @@ test("global PCA bundles use Main for regular references and the union for deep 
   const pcas = JSON.parse(bundle.slice(bundle.indexOf("=") + 1).trim().replace(/;$/, ""));
   const config = JSON.parse(fs.readFileSync(path.join(__dirname,
     "../data/pca/pca_config.txt"), "utf8"));
-  assert.equal(config.modern.length, 18);
-  assert.equal(pcas.length, 18);
+  assert.equal(config.modern.length, 19);
+  assert.equal(pcas.length, 19);
   assert.deepEqual(pcas.map((pca) => pca.id), config.modern.map((entry) => entry.id));
   for (const [index, entry] of config.modern.entries()) {
     assert.equal(pcas[index].title, entry.title);
@@ -281,6 +282,13 @@ test("default group count advances only after a 25 percent fit improvement", () 
   assert.equal(defaultGroupFit(fits).groupLimit, 3);
   assert.equal(defaultGroupFit([fits[0], { groupLimit: 2, fit: { distance: 3 } }]).groupLimit, 1);
   assert.equal(defaultGroupFit([]), null);
+});
+
+test("regular PCA fit override compares the best fit with the closest PCA fit", () => {
+  assert.equal(shouldAutoSelectBestRegular(1.689, 1.024), true);
+  assert.equal(shouldAutoSelectBestRegular(1.689, 1.3), false);
+  assert.equal(shouldAutoSelectBestRegular(1.689, 1.26675), false);
+  assert.equal(shouldAutoSelectBestRegular(Infinity, 1), false);
 });
 
 test("mixed uses the new threshold above two and keeps the existing rule below it", () => {

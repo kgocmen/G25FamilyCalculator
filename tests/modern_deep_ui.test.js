@@ -85,14 +85,33 @@ test("deep mode keeps the main selection and shows one level of clusters", () =>
     .find((option) => option.children[0].textContent === "Regional");
   choice.listeners.click();
   assert.equal(state.modernPcaId, "regional");
-  state.modernGroupLimit = 2;
+  assert.equal(state.deepAnalysis, false);
   const toggle = document.querySelector("#modern-deep-toggle");
+  assert.equal(toggle.disabled, true);
+  state.modernGroupLimit = 2;
+  render();
+  const mainFit = { values: state.single.values, distance: 1,
+    groups: [{ ethnicity: "GroupA", weight: 0.6, samples: [
+      { label: "GroupA: First", sample: "First", weight: 0.6 }] },
+    { ethnicity: "GroupB", weight: 0.4, samples: [
+      { label: "GroupB: First", sample: "First", weight: 0.4 }] }],
+    components: [{ label: "GroupA: First", weight: 0.6 },
+      { label: "GroupB: First", weight: 0.4 }] };
+  const mainWorker = lastWorker;
+  mainWorker.onmessage({ data: { requestId: mainWorker.data.requestId, kind: "selected",
+    fit: mainFit, pca: { id: "regional", title: "Regional", references: main } } });
+  mainWorker.onmessage({ data: { requestId: mainWorker.data.requestId, kind: "done" } });
+  assert.equal(toggle.disabled, false);
   toggle.checked = true;
   toggle.listeners.change({ currentTarget: toggle });
   assert.equal(state.deepPcaId, "regional");
   assert.equal(lastWorker.data.selectedPcaId, "regional");
   assert.equal(lastWorker.data.groupLimit, 2);
   assert.equal(lastWorker.data.deepAnalysis, true);
+  assert.equal(lastWorker.data.deepOnly, true);
+  assert.equal(lastWorker.data.mainFit, mainFit);
+  assert.equal(lastWorker.data.mainPcaId, "regional");
+  assert.equal(lastWorker.data.modernPcas, null);
   assert.deepEqual(lastWorker.data.deepPcas.map((pca) => pca.id), ["regional"]);
   assert.equal(document.querySelector("#modern-pca-current-fit").textContent,
     "Main fit · max 2 groups");
@@ -136,6 +155,15 @@ test("deep mode keeps the main selection and shows one level of clusters", () =>
   assert.equal(document.querySelector("#medieval-breakdown-distance").textContent,
     "Deep fit distance 0.500");
 
+  renderDeepFit({ pcaId: "regional", mainFit, referenceCount: 3,
+    fit: { values: state.single.values, distance: 0,
+      groups: [{ ethnicity: "GroupA", weight: 1, samples: [
+        { label: "GroupA: First", sample: "First", weight: 1 },
+      ] }] } });
+  assert.deepEqual(window.lastPcaRows.map((reference) => reference[1]), [
+    "GroupA: First", "GroupA: Second", "GroupB: First",
+  ]);
+
   const southeastMain = [row("Albanian:Albanian_Gheg", 0),
     row("Balkans:Bulgarian", 1), row("Albanian:Albanian_Tosk", 0.1),
     row("Greek:Greek_Attica", 2)];
@@ -146,7 +174,8 @@ test("deep mode keeps the main selection and shows one level of clusters", () =>
       row("Balkans: Bulgarian_A", 1)] };
   window.G25_MODERN_PCAS.push(
     southeastPca,
-    { id: "caucasus", title: "West Asia and Caucasus", references: caucasusMain });
+    { id: "caucasus", title: "West Asia and Caucasus", references: caucasusMain,
+      deepReferences: [row("North Caucasus: Abkhazian_A", 3)] });
 
   const mixed = document.querySelector("#modern-pca-options").children
     .find((option) => option.children[0].textContent === "Mixed");
@@ -188,11 +217,9 @@ test("deep mode keeps the main selection and shows one level of clusters", () =>
   assert.equal(caucasus.children[0].children[1].textContent, "30.0%");
   assert.ok(mixedParents.every((parent) => parent.children.length === 3));
   assert.deepEqual(window.lastPcaRows.map((reference) => reference[1]), [
-    "Southeast_Europe:Albanian:Albanian_Gheg",
-    "Southeast_Europe:Balkans:Bulgarian",
-    "Southeast_Europe:Albanian:Albanian_Tosk",
-    "West_Asia_and_Caucasus:North Caucasus:Abkhazian",
-    "West_Asia_and_Caucasus:North Caucasus:Chechen",
+    "Southeast_Europe:Albanian_A",
+    "Southeast_Europe:Bulgarian_A",
+    "West_Asia_and_Caucasus:Abkhazian_A",
   ]);
   assert.equal(document.querySelector("#pca-heading-title").textContent, "Mixed · Deep");
 

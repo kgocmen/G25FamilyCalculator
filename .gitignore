@@ -2,3 +2,4 @@
 __pycache__/
 tests/results/
 data/all_g25.csv
+data/input.txt
