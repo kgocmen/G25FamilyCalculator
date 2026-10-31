@@ -317,9 +317,9 @@ class ReadRowsTests(unittest.TestCase):
         deep = {row[1].split(": ", 1)[1]: row[1].split(":", 1)[0]
                 for row in pca["deepReferences"]}
         self.assertEqual(set(main.values()), {
-            "Punjab and North India", "Central India and Deccan", "Bengal-Assam", "South India-Sri Lanka",
+            "Punjab and North India", "Central India and Deccan", "Bengal", "South India-Sri Lanka",
             "South/West Dalit-Adivasi", "Gond-Kurukh", "Eastern Adivasi", "Andamanese",
-            "Himalaya"})
+            "Himalaya", "Newar"})
         self.assertEqual(len(main), len(pca["references"]))
         self.assertEqual(len(deep), len(pca["deepReferences"]))
         self.assertTrue(all(deep.get(label) == group for label, group in main.items()))
@@ -329,8 +329,8 @@ class ReadRowsTests(unittest.TestCase):
                              for label in main | deep))
         for label, group in (
             ("Punjabi_Jat_Sikh_(n=60)", "Punjab and North India"),
-            ("Kashmiri_Pandit_(n=26)", "Punjab and North India"),
-            ("Bengali_Bangladesh_(n=90)", "Bengal-Assam"),
+            ("Kashmiri_Pandit_(n=26)", "Himalaya"),
+            ("Bengali_Bangladesh_(n=90)", "Bengal"),
             ("Tamil_Brahmin_Iyer_Tamil_Nadu_(n=24)", "Central India and Deccan"),
             ("Sinhalese_(n=16)", "South India-Sri Lanka"),
             ("Gond_Chhattisgarh_(n=9)", "Gond-Kurukh"),
@@ -604,15 +604,14 @@ class ReadRowsTests(unittest.TestCase):
         east_asia = {label for row in pcas[7]["references"]
                      for label in [row[1].split(":", 1)[1].strip()]}
         central_asia = {row[1].split(":", 1)[1].strip() for row in pcas[2]["references"]}
-        for prefix in ("Tibetan", "Sherpa", "Tamang", "Gurung"):
+        for prefix in ("Tibetan", "Sherpa", "Gurung"):
             with self.subTest(prefix=prefix):
                 self.assertFalse(any(label.startswith(prefix + "_") for label in central_asia))
                 self.assertTrue(any(label.startswith(prefix + "_") for label in east_asia))
-                expected_south = ({"Tibetan_Muslim_Srinagar_(n=15)"}
-                                  if prefix == "Tibetan" else set())
                 self.assertEqual({label.strip() for label in south_asia
-                                  if label.strip().startswith(prefix + "_")}, expected_south)
+                                  if label.strip().startswith(prefix + "_")}, set())
         southeast_asia = {row[1].split(":", 1)[1].strip() for row in pcas[8]["references"]}
+        self.assertIn("Tamang_(n=8)", southeast_asia)
         for prefix in ("Garo", "Khasi", "Tripuri"):
             self.assertTrue(any(label.startswith(prefix + "_") for label in southeast_asia))
             self.assertFalse(any(label.strip().startswith(prefix + "_") for label in south_asia))
@@ -629,7 +628,7 @@ class ReadRowsTests(unittest.TestCase):
                           "Jewish Middle East", "Roma"})
         self.assertTrue(any(row[1].startswith("Northern China:Han_")
                             for row in pcas[7]["references"]))
-        self.assertTrue(any(row[1].startswith("Mainland Tai:Thai_")
+        self.assertTrue(any(row[1].startswith("Tai-Kadai:Thai_")
                             for row in pcas[8]["references"]))
         self.assertTrue(any(row[1].startswith("Papua:Papuan_")
                             for row in pcas[9]["references"]))
@@ -884,11 +883,11 @@ class ReadRowsTests(unittest.TestCase):
 
         self.assertIn("Yao_(n=29)", deep_labels("global-sub-saharan-africa", "Southern Bantu"))
         self.assertNotIn("Yao_(n=29)", deep_labels("global-east-asia", "Southern China"))
-        self.assertIn("Kom_(n=2)", deep_labels("global-southeast-asia", "Myanmar Highlands"))
+        self.assertIn("Kom_(n=2)", deep_labels("global-southeast-asia", "Tibeto-Burman"))
         self.assertNotIn("Kom_(n=2)", deep_labels("global-sub-saharan-africa", "Central African"))
         self.assertIn("Dai_Yunnan_Xishuangbanna_(n=101)",
                       deep_labels("global-east-asia", "Southern China") &
-                      deep_labels("global-southeast-asia", "Mainland Tai"))
+                      deep_labels("global-southeast-asia", "Tai-Kadai"))
         self.assertIn("Greek_Cyprus_(n=41)",
                       deep_labels("global-southeast-europe", "Greek Asia Minor") &
                       deep_labels("global-levant-mesopotamia", "Levant"))

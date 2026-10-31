@@ -42,7 +42,7 @@ test("Neolithic model rejects invalid G25 coordinates", () => {
   assert.throws(() => neolithic.calculate({ values: Array(25).fill(0) }, "unknown"), /Unknown Neolithic/);
 });
 
-test("Himalaya and relocated Southeast Asian profiles have distinct farmer-proxy affinities", () => {
+test("farmer proxies distinguish Southeast Asian and northern shifts across mainland groups", () => {
   const context = { window: {} };
   vm.runInNewContext(fs.readFileSync(path.join(__dirname,
     "../calculator/modern_pca_references.js"), "utf8"), context);
@@ -62,6 +62,6 @@ test("Himalaya and relocated Southeast Asian profiles have distinct farmer-proxy
   const maximumRetained = Math.max(...himalaya.map((row) => score(row, farmer)));
   // Compare these dataset-specific proxy fits without treating weights as measured ancestry.
   assert.ok(minimumRelocated > maximumRetained + .03);
-  const northern = himalaya.find((row) => row[1].includes("Nyishi_"));
+  const northern = southeast.references.find((row) => row[1].includes("Nyishi_"));
   assert.ok(score(northern, "Yellow River Neolithic Farmer") > score(northern, farmer) + .5);
 });
