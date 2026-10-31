@@ -312,17 +312,18 @@ class ReadRowsTests(unittest.TestCase):
         modern = read_rows(ROOT / "data" / "modern_g25.txt", "modern")
         pca = next(pca for pca in read_global_modern_pcas(modern)
                    if pca["id"] == "global-south-asia")
-        main = {row[1].split(":", 1)[1]: row[1].split(":", 1)[0]
+        main = {row[1].split(":", 1)[1].strip(): row[1].split(":", 1)[0]
                 for row in pca["references"]}
         deep = {row[1].split(": ", 1)[1]: row[1].split(":", 1)[0]
                 for row in pca["deepReferences"]}
         self.assertEqual(set(main.values()), {
             "Punjab and North India", "Central India and Deccan", "Bengal-Assam", "South India-Sri Lanka",
-            "South/West Dalit-Adivasi", "Gond-Kurukh", "Eastern Adivasi"})
+            "South/West Dalit-Adivasi", "Gond-Kurukh", "Eastern Adivasi", "Andamanese",
+            "Himalaya"})
         self.assertEqual(len(main), len(pca["references"]))
         self.assertEqual(len(deep), len(pca["deepReferences"]))
         self.assertTrue(all(deep.get(label) == group for label, group in main.items()))
-        self.assertFalse(any(label.startswith(("Hazara_", "Rajbanshi_", "Balochi_", "Brahui_", "Makrani_"))
+        self.assertFalse(any(label.startswith(("Hazara_", "Balochi_", "Brahui_", "Makrani_"))
                              for label in main | deep))
         self.assertFalse(any(label.startswith("Pashtun_") and not label.startswith("Pashtun_India_")
                              for label in main | deep))
@@ -340,12 +341,16 @@ class ReadRowsTests(unittest.TestCase):
         source_deep = read_rows(ROOT / "data" / "pca" / "modern_pca2.g25.txt", "modern", section="deep")
         deprecated = {row[1].split(": ", 1)[1] for row in source_deep
                       if row[1].startswith("Deprecated: ")}
-        self.assertEqual(deprecated, {
+        self.assertEqual(deprecated, set())
+        excluded = {
             "Balochi_Pakistan_(Siddi-Mixed)_(n=3)",
             "Brahui_(Siddi-Mixed)_(n=2)",
             "Makrani_(Siddi-Mixed)_(n=4)",
-            "Sindhi_(Siddi-Mixed)_(n=2)"})
-        self.assertTrue(deprecated.isdisjoint(deep))
+            "Sindhi_(Siddi-Mixed)_(n=2)"}
+        self.assertTrue(excluded.isdisjoint(deep))
+        mixed = {row[1].split(":", 1)[1].strip()
+                 for row in pca["deepMixedReferences"]}
+        self.assertIn("Sindhi_(Siddi-Mixed)_(n=2)", mixed)
 
     def test_iranic_pca_covers_source_without_ossetians(self):
         modern = read_rows(ROOT / "data" / "modern_g25.txt", "modern")
@@ -570,7 +575,7 @@ class ReadRowsTests(unittest.TestCase):
         pcas = read_global_modern_pcas(modern)
         self.assertEqual([pca["title"] for pca in pcas],
                          ["Southwest Europe", "South Asia", "Central Asia and Siberia",
-                          "Sub-Saharan Africa", "North Africa", "Jewish and Roma", "Caucasus",
+                          "Sub-Saharan Africa", "North Africa and the Horn", "Jewish and Roma", "Caucasus",
                           "East Asia", "Southeast Asia", "Australia and Pacific",
                           "Indigenous America", "West Turkistan", "Northwest Europe",
                           "Northeast Europe", "Southeast Europe", "Arabian Peninsula", "Iranic",
@@ -597,11 +602,21 @@ class ReadRowsTests(unittest.TestCase):
         south_asia = {label for row in pcas[1]["references"]
                       for label in [row[1].split(":", 1)[1]]}
         east_asia = {label for row in pcas[7]["references"]
-                     for label in [row[1].split(":", 1)[1]]}
-        for prefix in ("Tibetan", "Sherpa", "Tamang", "Gurung", "Garo", "Khasi", "Tripuri"):
+                     for label in [row[1].split(":", 1)[1].strip()]}
+        central_asia = {row[1].split(":", 1)[1].strip() for row in pcas[2]["references"]}
+        for prefix in ("Tibetan", "Sherpa", "Tamang", "Gurung"):
             with self.subTest(prefix=prefix):
+                self.assertFalse(any(label.startswith(prefix + "_") for label in central_asia))
                 self.assertTrue(any(label.startswith(prefix + "_") for label in east_asia))
-                self.assertFalse(any(label.startswith(prefix + "_") for label in south_asia))
+                expected_south = ({"Tibetan_Muslim_Srinagar_(n=15)"}
+                                  if prefix == "Tibetan" else set())
+                self.assertEqual({label.strip() for label in south_asia
+                                  if label.strip().startswith(prefix + "_")}, expected_south)
+        southeast_asia = {row[1].split(":", 1)[1].strip() for row in pcas[8]["references"]}
+        for prefix in ("Garo", "Khasi", "Tripuri"):
+            self.assertTrue(any(label.startswith(prefix + "_") for label in southeast_asia))
+            self.assertFalse(any(label.strip().startswith(prefix + "_") for label in south_asia))
+            self.assertFalse(any(label.startswith(prefix + "_") for label in east_asia))
         self.assertTrue(any(row[1].startswith("Somalia:Somali_")
                             for row in pcas[4]["references"]))
         self.assertTrue(any(row[1].startswith("Maghreb:Berber_")
@@ -612,7 +627,7 @@ class ReadRowsTests(unittest.TestCase):
                          {"Jewish Ashkenazi", "Jewish South Europe", "Jewish Crimea",
                           "Jewish Ethiopia", "Jewish Asia", "Jewish India",
                           "Jewish Middle East", "Roma"})
-        self.assertTrue(any(row[1].startswith("Sinic:Han_")
+        self.assertTrue(any(row[1].startswith("Northern China:Han_")
                             for row in pcas[7]["references"]))
         self.assertTrue(any(row[1].startswith("Mainland Tai:Thai_")
                             for row in pcas[8]["references"]))
@@ -829,7 +844,7 @@ class ReadRowsTests(unittest.TestCase):
                 self.assertNotIn(label, assigned)
                 self.assertEqual(row[2:], source[label])
                 assigned[label] = (pca["title"], group)
-        self.assertEqual(len(assigned), 301)
+        self.assertEqual(len(assigned), 318)
         self.assertEqual(assigned["Anglo-American_Kentucky_(n=125)"],
                          ("Northwest Europe", "British Isles"))
         self.assertEqual(assigned["Bolivian_Mestizo_(n=5)"],
@@ -841,7 +856,7 @@ class ReadRowsTests(unittest.TestCase):
         self.assertEqual(assigned["Namibian_Bantu_(Coloured-Mixed)_(n=4)"],
                          ("Sub-Saharan Africa", "Southern Bantu"))
         self.assertEqual(assigned["Baggara_Chad_(Highly_Arabian-Mixed)_(n=12)"],
-                         ("North Africa", "Sahara-Sahel"))
+                         ("North Africa and the Horn", "Sahara-Sahel"))
 
     def test_all_global_modern_maps_have_usable_deep_references(self):
         modern = read_rows(ROOT / "data" / "modern_g25.txt", "modern")
@@ -869,7 +884,7 @@ class ReadRowsTests(unittest.TestCase):
 
         self.assertIn("Yao_(n=29)", deep_labels("global-sub-saharan-africa", "Southern Bantu"))
         self.assertNotIn("Yao_(n=29)", deep_labels("global-east-asia", "Southern China"))
-        self.assertIn("Kom_(n=2)", deep_labels("global-east-asia", "Northeast India"))
+        self.assertIn("Kom_(n=2)", deep_labels("global-southeast-asia", "Myanmar Highlands"))
         self.assertNotIn("Kom_(n=2)", deep_labels("global-sub-saharan-africa", "Central African"))
         self.assertIn("Dai_Yunnan_Xishuangbanna_(n=101)",
                       deep_labels("global-east-asia", "Southern China") &

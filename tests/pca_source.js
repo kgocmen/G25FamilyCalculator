@@ -39,8 +39,18 @@ function readPcaSource(filename) {
     }
     if (!previous) union.set(label, ["modern", label, ...row.slice(2)]);
   }
+  // The bundle builder normalizes separator whitespace in both deep sections.
+  const mixedUnion = new Map();
+  for (const row of mixed) {
+    const label = row[1].split(":").map((part) => part.trim()).join(": ");
+    const previous = mixedUnion.get(label);
+    if (previous && previous.slice(2).some((value, index) => value !== row[index + 2])) {
+      throw new Error(`${filename}: conflicting coordinates for ${label}`);
+    }
+    if (!previous) mixedUnion.set(label, ["modern", label, ...row.slice(2)]);
+  }
   return { references: main, deepReferences: [...union.values()],
-    ...(headers.includes("Deep Mixed:") ? { deepMixedReferences: mixed } : {}) };
+    ...(headers.includes("Deep Mixed:") ? { deepMixedReferences: [...mixedUnion.values()] } : {}) };
 }
 
 module.exports = { readPcaSource };
