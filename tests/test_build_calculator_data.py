@@ -322,6 +322,10 @@ class ReadRowsTests(unittest.TestCase):
         self.assertEqual(len(main), len(pca["references"]))
         self.assertEqual(len(deep), len(pca["deepReferences"]))
         self.assertTrue(all(deep.get(label) == group for label, group in main.items()))
+        self.assertEqual({label for label, group in main.items() if group == "East Iran"}, {
+            "Ajam_Bandari_Emirates_(n=10)", "Persian_Bandari_(n=9)",
+            "Persian_Sistan_(n=1)", "Persian_Khorasan_(n=12)",
+            "Parsi_India_(n=30)", "Parsi_Pakistan_(n=23)"})
         self.assertFalse(any(label.startswith(("Hazara_", "Balochi_", "Brahui_", "Makrani_"))
                              for label in main | deep))
         self.assertFalse(any(label.startswith("Pashtun_") and not label.startswith("Pashtun_India_")
@@ -350,43 +354,86 @@ class ReadRowsTests(unittest.TestCase):
                  for row in pca["deepMixedReferences"]}
         self.assertIn("Sindhi_(Siddi-Mixed)_(n=2)", mixed)
 
-    def test_iranic_pca_covers_source_without_ossetians(self):
+    def test_iranic_pca_uses_regions_and_moves_tats_to_caucasus(self):
         modern = read_rows(ROOT / "data" / "modern_g25.txt", "modern")
-        source = {row[1] for row in modern}
-        pca = next(pca for pca in read_global_modern_pcas(modern)
-                   if pca["id"] == "global-iranic")
-        main = {row[1].split(":", 1)[1]: row[1].split(":", 1)[0]
+        source = {row[1]: row[2:] for row in modern}
+        pcas = {pca["id"]: pca for pca in read_global_modern_pcas(modern)}
+        pca = pcas["global-iranic"]
+        main = {row[1].split(":", 1)[1].strip(): row[1].split(":", 1)[0]
                 for row in pca["references"]}
         deep = {row[1].split(": ", 1)[1]: row[1].split(":", 1)[0]
                 for row in pca["deepReferences"]}
-        self.assertEqual(set(main.values()), {
-            "Kurdish", "Persian and Lur", "Caspian and Tati", "Baloch and Makran",
-            "Pashtun", "Tajik", "Pamir and Yaghnob"})
+        self.assertTrue({
+            "West Iran", "Turkic Iran", "East Iran", "Balochistan",
+            "Central Asia", "Pamir", "Afghanistan", "Pakistan", "Hindu Kush"} <= set(main.values()))
+        self.assertNotIn("Afghanistan and Pakistan", main.values())
+        self.assertEqual({group: list(main.values()).count(group) for group in
+                          ("West Iran", "Pamir", "Afghanistan", "Pakistan")},
+                         {"West Iran": 15, "Pamir": 8, "Afghanistan": 5,
+                          "Pakistan": 8})
+        self.assertEqual(len(main), len(pca["references"]))
+        self.assertEqual(len(deep), len(pca["deepReferences"]))
         self.assertTrue(all(deep.get(label) == group for label, group in main.items()))
-        self.assertFalse(any(label.startswith("Ossetian_") for label in main | deep))
-        iranian_language_prefixes = (
-            "Kurdish_", "Lak_Iran_", "Yazidi_", "Yarsani_", "Shabak_",
-            "Persian_", "Lur_", "Parsi_", "Ajam_",
-            "Gilak_", "Mazandarani_", "Talysh_", "Tat_", "Tatavi_",
-            "Balochi_", "Makrani_", "Pashtun_", "Ormur_",
-            "Tajik_", "Pamiri_", "Wakhi_", "Yaghnobi_", "Hazara_")
-        excluded = {"Hazara_Afghanistan_(n=8)", "Hazara_Pakistan_(n=24)", "Tatavi_(n=3)",
-                    "Pashtun_India_Uttarakhand_(n=1)",
-                    "Pashtun_India_Madhya_Pradesh_(n=2)",
-                    "Pashtun_India_Uttar_Pradesh_(n=5)"}
-        self.assertEqual(set(deep), ({label for label in source
-                                      if label.startswith(iranian_language_prefixes)
-                                      and "Mixed" not in label and "_Jew_" not in label} |
-                                     {"Brahui_(n=23)"}) - excluded)
+        self.assertEqual({group: list(deep.values()).count(group) for group in
+                          ("West Iran", "Pamir", "Afghanistan", "Pakistan")},
+                         {"West Iran": 84, "Pamir": 16, "Afghanistan": 15,
+                          "Pakistan": 33})
+        self.assertEqual({label for label, group in main.items() if group == "Hindu Kush"},
+                         {"Nuristani_(n=4)", "Kalash_(n=23)", "Pashayi_(n=2)"})
+        self.assertEqual({label for label, group in deep.items() if group == "Hindu Kush"},
+                         {"Nuristani_(n=4)", "Kalash_(n=23)", "Pashayi_(n=2)",
+                          "Dameli_(n=2)"})
+        self.assertNotIn("?", main.values())
+        self.assertFalse(any(label.startswith(("Ossetian_", "Tat_"))
+                             for label in main | deep))
         for label, group in (
-            ("Kurdish_(n=19)", "Kurdish"),
-            ("Balochi_Pakistan_(n=17)", "Baloch and Makran"),
-            ("Brahui_(n=23)", "Baloch and Makran"),
-            ("Pashtun_Durrani_(n=13)", "Pashtun"),
-            ("Tajik_(n=16)", "Tajik"),
+            ("Kurdish_Kurmanji_Turkey_Konya_(n=29)", "West Iran"),
+            ("Kurdish_(n=19)", "West Iran"),
+            ("Persian_Khorasan_(n=12)", "East Iran"),
+            ("Persian_Sistan_(n=1)", "East Iran"),
+            ("Persian_Bandari_(n=9)", "East Iran"),
+            ("Parsi_India_(n=30)", "East Iran"),
+            ("Parsi_Pakistan_(n=23)", "East Iran"),
+            ("Balochi_Pakistan_(n=17)", "Balochistan"),
+            ("Brahui_(n=23)", "Balochistan"),
+            ("Pashtun_Durrani_(n=13)", "Afghanistan"),
+            ("Tajik_Balkh_(n=6)", "Pamir"),
+            ("Pashtun_Bettani_(n=7)", "Pakistan"),
+            ("Pashtun_Ghilji_(n=17)", "Afghanistan"),
+            ("Pashtun_Yusufzai_(n=41)", "Pakistan"),
+            ("Pashtun_Kakar_(n=1)", "Pakistan"),
+            ("Pashtun_Kasabgar_Chamar_(n=1)", "Pakistan"),
+            ("Pamiri_Shugnan_(n=8)", "Pamir"),
+            ("Tajik_(n=16)", "Central Asia"),
+            ("Qizilbash_(n=1)", "Qizilbash"),
         ):
             self.assertIn(label, source)
             self.assertEqual(deep[label], group)
+        for label in ("Tajik_Balkh_(n=6)", "Tajik_Jowzjan_(n=1)",
+                      "Tajik_Samangan_(n=1)", "Tajik_Takhar_(n=5)",
+                      "Uzbek_Afghanistan_(n=14)", "Turkmen_Afghanistan_(n=5)"):
+            self.assertEqual(deep[label], "Pamir")
+        for row in (*pca["references"], *pca["deepReferences"],
+                    *pca["deepMixedReferences"]):
+            label = row[1].split(":", 1)[1].strip()
+            self.assertEqual(row[2:], source[label])
+
+        caucasus = pcas["global-caucasus"]
+        caucasus_main = {row[1].split(":", 1)[1]: row[1].split(":", 1)[0]
+                         for row in caucasus["references"]}
+        caucasus_deep = {row[1].split(": ", 1)[1]: row[1].split(":", 1)[0]
+                         for row in caucasus["deepReferences"]}
+        tats = {"Tat_Azerbaijan_Ciscaucasia_(n=6)", "Tat_Dagestan_Dzhalgan_(n=15)",
+                "Tat_Dagestan_Nyugdi_(n=13)", "Tat_Azerbaijan_(n=5)",
+                "Tat_Iran_(n=1)"}
+        self.assertEqual({label for label in caucasus_deep if label.startswith("Tat_")}, tats)
+        self.assertTrue(all(caucasus_deep[label] == "Ciscaucasia" for label in tats))
+        self.assertEqual({label for label in caucasus_main if label.startswith("Tat_")},
+                         tats - {"Tat_Azerbaijan_(n=5)", "Tat_Iran_(n=1)"})
+        for row in (*caucasus["references"], *caucasus["deepReferences"]):
+            label = row[1].split(":", 1)[1].strip()
+            if label in tats:
+                self.assertEqual(row[2:], source[label])
 
     def test_global_pca13_deep_covers_its_main_groups_and_ethnicities(self):
         modern = read_rows(ROOT / "data" / "modern_g25.txt", "modern")
@@ -883,12 +930,13 @@ class ReadRowsTests(unittest.TestCase):
                     if row[1].startswith(group + ": ")}
 
         self.assertIn("Yao_(n=29)", deep_labels("global-sub-saharan-africa", "Southern Bantu"))
-        self.assertNotIn("Yao_(n=29)", deep_labels("global-east-asia", "Southern China"))
-        self.assertIn("Kom_(n=2)", deep_labels("global-southeast-asia", "Tibeto-Burman"))
+        self.assertNotIn("Yao_(n=29)", deep_labels("global-east-asia", "South China and Vietnam"))
+        self.assertIn("Kom_(n=2)", deep_labels("global-himalaya", "Tibeto-Burman"))
         self.assertNotIn("Kom_(n=2)", deep_labels("global-sub-saharan-africa", "Central African"))
         self.assertIn("Dai_Yunnan_Xishuangbanna_(n=101)",
-                      deep_labels("global-east-asia", "Southern China") &
-                      deep_labels("global-southeast-asia", "Tai-Kadai"))
+                      deep_labels("global-east-asia", "South China and Vietnam"))
+        self.assertNotIn("Dai_Yunnan_Xishuangbanna_(n=101)",
+                         deep_labels("global-southeast-asia", "Mainland"))
         self.assertIn("Greek_Cyprus_(n=41)",
                       deep_labels("global-southeast-europe", "Greek Asia Minor") &
                       deep_labels("global-levant-mesopotamia", "Levant"))

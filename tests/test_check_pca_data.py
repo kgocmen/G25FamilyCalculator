@@ -12,7 +12,7 @@ class PcaMapTests(unittest.TestCase):
                             for line, row in zip(lines, source)))
         self.assertFalse(any(line.endswith(", Unassigned") for line in lines))
         entries = dict(line.split(", ", 1) for line in lines)
-        self.assertEqual(entries["Qizilbash_(n=1)"], "17-Iranic-DeepMixed:Tajik")
+        self.assertEqual(entries["Qizilbash_(n=1)"], "17-Iranic-Main:Qizilbash")
         self.assertEqual(entries["Anglo-American_Kentucky_(n=125)"],
                          "13-Northwest Europe-DeepMixed:British Isles")
         self.assertEqual(entries["Bolivian_Mestizo_(n=5)"],

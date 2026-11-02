@@ -1,4 +1,5 @@
 import json
+import math
 import unittest
 from collections import Counter
 
@@ -15,40 +16,105 @@ class AsianPcaGroupsTests(unittest.TestCase):
         return {row[1].split(":", 1)[1].strip(): row[1].split(":", 1)[0].strip()
                 for row in self.pcas[pca_id].get(key, [])}
 
-    def test_central_asia_has_unique_tungusic_mongolic_and_arctic_profiles(self):
+    def test_central_asia_separates_amur_and_kamchatka_profiles(self):
         pca = self.pcas["global-central-asia"]
         regular = self.populations(pca["id"])
         mixed = self.populations(pca["id"], "deepMixedReferences")
         self.assertNotIn("Northeast Asia", set(regular.values()) | set(mixed.values()))
+        self.assertFalse({"Tungusic", "East Siberia", "Mongolic"} &
+                         (set(regular.values()) | set(mixed.values())))
         for key in ("references", "deepReferences", "deepMixedReferences"):
             names = [row[1].split(":", 1)[1].strip() for row in pca[key]]
             self.assertEqual(len(names), len(set(names)), key)
         self.assertTrue(set(regular).isdisjoint(mixed))
-        for name in ("Even_(n=8)", "Evenk_(n=19)", "Hezhen_(n=5)",
-                     "Nanai_(n=10)", "Negidal_(n=3)", "Oroqen_(n=3)",
-                     "Ulchi_(n=23)", "Xibo_(n=3)"):
-            self.assertEqual(regular[name], "Tungusic")
-        self.assertEqual(regular["Evenk_Khabarovsk_(n=2)"], "Tungusic")
-        self.assertEqual(regular["Buryat_Aginsky_(n=11)"], "Mongolic")
-        self.assertEqual(regular["Mongol_Khalkha_Mongolia_(n=26)"], "Mongolic")
-        self.assertEqual(regular["Chukchi_(n=29)"], "East Siberia")
-        self.assertEqual(regular["Nivkh_(n=10)"], "East Siberia")
+        for name in ("Nanai_(n=10)", "Ulchi_(n=23)", "Negidal_(n=3)",
+                     "Evenk_Khabarovsk_(n=2)", "Nivkh_(n=10)",
+                     "Oroqen_(n=3)"):
+            self.assertEqual(regular[name], "Amur")
+        for name in ("Evenk_(n=19)", "Evenk_Zabaykalsky_(n=8)", "Even_(n=8)",
+                     "Yukaghir_Tundra_(n=25)", "Chukchi_(n=29)",
+                     "Itelmen_(n=7)", "Koryak_(n=24)"):
+            self.assertEqual(regular[name], "Kamchatka")
+        for name in ("Hezhen_(n=5)", "Xibo_(n=3)", "Daur_(n=3)"):
+            self.assertEqual(regular[name], "Inner Mongolia")
+        self.assertEqual(regular["Buryat_Aginsky_(n=11)"], "Buryat")
+        self.assertEqual(regular["Khamnegan_(n=8)"], "Buryat")
+        self.assertEqual(regular["Mongol_Khalkha_Mongolia_(n=26)"], "Mongolia")
         main = self.populations(pca["id"], "references")
-        self.assertEqual(main["Mongol_Khorchin_Inner_Mongolia_(n=6)"], "Mongolic")
-        self.assertEqual(main["Buryat_Aginsky_(n=11)"], "Mongolic")
-        self.assertEqual(main["Evenk_Khabarovsk_(n=2)"], "Tungusic")
+        self.assertEqual(main["Dongxiang_(n=38)"], "Northwest China")
+        self.assertEqual(main["Mongol_Khorchin_Inner_Mongolia_(n=6)"], "Inner Mongolia")
+        self.assertEqual(main["Mongol_Inner_Mongolia_Baotu_(Outer_Mongolia_Profile)_(n=19)"],
+                         "Mongolia")
+        self.assertEqual(main["Buryat_Aginsky_(n=11)"], "Buryat")
+        counts = Counter(row[1].split(":", 1)[0].strip() for row in pca["references"])
+        self.assertEqual(counts["Amur"], 6)
+        self.assertEqual(counts["Kamchatka"], 7)
+        self.assertEqual(counts["Inner Mongolia"], 8)
+        self.assertEqual(counts["Buryat"], 8)
+        self.assertEqual(counts["Mongolia"], 19)
+
+        rows = [row for row in pca["references"] if row[1].split(":", 1)[0] in {"Amur", "Kamchatka"}]
+        groups = {group: [row for row in rows if row[1].startswith(group + ":")]
+                  for group in ("Amur", "Kamchatka")}
+        scores = []
+        for group, members in groups.items():
+            others = groups["Kamchatka" if group == "Amur" else "Amur"]
+            for row in members:
+                within = sum(math.dist(row[2:], peer[2:]) for peer in members if peer is not row) / (len(members) - 1)
+                outside = sum(math.dist(row[2:], peer[2:]) for peer in others) / len(others)
+                scores.append((outside - within) / max(within, outside))
+        self.assertGreater(sum(scores) / len(scores), 0.5)
 
     def test_european_mixed_profiles_only_enter_mixed_deep(self):
         pca = self.pcas["global-central-asia"]
         mixed = self.populations(pca["id"], "deepMixedReferences")
-        self.assertEqual(len(mixed), 21)
+        self.assertEqual(len(mixed), 22)
         self.assertTrue(all("European-Mixed" in name for name in mixed))
         for key in ("references", "deepReferences"):
             self.assertFalse(any("European-Mixed" in row[1] for row in pca[key]))
-        self.assertEqual(mixed["Buryat_(European-Mixed)_(n=2)"], "Mongolic")
-        self.assertEqual(mixed["Even_(European-Mixed)_(n=6)"], "Tungusic")
+        self.assertEqual(mixed["Buryat_(European-Mixed)_(n=2)"], "Buryat")
+        self.assertEqual(mixed["Even_(European-Mixed)_(n=6)"], "Kamchatka")
+        self.assertEqual(mixed["Negidal_(European-Mixed)_(n=1)"], "Amur")
+        self.assertEqual(mixed["Ulchi_(European-Mixed)_(n=3)"], "Amur")
+        self.assertEqual(mixed["Yukaghir_Forest_(European-Mixed)_(n=6)"], "Kamchatka")
         self.assertEqual(mixed["Kazakh_Kazakhstan_(Eastern_European-Mixed)_(n=10)"],
-                         "Steppe Turkic")
+                         "Kipchak")
+
+    def test_central_asia_has_north_afghanistan_uyghur_hazara_and_transoxiana(self):
+        pca = self.pcas["global-central-asia"]
+        main = self.populations(pca["id"], "references")
+        deep = self.populations(pca["id"])
+        expected = {"North Afghanistan": 9, "Uyghur": 1, "Hazara": 2,
+                    "Transoxiana": 6, "Tajik": 11, "Turkmen": 4}
+        counts = Counter(main.values())
+        self.assertEqual({group: counts[group] for group in expected}, expected)
+        self.assertNotIn("Karluk", counts)
+        for name, group in (
+            ("Karakalpak_(n=22)", "Kipchak"),
+            ("Kazakh_(n=23)", "Kipchak"),
+            ("Kyrgyz_China_(n=93)", "Kipchak"),
+            ("Turkmen_Afghanistan_(n=5)", "Turkmen"),
+            ("Uzbek_Afghanistan_(n=14)", "North Afghanistan"),
+            ("Tajik_Balkh_(n=6)", "North Afghanistan"),
+            ("Tajik_Badakhshan_(n=22)", "North Afghanistan"),
+            ("Tajik_Jowzjan_(n=1)", "North Afghanistan"),
+            ("Tajik_Samangan_(n=1)", "North Afghanistan"),
+            ("Tajik_Takhar_(n=5)", "North Afghanistan"),
+            ("Pamiri_Rushan_(n=8)", "North Afghanistan"),
+            ("Uyghur_(n=22)", "Uyghur"),
+            ("Hazara_Afghanistan_(n=8)", "Hazara"),
+            ("Hazara_Pakistan_(n=24)", "Hazara"),
+            ("Uzbek_(n=18)", "Transoxiana"),
+            ("Uzbek_Khorezm_(n=6)", "Transoxiana"),
+            ("Uzbek_Tashkent_(n=9)", "Transoxiana"),
+            ("Tajik_Khujand_(n=1)", "Transoxiana"),
+            ("Tajik_Samarkand_(n=1)", "Transoxiana"),
+            ("Tajik_Tashkent_(n=2)", "Transoxiana"),
+            ("Tajik_(n=16)", "Tajik"),
+            ("Tajik_Herat_(n=3)", "Tajik"),
+        ):
+            self.assertEqual(deep[name], group, name)
+        self.assertEqual({group: Counter(deep.values())[group] for group in expected}, expected)
 
     def test_himalaya_pca20_has_distinct_regional_groups_and_source_coordinates(self):
         config = json.loads((ROOT / "data/pca/pca_config.txt").read_text())
@@ -95,41 +161,45 @@ class AsianPcaGroupsTests(unittest.TestCase):
         self.assertEqual(self.populations("global-south-asia")["Punjabi_Jat_Sikh_(n=60)"],
                          "Punjab and North India")
         self.assertEqual(self.populations("global-southeast-asia")["Khasi_(n=3)"], "Indo-Burmese")
-        self.assertEqual(self.populations("global-east-asia")["Tu_(n=5)"], "Western China")
+        self.assertEqual(self.populations("global-east-asia")["Tu_(n=5)"], "Northwest China")
 
-    def test_southeast_asia_combines_language_families_geography_and_population_history(self):
+    def test_southeast_asia_geographic_groups_keep_other_population_splits(self):
         pca = self.pcas["global-southeast-asia"]
         self.assertEqual(list(dict.fromkeys(row[1].split(":", 1)[0] for row in pca["references"])),
-                         ["Tai-Kadai", "Hmong-Mien", "Austroasiatic", "Tibeto-Burman", "Indo-Burmese",
-                          "Malay Negrito", "Philippine Negrito", "Malay Peninsula",
-                          "Western Austronesian", "Taiwan-Philippines", "Andamanese"])
+                         ["Mainland", "Malay Negrito", "Philippine Negrito",
+                          "Malay Peninsula", "Archipelago", "Taiwan-Philippines", "Andamanese"])
         populations = self.populations(pca["id"])
         for name, group in (
-            ("Thai_(n=11)", "Tai-Kadai"), ("Zhuang_Guangxi_Chongzuo_(n=10)", "Tai-Kadai"),
-            ("Vietnamese_(Dong_Profile)_(n=2)", "Tai-Kadai"),
-            ("Hmong_Thailand_(n=10)", "Hmong-Mien"), ("Bunu_Youmai_Yao_(n=28)", "Hmong-Mien"),
-            ("Miao_Guizhou_Qiandongnan_Leishan_(n=49)", "Hmong-Mien"),
-            ("Hani_(n=15)", "Tibeto-Burman"), ("Mizo_(n=112)", "Tibeto-Burman"),
-            ("Khasi_(n=3)", "Indo-Burmese"), ("Manipuri_Brahmin_(n=20)", "Indo-Burmese"),
+            ("Thai_(n=11)", "Mainland"),
+            ("Vietnamese_(Dong_Profile)_(n=2)", "Mainland"),
+            ("Akha_Thailand_(n=31)", "Mainland"),
             ("Batek_(n=45)", "Malay Negrito"), ("Maniq_(n=9)", "Malay Negrito"),
             ("Aeta_(n=2)", "Philippine Negrito"), ("Batak_Palawan_(n=2)", "Philippine Negrito"),
-            ("Batak_Toba_(n=34)", "Western Austronesian"), ("Javanese_(n=29)", "Western Austronesian"),
+            ("Batak_Toba_(n=34)", "Archipelago"), ("Javanese_(n=29)", "Archipelago"),
             ("Cheq_Wong_(n=11)", "Malay Peninsula"), ("Mah_Meri_(n=21)", "Malay Peninsula"),
-            ("Nyah_Kur_(n=10)", "Austroasiatic"), ("Kinh_(n=99)", "Austroasiatic"),
+            ("Nyah_Kur_(n=10)", "Mainland"), ("Kinh_(n=99)", "Mainland"),
             ("Ami_(n=35)", "Taiwan-Philippines"), ("Filipino_(n=82)", "Taiwan-Philippines"),
             ("Onge_(n=40)", "Andamanese"), ("Jarawa_(n=19)", "Andamanese"),
         ):
             self.assertEqual(populations[name], group, name)
-        hmong = {row[1] for row in self.source if row[1].startswith(("Bunu_", "Miao_"))}
-        self.assertEqual(len(hmong), 15)
-        self.assertTrue(all(populations[name] == "Hmong-Mien" for name in hmong))
         mixed = self.populations(pca["id"], "deepMixedReferences")
-        self.assertEqual(mixed, {"Nicobarese_(n=6)": "Austroasiatic"})
-        self.assertEqual(len(populations) + len(mixed), 137)
+        self.assertEqual(mixed, {"Nicobarese_(n=6)": "Archipelago"})
+        self.assertEqual(len(populations) + len(mixed), 70)
         main = self.populations(pca["id"], "references")
-        self.assertEqual(main["Bouyei_Guizhou_Anshun_Guanling_(n=44)"], "Tai-Kadai")
-        self.assertEqual(main["Zhuang_Guizhou_Congjiang_(n=49)"], "Tai-Kadai")
         self.assertEqual(main["Malay_Malaysia_(n=9)"], "Malay Peninsula")
+
+    def test_southeast_asian_references_in_east_asia_have_logical_group_names(self):
+        east = self.populations("global-east-asia")
+        southeast = self.populations("global-southeast-asia")
+        genetic_groups = {"Guizhou and Yunnan", "Yunnan and Thai Highlands",
+                          "South China and Vietnam", "Mekong Mainland", "Central Thailand",
+                          "Java and Borneo", "Dusun Nias and Philippines",
+                          "Sulawesi and Bajo", "Taiwan and Cordillera"}
+        for name, group in southeast.items():
+            if group in {"Mainland", "Archipelago"}:
+                self.assertIn(east[name], genetic_groups, name)
+            elif group == "Malaysian Peninsula":
+                self.assertEqual(east[name], "Malay Peninsula", name)
 
     def test_malay_and_philippine_negrito_splits_follow_g25_affinity(self):
         rows = self.pcas["global-southeast-asia"]["deepReferences"]
@@ -145,60 +215,83 @@ class AsianPcaGroupsTests(unittest.TestCase):
                            2 * max(mean_distance(malay, malay, True),
                                    mean_distance(philippine, philippine, True)))
 
-    def test_east_asia_keeps_six_groups_after_himalayan_references_move(self):
-        pca = self.pcas["global-east-asia"]
-        groups = list(dict.fromkeys(row[1].split(":", 1)[0] for row in pca["references"]))
-        self.assertEqual(groups, ["Western China", "Northern China", "Southern China",
-                                  "Manchu", "Korean", "Japanese"])
-        regular = self.populations(pca["id"])
-        for name, group in (
-            ("Tibetan_(n=19)", "Tibet"), ("Sherpa_Khumbu_(n=173)", "Tibet"),
-            ("Tibetan_Lhasa_(n=9)", "Tibet"), ("Tibetan_Gangcha_(n=19)", "Tibet"),
-            ("Tibetan_Gannan_(n=5)", "Western China"),
-            ("Tibetan_Xinlong_(n=10)", "Western China"),
-            ("Tibetan_Xunhua_(n=3)", "Western China"),
-            ("Naxi_(n=5)", "Western China"), ("Baima_(n=1)", "Western China"),
-            ("Qiang_Sichuan_Garze_Danba_(n=8)", "Western China"),
-            ("Qiang_Sichuan_Garze_Daofu_(n=8)", "Tibet"),
-            ("Qiang_Guizou_Tongren_Jiangkou_(n=11)", "Southern China"),
-            ("Salar_(n=34)", "Western China"), ("Dongxiang_(n=38)", "Western China"),
-            ("Bonan_(n=40)", "Western China"), ("Yugur_(n=30)", "Western China"),
-            ("Hui_Gansu_(n=21)", "Western China"), ("Han_Qinghai_(n=1)", "Western China"),
-            ("Han_Beijing_(Northern_China_Profile)_(n=65)", "Northern China"),
-            ("Han_Shandong_Jinan_(n=10)", "Northern China"),
-            ("Han_Jiangsu_Wuxi_(n=2)", "Northern China"),
-            ("Han_Beijing_(Southern_China_Profile)_(n=15)", "Southern China"),
-            ("Han_Fujian_(n=35)", "Southern China"),
-            ("Manchu_Guizhou_Bijie_(n=27)", "Southern China"),
-            ("Manchu_Liaoning_(n=96)", "Manchu"),
-            ("Korean_(n=102)", "Korean"), ("Korean_Jeju_Island_(n=47)", "Korean"),
-            ("Japanese_(n=476)", "Japanese"),
-        ):
-            if name in self.populations("global-himalaya"):
-                self.assertNotIn(name, regular)
-            else:
-                self.assertEqual(regular[name], group, name)
-        self.assertEqual(len(regular), len(pca["deepReferences"]))
-        mixed = self.populations(pca["id"], "deepMixedReferences")
-        self.assertEqual(mixed, {"Dungan_(European-Mixed)_(n=1)": "Western China"})
-        self.assertTrue(set(regular).isdisjoint(mixed))
-        self.assertEqual(len(regular) + len(mixed), 193)
-
-    def test_east_asia_main_keeps_western_and_northern_china(self):
+    def test_pca8_genetic_groups_replace_the_broad_groups(self):
         pca = self.pcas["global-east-asia"]
         main = self.populations(pca["id"], "references")
         counts = Counter(main.values())
-        self.assertEqual(counts["Tibet"], 0)
-        self.assertEqual(counts["Western China"], 8)
-        self.assertEqual(counts["Northern China"], 18)
-        self.assertEqual(main["Han_Hebei_Baoding_(n=1)"], "Northern China")
-        self.assertEqual(main["Han_Jilin_Changchun_(n=1)"], "Northern China")
-        self.assertEqual(main["Han_Liaoning_Dalian_(n=1)"], "Northern China")
-        self.assertNotIn("Tibetan_Lhasa_(n=9)", main)
-        self.assertNotIn("Sherpa_Rolwaling_Himal_(n=30)", main)
+        for broad_group in ("Mainland Southeast Asia", "Southern China Minorities", "Archipelago",
+                            "Tai-Kadai", "Hmong-Mien", "Austroasiatic"):
+            self.assertNotIn(broad_group, counts)
+        expected = {"Guizhou and Yunnan": 12, "Yunnan and Thai Highlands": 8,
+                    "South China and Vietnam": 16, "Mekong Mainland": 8,
+                    "Central Thailand": 2, "Java and Borneo": 8,
+                    "Dusun Nias and Philippines": 11, "Sulawesi and Bajo": 3,
+                    "Taiwan and Cordillera": 5}
+        self.assertEqual({group: counts[group] for group in expected}, expected)
+
         deep = self.populations(pca["id"])
-        self.assertEqual(self.populations("global-himalaya")["Tibetan_Lhasa_(n=9)"], "Tibet and Sherpa")
-        self.assertEqual(self.populations("global-himalaya")["Sherpa_Rolwaling_Himal_(n=30)"], "Tibet and Sherpa")
+        for name, group in (
+            ("Qiang_Guizou_Tongren_Jiangkou_(n=11)", "Guizhou and Yunnan"),
+            ("Jingpo_Yunnan_(n=21)", "Guizhou and Yunnan"),
+            ("Blang_(n=13)", "Yunnan and Thai Highlands"),
+            ("Hani_(n=15)", "Yunnan and Thai Highlands"),
+            ("Hmong_Thailand_(n=10)", "South China and Vietnam"),
+            ("Kinh_(n=99)", "South China and Vietnam"),
+            ("Zhuang_Guangxi_Chongzuo_(n=10)", "South China and Vietnam"),
+            ("Formosan_(Han-Mixed)_(n=1)", "South China and Vietnam"),
+            ("Khmer_Cambodia_(n=11)", "Mekong Mainland"),
+            ("Lao_(n=34)", "Mekong Mainland"),
+            ("Thai_(n=11)", "Central Thailand"),
+            ("Javanese_(n=29)", "Java and Borneo"),
+            ("Iban_(low_res)_(n=25)", "Java and Borneo"),
+            ("Nias_Hilitobara_(n=13)", "Dusun Nias and Philippines"),
+            ("Filipino_(n=82)", "Dusun Nias and Philippines"),
+            ("Makassarese_Konjo_Kajang_(n=6)", "Sulawesi and Bajo"),
+            ("Ami_(n=35)", "Taiwan and Cordillera"),
+            ("Atayal_(Han-Mixed)_(n=1)", "Taiwan and Cordillera"),
+        ):
+            self.assertEqual(deep[name], group, name)
+        self.assertEqual(len(deep), len(pca["deepReferences"]))
+
+    def test_pca8_genetic_groups_are_cohesive_and_deep_rows_use_nearest_center(self):
+        pca = self.pcas["global-east-asia"]
+        genetic_groups = {"Guizhou and Yunnan", "Yunnan and Thai Highlands",
+                          "South China and Vietnam", "Mekong Mainland", "Central Thailand",
+                          "Java and Borneo", "Dusun Nias and Philippines",
+                          "Sulawesi and Bajo", "Taiwan and Cordillera"}
+        grouped = {}
+        for row in pca["references"]:
+            group = row[1].split(":", 1)[0].strip()
+            if group in genetic_groups:
+                grouped.setdefault(group, []).append(row)
+        self.assertEqual(sum(map(len, grouped.values())), 73)
+        scores = []
+        for group, rows in grouped.items():
+            for row in rows:
+                within = sum(math.dist(row[2:], other[2:]) for other in rows if other is not row) / (len(rows) - 1)
+                outside = min(sum(math.dist(row[2:], other[2:]) for other in others) / len(others)
+                              for other_group, others in grouped.items() if other_group != group)
+                scores.append((outside - within) / max(within, outside))
+        self.assertGreater(sum(scores) / len(scores), 0.4)
+
+        centroids = {group: [sum(row[i] for row in rows) / len(rows) for i in range(2, 27)]
+                     for group, rows in grouped.items()}
+        main_names = set(self.populations(pca["id"], "references"))
+        for row in pca["deepReferences"]:
+            group, name = (part.strip() for part in row[1].split(":", 1))
+            if group in genetic_groups and name not in main_names:
+                nearest = min(centroids, key=lambda candidate: math.dist(row[2:], centroids[candidate]))
+                self.assertEqual(group, nearest, name)
+
+    def test_pca8_keeps_other_main_groups_and_mixed_reference(self):
+        pca = self.pcas["global-east-asia"]
+        main = self.populations(pca["id"], "references")
+        self.assertEqual(main["Tu_(n=5)"], "Northwest China")
+        self.assertEqual(main["Han_Fujian_(n=35)"], "Southern Han")
+        self.assertEqual(main["Malay_Malaysia_(n=9)"], "Malay Peninsula")
+        self.assertEqual(main["Nicobarese_(n=6)"], "Nicobar Islands")
+        self.assertEqual(self.populations(pca["id"], "deepMixedReferences"),
+                         {"Dungan_(European-Mixed)_(n=1)": "Northwest China"})
 
     def test_himalaya_deep_only_references_have_active_main_groups(self):
         pca = self.pcas["global-himalaya"]
