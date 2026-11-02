@@ -47,7 +47,7 @@ test("farmer proxies distinguish Southeast Asian and northern shifts across main
   vm.runInNewContext(fs.readFileSync(path.join(__dirname,
     "../calculator/modern_pca_references.js"), "utf8"), context);
   const pcas = context.window.G25_MODERN_PCAS;
-  const south = pcas.find((pca) => pca.id === "global-south-asia");
+  const mountain = pcas.find((pca) => pca.id === "global-himalaya");
   const southeast = pcas.find((pca) => pca.id === "global-southeast-asia");
   const score = (row, name) => neolithic.calculate({ values: Array.from(row.slice(2)) }, "global")
     .components.find((part) => part.name === name).weight;
@@ -57,7 +57,8 @@ test("farmer proxies distinguish Southeast Asian and northern shifts across main
     "Tripuri_Jamatia_(n=18)", "Tripuri_Reang_(n=10)"]);
   const relocated = southeast.references.filter((row) => moved.has(row[1].split(":")[1].trim()));
   assert.equal(relocated.length, moved.size);
-  const himalaya = south.references.filter((row) => row[1].startsWith("Himalaya:"));
+  const himalaya = mountain.references.filter((row) =>
+    ["Western Himalaya", "Nepal Indo-Aryan"].includes(row[1].split(":")[0]));
   const minimumRelocated = Math.min(...relocated.map((row) => score(row, farmer)));
   const maximumRetained = Math.max(...himalaya.map((row) => score(row, farmer)));
   // Compare these dataset-specific proxy fits without treating weights as measured ancestry.

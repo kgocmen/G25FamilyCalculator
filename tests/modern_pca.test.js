@@ -71,6 +71,22 @@ test("auto selects the best-fitting PCA", () => {
   assert.equal(selectModernPca(target(0.9), references, pcas, nearestMatches).pca.id, "west");
 });
 
+test("Himalayan main references select PCA20 automatically and manually", () => {
+  const bundle = fs.readFileSync(path.join(__dirname,
+    "../calculator/modern_pca_references.js"), "utf8");
+  const pcas = JSON.parse(bundle.slice(bundle.indexOf("=") + 1).trim().replace(/;$/, ""));
+  const himalaya = pcas.find((pca) => pca.id === "global-himalaya");
+  assert.equal(pcas.indexOf(himalaya), 19);
+  const references = pcas.flatMap((pca) => pca.references);
+  for (const reference of himalaya.references) {
+    const input = { label: reference[1], values: reference.slice(2) };
+    assert.equal(selectModernPca(input, references, pcas, nearestMatches).pca.id,
+      himalaya.id, reference[1]);
+  }
+  assert.equal(selectModernPca(target(0), references, pcas, nearestMatches,
+    himalaya.id).pca.id, himalaya.id);
+});
+
 test("large regional maps fit nearest samples from every group", () => {
   const references = [row("A:Far", 0.9), row("A:Near", 0.1), row("A:Middle", 0.2),
     row("B:Far", -0.9), row("B:Near", -0.1), row("B:Middle", -0.2)];
@@ -169,8 +185,8 @@ test("global PCA bundles use Main for regular references and the union for deep 
   const pcas = JSON.parse(bundle.slice(bundle.indexOf("=") + 1).trim().replace(/;$/, ""));
   const config = JSON.parse(fs.readFileSync(path.join(__dirname,
     "../data/pca/pca_config.txt"), "utf8"));
-  assert.equal(config.modern.length, 19);
-  assert.equal(pcas.length, 19);
+  assert.equal(config.modern.length, 20);
+  assert.equal(pcas.length, 20);
   assert.deepEqual(pcas.map((pca) => pca.id), config.modern.map((entry) => entry.id));
   for (const [index, entry] of config.modern.entries()) {
     assert.equal(pcas[index].title, entry.title);

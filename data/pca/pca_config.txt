@@ -94,6 +94,11 @@
       "id": "global-west-siberia",
       "title": "West Siberia",
       "file": "modern_pca19.g25.txt"
+    },
+    {
+      "id": "global-himalaya",
+      "title": "Himalaya",
+      "file": "modern_pca20.g25.txt"
     }
   ]
 }

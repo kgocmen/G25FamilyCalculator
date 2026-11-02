@@ -318,8 +318,7 @@ class ReadRowsTests(unittest.TestCase):
                 for row in pca["deepReferences"]}
         self.assertEqual(set(main.values()), {
             "Punjab and North India", "Central India and Deccan", "Bengal", "South India-Sri Lanka",
-            "South/West Dalit-Adivasi", "Gond-Kurukh", "Eastern Adivasi", "Andamanese",
-            "Himalaya", "Newar"})
+            "South/West Dalit-Adivasi", "Gond-Kurukh", "Eastern Adivasi", "Indo-Burmese"})
         self.assertEqual(len(main), len(pca["references"]))
         self.assertEqual(len(deep), len(pca["deepReferences"]))
         self.assertTrue(all(deep.get(label) == group for label, group in main.items()))
@@ -329,7 +328,6 @@ class ReadRowsTests(unittest.TestCase):
                              for label in main | deep))
         for label, group in (
             ("Punjabi_Jat_Sikh_(n=60)", "Punjab and North India"),
-            ("Kashmiri_Pandit_(n=26)", "Himalaya"),
             ("Bengali_Bangladesh_(n=90)", "Bengal"),
             ("Tamil_Brahmin_Iyer_Tamil_Nadu_(n=24)", "Central India and Deccan"),
             ("Sinhalese_(n=16)", "South India-Sri Lanka"),
@@ -579,7 +577,7 @@ class ReadRowsTests(unittest.TestCase):
                           "East Asia", "Southeast Asia", "Australia and Pacific",
                           "Indigenous America", "West Turkistan", "Northwest Europe",
                           "Northeast Europe", "Southeast Europe", "Arabian Peninsula", "Iranic",
-                          "Levant and Mesopotamia", "West Siberia"])
+                          "Levant and Mesopotamia", "West Siberia", "Himalaya"])
         europe = pcas[0]
         groups = list(dict.fromkeys(row[1].split(":", 1)[0] for row in europe["references"]))
         self.assertEqual(groups, ["South France", "Basque", "Iberia", "Corsica",
@@ -607,11 +605,14 @@ class ReadRowsTests(unittest.TestCase):
         for prefix in ("Tibetan", "Sherpa", "Gurung"):
             with self.subTest(prefix=prefix):
                 self.assertFalse(any(label.startswith(prefix + "_") for label in central_asia))
-                self.assertTrue(any(label.startswith(prefix + "_") for label in east_asia))
+                self.assertFalse(any(label.startswith(prefix + "_") for label in east_asia))
+                self.assertTrue(any(label.startswith(prefix + "_")
+                                    for label in pcas[19]["referenceAnchors"]))
                 self.assertEqual({label.strip() for label in south_asia
                                   if label.strip().startswith(prefix + "_")}, set())
         southeast_asia = {row[1].split(":", 1)[1].strip() for row in pcas[8]["references"]}
-        self.assertIn("Tamang_(n=8)", southeast_asia)
+        self.assertNotIn("Tamang_(n=8)", southeast_asia)
+        self.assertIn("Tamang_(n=8)", pcas[19]["referenceAnchors"])
         for prefix in ("Garo", "Khasi", "Tripuri"):
             self.assertTrue(any(label.startswith(prefix + "_") for label in southeast_asia))
             self.assertFalse(any(label.strip().startswith(prefix + "_") for label in south_asia))
@@ -861,7 +862,7 @@ class ReadRowsTests(unittest.TestCase):
         modern = read_rows(ROOT / "data" / "modern_g25.txt", "modern")
         source = {row[1]: row[2:] for row in modern}
         pcas = {pca["id"]: pca for pca in read_global_modern_pcas(modern)}
-        self.assertEqual(len(pcas), 19)
+        self.assertEqual(len(pcas), 20)
         for pca in pcas.values():
             with self.subTest(pca=pca["id"]):
                 self.assertIn("deepReferences", pca)
