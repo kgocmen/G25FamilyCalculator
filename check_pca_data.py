@@ -2,6 +2,7 @@
 """Audit global modern PCA coverage and write a population-to-PCA map."""
 
 import json
+import re
 from pathlib import Path
 from build.build_calculator_data import read_global_modern_pcas, read_row_sections, read_rows
 
@@ -19,9 +20,11 @@ def collect_locations():
     modern = {row[1]: {} for row in modern_rows}
     config = json.loads((PCA / "pca_config.txt").read_text(encoding="utf-8"))
     read_global_modern_pcas(modern_rows, PCA)
-    for number, entry in enumerate(config["modern"], 1):
-        if entry["file"] != f"modern_pca{number}.g25.txt":
-            raise ValueError(f"PCA {number} does not match {entry['file']}")
+    for entry in config["modern"]:
+        match = re.fullmatch(r"modern_pca([1-9]\d*)\.g25\.txt", entry["file"])
+        if match is None:
+            raise ValueError(f"Invalid numbered PCA filename: {entry['file']}")
+        number = int(match.group(1))
         sections = read_row_sections(PCA / entry["file"], "modern")
         for section, status in SECTIONS:
             for row in sections.get(section, []):

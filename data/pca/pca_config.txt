@@ -22,12 +22,12 @@
     },
     {
       "id": "global-north-africa",
-      "title": "North Africa and the Horn",
+      "title": "North and East Africa",
       "file": "modern_pca5.g25.txt"
     },
     {
       "id": "global-jewish",
-      "title": "Jewish and Roma",
+      "title": "Jewish",
       "file": "modern_pca6.g25.txt"
     },
     {
@@ -41,11 +41,6 @@
       "file": "modern_pca8.g25.txt"
     },
     {
-      "id": "global-southeast-asia",
-      "title": "Southeast Asia",
-      "file": "modern_pca9.g25.txt"
-    },
-    {
       "id": "global-australia-pacific",
       "title": "Australia and Pacific",
       "file": "modern_pca10.g25.txt"
@@ -56,8 +51,8 @@
       "file": "modern_pca11.g25.txt"
     },
     {
-      "id": "global-anatolian-turks-and-azerbaijanis",
-      "title": "West Turkistan",
+      "id": "global-turkey-and-azerbaijan",
+      "title": "Turkey and Azerbaijan",
       "file": "modern_pca12.g25.txt"
     },
     {
@@ -76,18 +71,13 @@
       "file": "modern_pca15.g25.txt"
     },
     {
-      "id": "global-arabian-peninsula",
-      "title": "Arabian Peninsula",
-      "file": "modern_pca16.g25.txt"
-    },
-    {
-      "id": "global-iranic",
-      "title": "Iranic",
+      "id": "global-iran",
+      "title": "Iran",
       "file": "modern_pca17.g25.txt"
     },
     {
-      "id": "global-levant-mesopotamia",
-      "title": "Levant and Mesopotamia",
+      "id": "global-arabia",
+      "title": "Arabia",
       "file": "modern_pca18.g25.txt"
     },
     {

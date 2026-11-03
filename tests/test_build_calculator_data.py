@@ -1,7 +1,6 @@
 import tempfile
 import unittest
 import json
-import math
 import sys
 from pathlib import Path
 
@@ -9,7 +8,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from build.build_calculator_data import (ROOT, build_neolithic_data, build_ydnatr, read_global_ancient_rows,
                                          read_global_modern_pcas,
-                                         read_modern_pcas, read_neolithic_data, read_rows, read_ydnatr_data,
+                                         read_modern_pcas, read_neolithic_data, read_row_sections, read_rows, read_ydnatr_data,
                                          rebuild_mixed_pca)
 
 
@@ -231,7 +230,9 @@ class ReadRowsTests(unittest.TestCase):
         self.assertEqual(list(dict.fromkeys(row[1].split(":", 1)[0] for row in caucasus)),
                          ["Armenia", "Ciscaucasia", "Transcaucasia", "Georgia South", "Georgia"])
         self.assertEqual(list(dict.fromkeys(row[1].split(":", 1)[0] for row in levant_mesopotamia)),
-                         ["Levant", "Mesopotamia"])
+                         ["Assyrian", "Upper Mesopotamian", "Syrio-Mesopotamian", "North Levantine",
+                          "Mesopotamian", "Irano-Mesopotamian",
+                          "Christian Arab", "South Levantine", "Cypriot", "Arabian Peninsula"])
         for group, prefix, rows in (("Ciscaucasia", "Avar_", caucasus),
                                     ("Ciscaucasia", "Circassian_", caucasus),
                                     ("Transcaucasia", "Andi_(Transcaucasian_Profile)", caucasus),
@@ -243,9 +244,28 @@ class ReadRowsTests(unittest.TestCase):
                                     ("Transcaucasia", "Georgian_Tushetian_", caucasus),
                                     ("Transcaucasia", "Georgian_Khevsurian_", caucasus),
                                     ("Georgia South", "Turkish_Meskhetian_", caucasus),
-                                    ("Levant", "Palestinian_Arab_", levant_mesopotamia),
-                                    ("Mesopotamia", "Iraqi_Arab_", levant_mesopotamia)):
-            self.assertTrue(any(row[1].startswith(f"{group}:{prefix}") for row in rows))
+                                    ("Assyrian", "Assyrian_", levant_mesopotamia),
+                                    ("Upper Mesopotamian", "Mardini_Arab_", levant_mesopotamia),
+                                    ("Syrio-Mesopotamian", "Syrian_Arab_(Syrio-Mesopotamian_", levant_mesopotamia),
+                                    ("North Levantine", "Lebanese_Arab_Muslim_", levant_mesopotamia),
+                                    ("Mesopotamian", "Iraqi_Arab_(Mesopotamian_Arab_", levant_mesopotamia),
+                                    ("Irano-Mesopotamian", "Iraqi_Arab_(Irano-Mesopotamian_", levant_mesopotamia),
+                                    ("Syrio-Mesopotamian", "Iraqi_Arab_(Mesopotamian_Pre-Islamic_", levant_mesopotamia),
+                                    ("Christian Arab", "Lebanese_Arab_Christian_", levant_mesopotamia),
+                                    ("South Levantine", "Palestinian_Arab_", levant_mesopotamia),
+                                    ("Cypriot", "Greek_Cyprus_", levant_mesopotamia),
+                                    ("Arabian Peninsula", "Saudi_Arab_", levant_mesopotamia)):
+            self.assertTrue(any(row[1].split(":", 1)[0].strip() == group and
+                                row[1].split(":", 1)[1].strip().startswith(prefix)
+                                for row in rows), (group, prefix))
+        self.assertEqual(len(levant_mesopotamia), 78)
+        upper = {row[1].split(":", 1)[1].strip() for row in levant_mesopotamia
+                 if row[1].startswith("Upper Mesopotamian:")}
+        self.assertEqual(upper, {
+            "Mhallami_(n=12)", "Mardini_Arab_(Mardelli)_(n=18)",
+            "Bitlisi_Arab_(n=2)", "Siirti_Arab_(n=2)",
+            "Kosewi_(n=30)", "Tatavi_(n=3)",
+        })
         caucasus_labels = {row[1].split(":", 1)[1].strip() for row in pcas[6]["deepReferences"]}
         self.assertIn("Lak_(n=54)", caucasus_labels)
         self.assertIn("Nogai_Dagestan_(Ciscaucasian_Profile)_(n=3)", caucasus_labels)
@@ -515,7 +535,7 @@ class ReadRowsTests(unittest.TestCase):
         self.assertEqual(groups(southwest),
                          {"South France", "Basque", "Iberia", "Corsica", "Italy", "Sardinia"})
         self.assertEqual(groups(southeast), {"South Italy", "Albanian", "Greek",
-                                             "Greek Asia Minor", "Balkans", "Turk Balkans",
+                                             "Greek Aegean", "Greek Anatolian", "Balkans", "Turk Balkans",
                                              "Turk Thrace", "Crimea"})
         self.assertEqual(groups(east_europe),
                          {"Slavic", "Central Europe", "Baltic"})
@@ -560,15 +580,22 @@ class ReadRowsTests(unittest.TestCase):
         ):
             self.assertEqual(labels(pca, group, True),
                              {label for label in source_labels if label.startswith(prefixes)})
-        self.assertEqual({label for group in ("Greek", "Greek Asia Minor", "Turk Balkans", "Crimea")
+        self.assertEqual({label for group in ("Greek", "Greek Aegean", "Greek Anatolian",
+                                             "Turk Balkans", "Crimea")
                           for label in labels(southeast, group, True)
                           if label.startswith("Greek_")},
                          {label for label in source_labels if label.startswith("Greek_")})
         self.assertTrue({"Greek_Cappadocia_Kaisareia_(n=14)", "Greek_Pontus_(n=22)",
-                         "Greek_Cyprus_(n=41)", "Greek_Cyclades_Andros_(n=7)"}
-                        <= labels(southeast, "Greek Asia Minor"))
+                         "Greek_Armenian_Highland_Erzurum_(n=13)",
+                         "Greek_Cappadocia_Nigdi_(n=3)"}
+                        <= labels(southeast, "Greek Anatolian"))
+        self.assertTrue({"Greek_Cyprus_(n=41)", "Greek_Cyclades_Andros_(n=7)",
+                         "Greek_North_Aegean_Chios_(n=31)",
+                         "Greek_Western_Anatolia_Balia_(n=2)",
+                         "Greek_Western_Anatolia_Smyrna_(n=9)"}
+                        <= labels(southeast, "Greek Aegean"))
         self.assertTrue({"Greek_Crete_Muslim_(Cretan_Turk)_(n=8)",
-                         "Turkish_Cyprus_(n=33)"} <= labels(southeast, "Greek Asia Minor"))
+                         "Turkish_Cyprus_(n=33)"} <= labels(southeast, "Greek Aegean"))
         self.assertTrue({"Turkish_Lesbos_(n=1)", "Turkish_Dodecanese_(n=2)",
                          "Turkish_East_Thrace_Edirne_(n=2)"}
                         <= labels(southeast, "Turk Thrace"))
@@ -594,25 +621,25 @@ class ReadRowsTests(unittest.TestCase):
             for group, group_labels in main.items():
                 self.assertTrue(group_labels <= labels(pca, group, True))
 
-    def test_southeast_greek_boundary_uses_peloponnese_and_crete(self):
+    def test_southeast_greek_aegean_and_anatolian_groups(self):
         modern = read_rows(ROOT / "data" / "modern_g25.txt", "modern")
-        source = {row[1]: row[2:] for row in modern}
         pca = next(pca for pca in read_global_modern_pcas(modern)
                    if pca["id"] == "global-southeast-europe")
-        peloponnese = source["Greek_Peloponnese_Arcadia_(n=34)"]
-        crete = source["Greek_Crete_(n=16)"]
-        self.assertLessEqual(len(pca["references"]), 60)
+        self.assertLessEqual(len(pca["references"]), 65)
         main_groups = {row[1].split(":", 1)[1].strip(): row[1].split(":", 1)[0]
                        for row in pca["references"]}
-        self.assertEqual(main_groups["Greek_Western_Anatolia_Smyrna_(n=9)"], "Greek")
-        self.assertEqual(main_groups["Greek_Crete_Heraklion_(n=93)"], "Greek Asia Minor")
-        for row in pca["deepReferences"]:
-            group, label = (part.strip() for part in row[1].split(":", 1))
-            if group not in {"Greek", "Greek Asia Minor"} or not label.startswith("Greek_"):
-                continue
-            expected = ("Greek" if math.dist(source[label], peloponnese) <
-                        math.dist(source[label], crete) else "Greek Asia Minor")
-            self.assertEqual(group, expected, label)
+        self.assertEqual(main_groups["Greek_Western_Anatolia_Smyrna_(n=9)"], "Greek Aegean")
+        self.assertEqual(main_groups["Greek_Crete_Heraklion_(n=93)"], "Greek Aegean")
+        self.assertEqual(main_groups["Greek_Cappadocia_Kaisareia_(n=14)"], "Greek Anatolian")
+        self.assertEqual(sum(group == "Greek Aegean" for group in main_groups.values()), 10)
+        self.assertEqual(sum(group == "Greek Anatolian" for group in main_groups.values()), 5)
+        deep_groups = {row[1].split(":", 1)[1].strip(): row[1].split(":", 1)[0]
+                       for row in pca["deepReferences"]}
+        self.assertEqual(deep_groups["Greek_Western_Anatolia_Krini_(n=1)"], "Greek Aegean")
+        self.assertEqual(deep_groups["Greek_Dodecanese_Rhodes_(n=15)"], "Greek Aegean")
+        self.assertTrue(all(group == "Greek Aegean" for label, group in deep_groups.items()
+                            if label.startswith("Greek_Western_Anatolia_")))
+        self.assertNotIn("Greek Asia Minor", deep_groups.values())
 
     def test_global_modern_maps_have_requested_regions_and_valid_anchors(self):
         modern = read_rows(ROOT / "data" / "modern_g25.txt", "modern")
@@ -938,8 +965,8 @@ class ReadRowsTests(unittest.TestCase):
         self.assertNotIn("Dai_Yunnan_Xishuangbanna_(n=101)",
                          deep_labels("global-southeast-asia", "Mainland"))
         self.assertIn("Greek_Cyprus_(n=41)",
-                      deep_labels("global-southeast-europe", "Greek Asia Minor") &
-                      deep_labels("global-levant-mesopotamia", "Levant"))
+                      deep_labels("global-southeast-europe", "Greek Aegean") &
+                      deep_labels("global-levant-mesopotamia", "Cypriot"))
 
     def test_west_siberia_map_covers_uralic_turkic_ket_and_arkhangelsk_populations(self):
         modern = read_rows(ROOT / "data" / "modern_g25.txt", "modern")
@@ -963,6 +990,69 @@ class ReadRowsTests(unittest.TestCase):
                      if not label.startswith(("Ket_", "Russian_Arkhangelsk_", "Estonian_"))}
             self.assertFalse(moved & set(pca["deepReferenceAnchors"]))
 
+    def test_levant_mesopotamia_has_supported_mesopotamian_groups(self):
+        source = ROOT / "data" / "pca" / "modern_pca18.g25.txt"
+        sections = read_row_sections(source, "modern")
+        main = {row[1].split(":", 1)[1].strip(): row[1].split(":", 1)[0]
+                for row in sections["main"]}
+        deep = {row[1].split(":", 1)[1].strip(): row[1].split(":", 1)[0]
+                for row in sections["deep"]}
+        for group in ("Assyrian", "Upper Mesopotamian", "Syrio-Mesopotamian",
+                      "Mesopotamian", "Irano-Mesopotamian"):
+            self.assertGreaterEqual(list(main.values()).count(group), 5, group)
+        self.assertEqual(list(main.values()).count("Syrio-Mesopotamian"), 10)
+        self.assertNotIn("Pre-Islamic Mesopotamian", set(main.values()) | set(deep.values()))
+        self.assertEqual(main["Mandaean_Iraq_(n=20)"], "Syrio-Mesopotamian")
+        self.assertTrue(all(group == "Syrio-Mesopotamian"
+                            for label, group in (main | deep).items()
+                            if "Mesopotamian_Pre-Islamic_Profile" in label))
+        irano = {label for label in main | deep if "Irano-Mesopotamian_Profile" in label}
+        self.assertEqual(len(irano), 7)
+        self.assertEqual({label for label, group in main.items()
+                          if group == "Irano-Mesopotamian"},
+                         irano - {"Iraqi_Arab_West_(Irano-Mesopotamian_Profile)_(n=1)",
+                                  "Iraqi_Arab_Babylon_(Irano-Mesopotamian_Profile)_(n=1)"})
+        self.assertTrue(all((main | deep)[label] == "Irano-Mesopotamian"
+                            for label in irano))
+        self.assertEqual(deep["Iraqi_Arab_West_(Irano-Mesopotamian_Profile)_(n=1)"],
+                         "Irano-Mesopotamian")
+
+    def test_levant_mesopotamia_arabian_rows_follow_mixed_status(self):
+        source = ROOT / "data" / "pca" / "modern_pca18.g25.txt"
+        sections = read_row_sections(source, "modern")
+
+        def labels(section, group=None):
+            return [row[1].split(":", 1)[1].strip() for row in sections[section]
+                    if group is None or row[1].split(":", 1)[0] == group]
+
+        main = labels("main", "Arabian Peninsula")
+        deep = labels("deep", "Arabian Peninsula")
+        deep_mixed = labels("deep mixed", "Arabian Peninsula")
+        self.assertFalse(any(row[1].split(":", 1)[0] in
+                             {"Omani", "Saudi", "Bedouin", "Yemeni", "Gulf"}
+                             for rows in sections.values() for row in rows))
+        self.assertGreaterEqual(len(main), 5)
+        self.assertIn("Saudi_Arab_(n=246)", main)
+        self.assertIn("Yemeni_Arab_(n=8)", main)
+        self.assertIn("Bedouin_Jordan_(n=4)", main)
+        self.assertIn("Omani_Arab_(n=2)", deep)
+        self.assertNotIn("Omani_Arab_(n=2)", deep_mixed)
+        self.assertIn("Saudi_Arab_(Arabian-Mixed_Profile)_(n=6)", deep)
+        self.assertIn("Emirati_Arab_(Ajam-Mixed)_(n=2)", deep)
+        self.assertIn("Afro-Emirati_(n=7)", deep_mixed)
+        self.assertEqual(deep_mixed.count("Afro-Emirati_(n=7)"), 1)
+        self.assertIn("Yemeni_Arab_(South_Asian-Mixed)_(n=1)", deep_mixed)
+        self.assertIn("Bedouin_Jordan_(African-Mixed)_(n=4)", deep_mixed)
+        self.assertIn("Lebanese_Arab_Muslim_Sunni_Beirut_(Afro-Arab-Mixed)_(n=5)",
+                      labels("deep mixed", "North Levantine"))
+        self.assertTrue(all("mixed" not in label.lower() for label in labels("main")))
+        self.assertTrue(all(any(token in label.lower() for token in
+                                ("afro", "african", "south_asian"))
+                            for label in labels("deep mixed")))
+        self.assertTrue(all(not any(token in label.lower() for token in
+                                    ("afro", "african", "south_asian"))
+                            for label in labels("deep")))
+
     def test_arabian_peninsula_has_its_own_main_and_deep_groups(self):
         modern = read_rows(ROOT / "data" / "modern_g25.txt", "modern")
         pcas = {pca["id"]: pca for pca in read_global_modern_pcas(modern)}
@@ -972,8 +1062,8 @@ class ReadRowsTests(unittest.TestCase):
                                     for row in arabian["references"]))
         self.assertEqual(groups, ["Afro-Arabian", "Yemeni", "Saudi", "Omani",
                                   "Gulf", "Bedouin", "Jordan", "Coptic"])
-        self.assertFalse(any(row[1].startswith("Arabian Peninsula:")
-                             for row in levant_mesopotamia["references"] + levant_mesopotamia["deepReferences"]))
+        self.assertTrue(any(row[1].startswith("Arabian Peninsula:")
+                            for row in levant_mesopotamia["references"]))
         main = {row[1].split(":", 1)[1]: row[1].split(":", 1)[0]
                 for row in arabian["references"]}
         deep = {row[1].rsplit(":", 1)[1].strip(): row[1].split(":", 1)[0]
