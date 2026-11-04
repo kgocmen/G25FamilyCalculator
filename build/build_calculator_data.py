@@ -96,6 +96,36 @@ def read_ydnatr_data(directory: Path = ydnatr_DIRECTORY) -> tuple[dict, dict]:
                     interpretation.get("flag") not in {"positive", "neutral", "negative"} or
                     not is_sentence(interpretation.get("meaning"))):
                 raise ValueError(f"{variant['id']}:{genotype}: invalid phenotype interpretation")
+    blood_type = health.get("bloodType")
+    blood_type_sources = blood_type.get("sources", []) if isinstance(blood_type, dict) else []
+    if (not isinstance(blood_type, dict) or
+            blood_type.get("category") != "blood" or
+            not isinstance(health["categories"].get("blood"), str) or
+            not health["categories"]["blood"].strip() or
+            not isinstance(blood_type.get("title"), str) or not blood_type["title"].strip() or
+            not is_sentence(blood_type.get("definition")) or
+            not is_sentence(blood_type.get("meaning")) or
+            "{abo}" not in blood_type["meaning"] or
+            not isinstance(blood_type.get("alleleMeanings"), dict) or
+            set(blood_type["alleleMeanings"]) != {"O", "B"} or
+            any(not isinstance(meanings, dict) or
+                set(meanings) != {"0", "1", "2"} or
+                any(not is_sentence(meaning) for meaning in meanings.values())
+                for meanings in blood_type["alleleMeanings"].values()) or
+            blood_type.get("markers") != {
+                "oDirect": "rs8176719", "oProxy": "rs505922",
+                "bPrimary": "rs8176746", "bConfirm": "rs8176747"} or
+            not isinstance(blood_type.get("markerDetails"), dict) or
+            set(blood_type["markerDetails"]) != set(blood_type["markers"].values()) or
+            any(not isinstance(marker, dict) or
+                not isinstance(marker.get("title"), str) or not marker["title"].strip() or
+                marker.get("allele") not in {"O", "B"} or
+                not is_sentence(marker.get("definition"))
+                for marker in blood_type["markerDetails"].values()) or
+            not isinstance(blood_type_sources, list) or
+            not all(isinstance(source, str) and source.startswith("https://")
+                    for source in blood_type_sources)):
+        raise ValueError("Invalid ABO/RhD blood type reference data")
     return k12b, health
 
 

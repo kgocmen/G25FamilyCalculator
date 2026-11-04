@@ -1,6 +1,6 @@
 "use strict";
-importScripts("raw_dna.js?v=20261027-5");
-importScripts("health_data.js?v=20261026-2", "health.js?v=20261029-1");
+importScripts("raw_dna.js?v=20261104-1");
+importScripts("health_data.js?v=20261104-11", "health.js?v=20261104-11");
 
 self.onmessage = async ({ data }) => {
   const send = (type, payload = {}) => self.postMessage({ type, ...payload });
@@ -9,7 +9,8 @@ self.onmessage = async ({ data }) => {
     send("status", { message: "Reading DNA SNP calls…" });
     const { calls, special, stats } = G25RawDNA.parse(await G25RawDNA.readRawText(data.file));
     send("parsed", { stats });
-    send("health", { matches: G25Health.matchCalls(calls, special) });
+    send("health", { matches: G25Health.matchCalls(calls, special),
+      bloodType: G25Health.inferBloodType(calls, special) });
     const readJson = async (file) => {
       const response = await fetch(new URL(`raw_data/${file}`, self.location.href), { cache: "no-cache" });
       if (!response.ok) throw new Error(`Could not load ${file}. Check your connection and try again.`);

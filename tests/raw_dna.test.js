@@ -82,6 +82,17 @@ test("AncestryDNA split-allele TXT parses build, no-calls, indels, and duplicate
     [...calls]);
 });
 
+test("ABO deletion calls survive parsing without treating no-calls as deletions", () => {
+  const text = "RSID,CHROMOSOME,POSITION,RESULT\nrs1,1,1,AA\nrs8176719,9,2,DI\n";
+  const parsed = raw.parse(text);
+  assert.equal(parsed.special.get(8176719), "DI");
+  assert.equal(parsed.stats.usable, 2);
+  assert.equal(raw.parse(text.replace(",DI", ",--")).special.has(8176719), false);
+  const conflict = raw.parse(text + "rs8176719,9,2,II\n");
+  assert.equal(conflict.special.has(8176719), false);
+  assert.equal(conflict.stats.conflicts, 1);
+});
+
 test("AncestryDNA download ZIP reads its TXT locally, including data-descriptor archives", async () => {
   const text = "#AncestryDNA raw data download\nrsid\tchromosome\tposition\tallele1\tallele2\nrs1\t1\t100\tA\tG\n";
   for (const method of [0, 8]) {

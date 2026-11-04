@@ -101,3 +101,15 @@ test('K36 renders a normalized pie and all 36 legend rows, then clears both', ()
   assert.equal($('raw-k36-table').children.length, 0);
   assert.equal($('raw-k36-copy-row').disabled, true);
 });
+
+test('raw DNA worker forwards the blood group estimate to Health', () => {
+  const { start, window } = workspace();
+  let received;
+  window.G25HealthUI = { reset() {}, setMatches(matches, bloodType) {
+    received = { matches, bloodType };
+  } };
+  const worker = start();
+  const bloodType = { abo: 'A', basis: 'direct', rhD: null };
+  worker.onmessage({ data: { type: 'health', matches: [], bloodType } });
+  assert.deepEqual(received, { matches: [], bloodType });
+});

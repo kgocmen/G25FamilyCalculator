@@ -4,6 +4,7 @@
 .health-section h3 { margin: 0 0 12px; font-size: 16px; color: #14243b; }
 .health-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(245px, 1fr)); gap: 12px; }
 .health-card { min-width: 0; padding: 14px 15px; border: 1px solid #dce4eb; border-radius: 10px; background: #fff; }
+.health-combined-card { grid-column: 1; }
 .health-card-header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: 8px; }
 .health-card h4 { flex: 1 1 150px; margin: 0; font-size: 13px; line-height: 1.35; overflow-wrap: anywhere; }
 .health-rsid { color: #526c7e; font: 11px ui-monospace, SFMono-Regular, Consolas, monospace; }

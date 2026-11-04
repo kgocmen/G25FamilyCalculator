@@ -338,29 +338,36 @@ class ReadRowsTests(unittest.TestCase):
         deep = {row[1].split(": ", 1)[1]: row[1].split(":", 1)[0]
                 for row in pca["deepReferences"]}
         self.assertEqual(set(main.values()), {
-            "Punjab and North India", "Central India and Deccan", "Bengal", "South India-Sri Lanka",
-            "South/West Dalit-Adivasi", "Gond-Kurukh", "Eastern Adivasi", "Indo-Burmese"})
+            "Pakistan and Northwest India", "Central Indian", "East Indian", "South Indian",
+            "Dalit", "Tribes", "Eastern Tribes", "Roma", "Himalayan", "Hindu Kush"})
         self.assertEqual(len(main), len(pca["references"]))
         self.assertEqual(len(deep), len(pca["deepReferences"]))
         self.assertTrue(all(deep.get(label) == group for label, group in main.items()))
-        self.assertEqual({label for label, group in main.items() if group == "East Iran"}, {
-            "Ajam_Bandari_Emirates_(n=10)", "Persian_Bandari_(n=9)",
-            "Persian_Sistan_(n=1)", "Persian_Khorasan_(n=12)",
-            "Parsi_India_(n=30)", "Parsi_Pakistan_(n=23)"})
         self.assertFalse(any(label.startswith(("Hazara_", "Balochi_", "Brahui_", "Makrani_"))
                              for label in main | deep))
-        self.assertFalse(any(label.startswith("Pashtun_") and not label.startswith("Pashtun_India_")
-                             for label in main | deep))
         for label, group in (
-            ("Punjabi_Jat_Sikh_(n=60)", "Punjab and North India"),
-            ("Bengali_Bangladesh_(n=90)", "Bengal"),
-            ("Tamil_Brahmin_Iyer_Tamil_Nadu_(n=24)", "Central India and Deccan"),
-            ("Sinhalese_(n=16)", "South India-Sri Lanka"),
-            ("Gond_Chhattisgarh_(n=9)", "Gond-Kurukh"),
-            ("Munda_(n=5)", "Eastern Adivasi"),
-            ("Khond_(n=14)", "Eastern Adivasi"),
+            ("Punjabi_Jat_Sikh_(n=60)", "Pakistan and Northwest India"),
+            ("Pashtun_Kasabgar_Zargar_(n=2)", "Pakistan and Northwest India"),
+            ("Bengali_Bangladesh_(n=90)", "East Indian"),
+            ("Tamil_Brahmin_Iyer_Tamil_Nadu_(n=24)", "Central Indian"),
+            ("Sinhalese_(n=16)", "South Indian"),
+            ("Tamil_Pallan_(n=20)", "Dalit"),
+            ("Irula_(n=61)", "Tribes"),
+            ("Gond_Chhattisgarh_(n=9)", "Tribes"),
+            ("Munda_(n=5)", "Eastern Tribes"),
+            ("Khond_(n=14)", "Eastern Tribes"),
         ):
             self.assertEqual(main[label], group)
+        moved_deep = {"Tajik_Ghazni_(n=1)", "Tajik_Laghman_(n=1)",
+                      "Pashtun_Pakistan_Kurram_(n=8)",
+                      "Pashtun_Kasabgar_Chamar_(n=1)", "Pashtun_Kasabgar_Dum_(n=1)",
+                      "Pashtun_Kasabgar_Ingar_(n=2)", "Pashtun_Kasabgar_Julaha_(n=1)",
+                      "Pashtun_Kasabgar_Kolal_(n=1)", "Pashtun_Kasabgar_Nai_(n=1)",
+                      "Pashtun_Kasabgar_Paracha_(n=1)", "Pashtun_Kasabgar_Shah_Khel_(n=1)"}
+        self.assertTrue(all(deep[name] == "Pakistan and Northwest India" for name in moved_deep))
+        iran = next(pca for pca in read_global_modern_pcas(modern) if pca["id"] == "global-iran")
+        iran_labels = {row[1].split(":", 1)[1].strip() for row in iran["deepReferences"]}
+        self.assertFalse((moved_deep | {"Pashtun_Kasabgar_Zargar_(n=2)"}) & iran_labels)
         source_deep = read_rows(ROOT / "data" / "pca" / "modern_pca2.g25.txt", "modern", section="deep")
         deprecated = {row[1].split(": ", 1)[1] for row in source_deep
                       if row[1].startswith("Deprecated: ")}
@@ -379,31 +386,26 @@ class ReadRowsTests(unittest.TestCase):
         modern = read_rows(ROOT / "data" / "modern_g25.txt", "modern")
         source = {row[1]: row[2:] for row in modern}
         pcas = {pca["id"]: pca for pca in read_global_modern_pcas(modern)}
-        pca = pcas["global-iranic"]
+        pca = pcas["global-iran"]
         main = {row[1].split(":", 1)[1].strip(): row[1].split(":", 1)[0]
                 for row in pca["references"]}
         deep = {row[1].split(": ", 1)[1]: row[1].split(":", 1)[0]
                 for row in pca["deepReferences"]}
         self.assertTrue({
             "West Iran", "Turkic Iran", "East Iran", "Balochistan",
-            "Central Asia", "Pamir", "Afghanistan", "Pakistan", "Hindu Kush"} <= set(main.values()))
+            "Central Asia", "Pamir", "Pashtun"} <= set(main.values()))
         self.assertNotIn("Afghanistan and Pakistan", main.values())
         self.assertEqual({group: list(main.values()).count(group) for group in
-                          ("West Iran", "Pamir", "Afghanistan", "Pakistan")},
-                         {"West Iran": 15, "Pamir": 8, "Afghanistan": 5,
-                          "Pakistan": 8})
+                          ("West Iran", "Pamir", "Pashtun")},
+                         {"West Iran": 13, "Pamir": 8, "Pashtun": 12})
         self.assertEqual(len(main), len(pca["references"]))
         self.assertEqual(len(deep), len(pca["deepReferences"]))
         self.assertTrue(all(deep.get(label) == group for label, group in main.items()))
         self.assertEqual({group: list(deep.values()).count(group) for group in
-                          ("West Iran", "Pamir", "Afghanistan", "Pakistan")},
-                         {"West Iran": 84, "Pamir": 16, "Afghanistan": 15,
-                          "Pakistan": 33})
-        self.assertEqual({label for label, group in main.items() if group == "Hindu Kush"},
-                         {"Nuristani_(n=4)", "Kalash_(n=23)", "Pashayi_(n=2)"})
-        self.assertEqual({label for label, group in deep.items() if group == "Hindu Kush"},
-                         {"Nuristani_(n=4)", "Kalash_(n=23)", "Pashayi_(n=2)",
-                          "Dameli_(n=2)"})
+                          ("West Iran", "Pamir", "Pashtun")},
+                         {"West Iran": 84, "Pamir": 16, "Pashtun": 36})
+        self.assertNotIn("Hindu Kush", main.values())
+        self.assertNotIn("Hindu Kush", deep.values())
         self.assertNotIn("?", main.values())
         self.assertFalse(any(label.startswith(("Ossetian_", "Tat_"))
                              for label in main | deep))
@@ -417,13 +419,12 @@ class ReadRowsTests(unittest.TestCase):
             ("Parsi_Pakistan_(n=23)", "East Iran"),
             ("Balochi_Pakistan_(n=17)", "Balochistan"),
             ("Brahui_(n=23)", "Balochistan"),
-            ("Pashtun_Durrani_(n=13)", "Afghanistan"),
+            ("Pashtun_Durrani_(n=13)", "Pashtun"),
             ("Tajik_Balkh_(n=6)", "Pamir"),
-            ("Pashtun_Bettani_(n=7)", "Pakistan"),
-            ("Pashtun_Ghilji_(n=17)", "Afghanistan"),
-            ("Pashtun_Yusufzai_(n=41)", "Pakistan"),
-            ("Pashtun_Kakar_(n=1)", "Pakistan"),
-            ("Pashtun_Kasabgar_Chamar_(n=1)", "Pakistan"),
+            ("Pashtun_Bettani_(n=7)", "Pashtun"),
+            ("Pashtun_Ghilji_(n=17)", "Pashtun"),
+            ("Pashtun_Yusufzai_(n=41)", "Pashtun"),
+            ("Pashtun_Kakar_(n=1)", "Pashtun"),
             ("Pamiri_Shugnan_(n=8)", "Pamir"),
             ("Tajik_(n=16)", "Central Asia"),
             ("Qizilbash_(n=1)", "Qizilbash"),

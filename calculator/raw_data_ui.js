@@ -149,7 +149,7 @@
         message("Open this calculator through its hosted site or a local web server to process raw DNA."); return;
       }
       try {
-        worker = new Worker(new URL("raw_dna_worker.js?v=20261029-1", document.baseURI));
+        worker = new Worker(new URL("raw_dna_worker.js?v=20261104-11", document.baseURI));
         const current = worker;
         busy(true); message("Starting local DNA analysis…");
         for (const id of modelIds) $("raw-" + id + "-status").textContent = `Calculating ${id === "k36" ? "K36" : "K12b"}…`;
@@ -164,7 +164,7 @@
               `${data.stats.invalid.toLocaleString()} invalid rows · ${data.stats.duplicates.toLocaleString()} duplicates (${data.stats.conflicts.toLocaleString()} conflicting SNPs excluded).`;
           }
           if (data.type === "result") showResult(data);
-          if (data.type === "health") window.G25HealthUI?.setMatches(data.matches);
+          if (data.type === "health") window.G25HealthUI?.setMatches(data.matches, data.bloodType);
           if (data.type === "model-error") {
             settledModels.add(data.id);
             showModels();

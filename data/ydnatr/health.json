@@ -1,5 +1,51 @@
 {
   "source": "https://www.ydnatr.com/p/saglik.html",
+  "bloodType": {
+    "category": "blood",
+    "title": "Kan Grubu (ABO)",
+    "definition": "ABO kan grubu, O ve B aleli işaretleyicileri birlikte değerlendirilerek tahmin edilir.",
+    "meaning": "Muhtemel {abo} kan grubu.",
+    "alleleMeanings": {
+      "O": {
+        "0": "Muhtemel A, B veya AB kan grubu.",
+        "1": "O aleli taşıyıcısı; muhtemel A veya B kan grubu.",
+        "2": "Muhtemel O kan grubu."
+      },
+      "B": {
+        "0": "Muhtemel A veya O kan grubu.",
+        "1": "Muhtemel B veya AB kan grubu.",
+        "2": "Muhtemel B kan grubu."
+      }
+    },
+    "markers": {
+      "oDirect": "rs8176719",
+      "oProxy": "rs505922",
+      "bPrimary": "rs8176746",
+      "bConfirm": "rs8176747"
+    },
+    "markerDetails": {
+      "rs8176719": {
+        "title": "O Aleli (ABO)",
+        "allele": "O",
+        "definition": "ABO genindeki 261delG değişimi yaygın O alelini işaretler."
+      },
+      "rs505922": {
+        "title": "O Aleli İşaretleyicisi (ABO)",
+        "allele": "O",
+        "definition": "ABO genine yakın bu varyant yaygın O aleliyle genetik bağlantı gösterir."
+      },
+      "rs8176746": {
+        "title": "B Aleli İşaretleyicisi (ABO)",
+        "allele": "B",
+        "definition": "ABO genindeki bu varyant A ve B alellerinin ayrımına katkı sağlar."
+      },
+      "rs8176747": {
+        "title": "B Aleli İşaretleyicisi (ABO)",
+        "allele": "B",
+        "definition": "ABO genindeki bu ikinci varyant B aleliyle ilişkilidir."
+      }
+    }
+  },
   "categories": {
     "cardio": "Kalp ve Damar Sağlığı",
     "cancer": "Hücre Sağlığı ve Onkoloji",
@@ -7,7 +53,8 @@
     "neuro": "Nöroloji, Psikiyatri ve Bilişsel Yetiler",
     "immunity": "Bağışıklık, İnflamasyon ve Otoimmünite",
     "pharma": "İlaç Yanıtı",
-    "physical": "Fiziksel Özellikler"
+    "physical": "Fiziksel Özellikler",
+    "blood": "Kan Grubu"
   },
   "variants": [
     {

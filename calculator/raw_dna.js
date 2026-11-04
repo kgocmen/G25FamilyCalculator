@@ -165,6 +165,18 @@
       if (!id || Number(id[1]) > 0xffffffff) { stats.invalid++; continue; }
       const genotype = (columns.result >= 0 ? row[columns.result] || "" :
         (row[columns.a] || "") + (row[columns.b] || "")).toUpperCase();
+      // This ABO deletion is encoded as D/I by some raw DNA exports.
+      if (Number(id[1]) === 8176719 && /^(DD|DI|ID|II)$/.test(genotype)) {
+        const normalized = genotype.split("").sort().join("");
+        if (specialConflicts.has(8176719)) { stats.duplicates++; continue; }
+        if (special.has(8176719)) {
+          stats.duplicates++;
+          if (special.get(8176719) !== normalized) {
+            special.delete(8176719); specialConflicts.add(8176719);
+          }
+        } else special.set(8176719, normalized);
+        continue;
+      }
       if (!/^[ACGT]{2}$/.test(genotype)) { stats.noCalls++; continue; }
       const first = BASES.indexOf(genotype[0]), second = BASES.indexOf(genotype[1]);
       const code = Math.min(first, second) * 4 + Math.max(first, second), rs = Number(id[1]);
@@ -176,8 +188,8 @@
     }
     if (!columns) throw new Error("The file is empty or has no DNA column header.");
     if (!calls.size) throw new Error("No usable autosomal SNP calls were found in this file.");
-    stats.conflicts = conflicts.size;
-    stats.usable = calls.size;
+    stats.conflicts = conflicts.size + specialConflicts.size;
+    stats.usable = calls.size + Number(special.has(8176719));
     return { calls, special, stats };
   }
 

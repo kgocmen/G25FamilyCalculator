@@ -162,7 +162,7 @@ class AsianPcaGroupsTests(unittest.TestCase):
             for key in ("references", "deepReferences", "deepMixedReferences"):
                 self.assertFalse(set(himalaya) & set(self.populations(pca_id, key)), pca_id)
         self.assertEqual(self.populations("global-south-asia")["Punjabi_Jat_Sikh_(n=60)"],
-                         "Punjab and North India")
+                         "Pakistan and Northwest India")
         moved_main = {"Madhesi_Brahmin_(n=1)", "Khas_Brahmin_(Bahun)_Nepal_(n=35)",
                       "Burusho_(n=20)", "Kashmiri_Muslim_(n=28)",
                       "Kashmiri_Pandit_(n=26)", "Brokpa_(Minaro)_(n=5)",
@@ -172,11 +172,11 @@ class AsianPcaGroupsTests(unittest.TestCase):
                       "Pahari_Rajput_Muslim_Jammu_(n=3)"}
         south_main = self.populations("global-south-asia", "references")
         south_deep = self.populations("global-south-asia")
-        self.assertTrue(all(south_main[name] == "Punjab and North India"
+        self.assertTrue(all(south_main[name] == "Pakistan and Northwest India"
                             for name in moved_main))
         self.assertTrue(all(name not in himalaya for name in moved_main))
         for name in ("Gujar_Kashmir_(n=13)", "Kashmiri_Muslim_Srinagar_(n=15)"):
-            self.assertEqual(south_deep[name], "Punjab and North India")
+            self.assertEqual(south_deep[name], "Pakistan and Northwest India")
             self.assertNotIn(name, himalaya)
 
     def test_southeast_asia_geographic_groups_keep_other_population_splits(self):
