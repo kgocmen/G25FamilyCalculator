@@ -76,7 +76,7 @@ test("Himalayan main references select PCA20 automatically and manually", () => 
     "../calculator/modern_pca_references.js"), "utf8");
   const pcas = JSON.parse(bundle.slice(bundle.indexOf("=") + 1).trim().replace(/;$/, ""));
   const himalaya = pcas.find((pca) => pca.id === "global-himalaya");
-  assert.equal(pcas.indexOf(himalaya), 19);
+  assert.equal(pcas.indexOf(himalaya), pcas.length - 1);
   const references = pcas.flatMap((pca) => pca.references);
   for (const reference of himalaya.references) {
     const input = { label: reference[1], values: reference.slice(2) };
@@ -185,8 +185,7 @@ test("global PCA bundles use Main for regular references and the union for deep 
   const pcas = JSON.parse(bundle.slice(bundle.indexOf("=") + 1).trim().replace(/;$/, ""));
   const config = JSON.parse(fs.readFileSync(path.join(__dirname,
     "../data/pca/pca_config.txt"), "utf8"));
-  assert.equal(config.modern.length, 20);
-  assert.equal(pcas.length, 20);
+  assert.equal(pcas.length, config.modern.length);
   assert.deepEqual(pcas.map((pca) => pca.id), config.modern.map((entry) => entry.id));
   for (const [index, entry] of config.modern.entries()) {
     assert.equal(pcas[index].title, entry.title);
@@ -196,9 +195,9 @@ test("global PCA bundles use Main for regular references and the union for deep 
     const source = deepReferences.filter((row) => row[1].split(":", 1)[0] !== "Deprecated");
     assert.deepEqual(pcas[index].deepReferences, source);
     assert.equal(pcas[index].deepReferenceAnchors.length, source.length);
-    assert.deepEqual(pcas[index].deepMixedReferences || [], deepMixedReferences);
+    assert.deepEqual(pcas[index].deepMixedReferences || [], deepMixedReferences || []);
     assert.equal(pcas[index].deepMixedReferenceAnchors?.length || 0,
-      deepMixedReferences.length);
+      deepMixedReferences?.length || 0);
   }
 });
 

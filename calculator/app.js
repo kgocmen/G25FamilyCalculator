@@ -2704,7 +2704,7 @@
     }
     $("#pca-heading-title").textContent = data.pcaId === "mixed" ? "Mixed · Deep" : `${pca.title} · Deep PCA`;
     renderMedievalPca(references, `${data.pcaId === "mixed" ? "Mixed" : pca.title} deep`, true, null, false,
-      { groupStyle: "deep" });
+      { groupStyle: data.pcaId === "mixed" ? "mixed" : "deep" });
   }
 
   function allocatePercentUnits(weights, totalUnits) {

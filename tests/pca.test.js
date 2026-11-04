@@ -1,5 +1,7 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
+const fs = require("node:fs");
+const path = require("node:path");
 const { projectPca, projectCoordinates, coordinateExtremes } = require("../calculator/pca.js");
 
 function reference(label, x, y) {
@@ -79,13 +81,24 @@ test("deep PCA colours references by their sole cluster", () => {
     ["Turk Anatolia", "Turk Anatolia", "Turk Balkans"]);
 });
 
-test("mixed PCA colours map points by the ethnicity after the colon", () => {
+test("mixed PCA colours every reference by its source PCA", () => {
   const references = [reference("Batı_Anadolu:Türk_Orta_Karadeniz", -1, 0),
     reference("İç_Anadolu:Türk_Doğu_İç_Anadolu", 1, 0),
     reference("Balkanlar:Yunan;Ege", 0, 1)];
   const projected = projectPca({ values: Array(25).fill(0) }, references, [], "mixed");
   assert.deepEqual(projected.points.map((point) => point.ethnicity),
-    ["Türk", "Türk", "Yunan"]);
+    ["Batı_Anadolu", "İç_Anadolu", "Balkanlar"]);
+});
+
+test("mixed plot retains every bundled point and groups them by PCA", () => {
+  for (const file of ["mixed_pca_references.js", "turkish_mixed_pca_references.js"]) {
+    const bundle = fs.readFileSync(path.join(__dirname, "../calculator", file), "utf8");
+    const references = JSON.parse(bundle.slice(bundle.indexOf("=") + 1).trim().replace(/;$/, "")).references;
+    const projected = projectPca({ values: Array(25).fill(0) }, references, [], "mixed");
+    assert.equal(projected.points.length, references.length);
+    assert.deepEqual(projected.points.map((point) => point.ethnicity),
+      references.map((row) => row[1].split(":", 1)[0]));
+  }
 });
 
 test("sparse PCA can project only its fitted components and one closest overlay", () => {

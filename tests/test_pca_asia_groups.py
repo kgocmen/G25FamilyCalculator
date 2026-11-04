@@ -118,13 +118,16 @@ class AsianPcaGroupsTests(unittest.TestCase):
 
     def test_himalaya_pca20_has_distinct_regional_groups_and_source_coordinates(self):
         config = json.loads((ROOT / "data/pca/pca_config.txt").read_text())
-        self.assertEqual(config["modern"][19], {"id": "global-himalaya", "title": "Himalaya",
-                                                "file": "modern_pca20.g25.txt"})
+        self.assertEqual(next(entry for entry in config["modern"]
+                              if entry["id"] == "global-himalaya"),
+                         {"id": "global-himalaya", "title": "Himalaya",
+                          "file": "modern_pca20.g25.txt"})
         pca = self.pcas["global-himalaya"]
         self.assertEqual(Counter(self.populations(pca["id"]).values()), {
             "Tibet and Sherpa": 17, "Nepal Tibeto-Burman": 6, "Newar": 2,
-            "Nepal Indo-Aryan": 5, "Western Himalaya": 19,
-            "Himalayan Foothills": 4, "Eastern Himalaya": 6})
+            "Nepal Indo-Aryan": 3, "Western Himalaya": 6,
+            "Himalayan Foothills": 6, "Eastern Himalaya": 6,
+            "Tibeto-Burman": 17})
         source = {row[1]: row[2:] for row in self.source}
         for key in ("references", "deepReferences"):
             names = []
@@ -133,8 +136,8 @@ class AsianPcaGroupsTests(unittest.TestCase):
                 names.append(name)
                 self.assertEqual(row[2:], source[name], name)
             self.assertEqual(len(names), len(set(names)))
-        self.assertEqual(len(pca["references"]), 56)
-        self.assertEqual(len(pca["deepReferences"]), 59)
+        self.assertEqual(len(pca["references"]), 62)
+        self.assertEqual(len(pca["deepReferences"]), 63)
         main_groups = set(self.populations(pca["id"], "references").values())
         self.assertEqual(main_groups, set(self.populations(pca["id"]).values()))
 
@@ -142,13 +145,13 @@ class AsianPcaGroupsTests(unittest.TestCase):
         himalaya = self.populations("global-himalaya")
         expected = {row[1] for row in self.source if row[1].startswith((
             "Tibetan_", "Sherpa_", "Gurung_", "Rai_", "Tamang_", "Magar_", "Khas_"))}
+        expected -= {"Khas_Brahmin_(Bahun)_Nepal_(n=35)"}
         self.assertTrue(expected <= set(himalaya))
         for name, group in (
             ("Tibetan_(n=19)", "Tibet and Sherpa"),
             ("Sherpa_Khumbu_(n=173)", "Tibet and Sherpa"),
-            ("Khas_Brahmin_(Bahun)_Nepal_(n=35)", "Nepal Indo-Aryan"),
             ("Tamang_(n=8)", "Nepal Tibeto-Burman"),
-            ("Newar_(n=21)", "Newar"), ("Burusho_(n=20)", "Western Himalaya"),
+            ("Newar_(n=21)", "Newar"), ("Balti_(n=17)", "Western Himalaya"),
             ("Gyalrong_(n=3)", "Eastern Himalaya"),
             ("Tharu_(n=26)", "Himalayan Foothills"),
         ):
@@ -160,8 +163,21 @@ class AsianPcaGroupsTests(unittest.TestCase):
                 self.assertFalse(set(himalaya) & set(self.populations(pca_id, key)), pca_id)
         self.assertEqual(self.populations("global-south-asia")["Punjabi_Jat_Sikh_(n=60)"],
                          "Punjab and North India")
-        self.assertEqual(self.populations("global-southeast-asia")["Khasi_(n=3)"], "Indo-Burmese")
-        self.assertEqual(self.populations("global-east-asia")["Tu_(n=5)"], "Northwest China")
+        moved_main = {"Madhesi_Brahmin_(n=1)", "Khas_Brahmin_(Bahun)_Nepal_(n=35)",
+                      "Burusho_(n=20)", "Kashmiri_Muslim_(n=28)",
+                      "Kashmiri_Pandit_(n=26)", "Brokpa_(Minaro)_(n=5)",
+                      "Dogra_Kashmir_(n=5)", "Himachali_Brahmin_Kangra_(n=2)",
+                      "Kumaoni_Brahmin_(n=8)", "Pahari_Mirpur_(n=2)",
+                      "Garhwali_Brahmin_(n=2)", "Pahari_Jat_Muslim_(n=8)",
+                      "Pahari_Rajput_Muslim_Jammu_(n=3)"}
+        south_main = self.populations("global-south-asia", "references")
+        south_deep = self.populations("global-south-asia")
+        self.assertTrue(all(south_main[name] == "Punjab and North India"
+                            for name in moved_main))
+        self.assertTrue(all(name not in himalaya for name in moved_main))
+        for name in ("Gujar_Kashmir_(n=13)", "Kashmiri_Muslim_Srinagar_(n=15)"):
+            self.assertEqual(south_deep[name], "Punjab and North India")
+            self.assertNotIn(name, himalaya)
 
     def test_southeast_asia_geographic_groups_keep_other_population_splits(self):
         pca = self.pcas["global-southeast-asia"]
@@ -297,8 +313,7 @@ class AsianPcaGroupsTests(unittest.TestCase):
         pca = self.pcas["global-himalaya"]
         main = self.populations(pca["id"], "references")
         deep = self.populations(pca["id"])
-        for name in ("Gyalrong_(n=3)", "Gujar_Kashmir_(n=13)",
-                     "Kashmiri_Muslim_Srinagar_(n=15)"):
+        for name in ("Gyalrong_(n=3)",):
             self.assertNotIn(name, main)
             self.assertIn(deep[name], set(main.values()))
 

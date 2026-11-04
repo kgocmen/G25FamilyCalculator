@@ -92,7 +92,7 @@ function G25PcaModule(root) {
     return {
       points: rows.map((row) => ({ label: row.label,
         ethnicity: groupStyle === "population" ? row.label : groupStyle === "mixed"
-          ? row.label.split(":", 2).at(-1).split(/[_;]/, 1)[0]
+          ? row.label.split(":", 1)[0]
           : groupStyle === "deep"
             ? row.label.slice(0, row.label.lastIndexOf(":")).trim()
           : groupStyle === "modern"

@@ -218,6 +218,7 @@ class ReadRowsTests(unittest.TestCase):
             self.assertEqual(len(rows), rebuilt)
             self.assertEqual({row[1].split(":", 1)[0] for row in rows},
                              {pca["title"].replace(" ", "_") for pca in pcas})
+            self.assertNotIn("Iran:Punjab and North India", {row[1] for row in rows})
 
     def test_global_caucasus_levant_and_turkic_maps_have_current_groups(self):
         modern = read_rows(ROOT / "data" / "modern_g25.txt", "modern")

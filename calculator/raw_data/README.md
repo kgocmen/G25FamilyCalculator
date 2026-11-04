@@ -20,6 +20,11 @@ regression. No DNA is uploaded, persisted, or included in application assets.
   Download `K12b.alleles.RData` and `K12b.12.F.RData`. The binary contains all
   166,770 SNPs and 12 components. See [source license](DODECAD-LICENSE.txt):
   noncommercial use with attribution and a link to the Dodecad Ancestry Project.
+  [DIYDodecad v2.1](https://dodecad.blogspot.com/2011/09/do-it-yourself-dodecad-v-21.html)
+  is the September 2011 *program* update that added support for incomplete
+  genotype files, with a minimum of 100 usable SNPs. The K12b *calculator data*
+  were released in January 2012 for use with that program. This app also accepts
+  incomplete files; its 10,000-SNP minimum below is a separate quality threshold.
 - Vbknethio's published [K36-to-G25 converter](https://allelocator.ovh/K36vertical.html)
   and [coefficient source](https://allelocator.ovh/K36vertical.js). This is the
   active G25 regression, stored as `k36_g25_vbknethio.json`. The source SHA-256 is

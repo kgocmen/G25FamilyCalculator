@@ -67,7 +67,7 @@ test("deep mode keeps the main selection and shows one level of clusters", () =>
   let source = fs.readFileSync(path.join(__dirname, "../calculator/app.js"), "utf8");
   source = source.replace("  function renderMedievalPca(", "  function unusedRenderMedievalPca(");
   source = source.replace("  render();\n})();",
-    "  function renderMedievalPca(rows) { window.lastPcaRows = rows; window.plotCount = (window.plotCount || 0) + 1; }\n  window.testApi = { state, render, renderMedievalBreakdown, renderMedievalFit, renderDeepFit, blacklist, allowedPcaReferences, allowedDeepPcaReferences };\n  render();\n})();");
+    "  function renderMedievalPca(rows, period, isModern, closestModern, clusterFit, options) { window.lastPcaRows = rows; window.lastPcaOptions = options; window.plotCount = (window.plotCount || 0) + 1; }\n  window.testApi = { state, render, renderMedievalBreakdown, renderMedievalFit, renderDeepFit, blacklist, allowedPcaReferences, allowedDeepPcaReferences };\n  render();\n})();");
   vm.runInNewContext(source, { window, document, Worker, URL, Blob, sessionStorage });
   const { state, render } = window.testApi;
   state.mode = 10;
@@ -163,6 +163,7 @@ test("deep mode keeps the main selection and shows one level of clusters", () =>
   assert.deepEqual(window.lastPcaRows.map((reference) => reference[1]), [
     "GroupA: First", "GroupA: Second", "GroupB: First",
   ]);
+  assert.equal(window.lastPcaOptions.groupStyle, "deep");
 
   const southeastMain = [row("Albanian:Albanian_Gheg", 0),
     row("Balkans:Bulgarian", 1), row("Albanian:Albanian_Tosk", 0.1),
@@ -223,6 +224,7 @@ test("deep mode keeps the main selection and shows one level of clusters", () =>
     "Southeast_Europe:Albanian_A_Mixed",
     "West_Asia_and_Caucasus:Abkhazian_A",
   ]);
+  assert.equal(window.lastPcaOptions.groupStyle, "mixed");
   assert.equal(document.querySelector("#pca-heading-title").textContent, "Mixed · Deep");
 
 });
