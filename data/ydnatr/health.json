@@ -2,19 +2,19 @@
   "source": "https://www.ydnatr.com/p/saglik.html",
   "bloodType": {
     "category": "blood",
-    "title": "Kan Grubu (ABO)",
+    "title": "Muhtemel Kan Grubu (ABO)",
     "definition": "ABO kan grubu, O ve B aleli işaretleyicileri birlikte değerlendirilerek tahmin edilir.",
-    "meaning": "Muhtemel {abo} kan grubu.",
+    "meaning": "{abo} kan grubu.",
     "alleleMeanings": {
       "O": {
-        "0": "Muhtemel A, B veya AB kan grubu.",
-        "1": "O aleli taşıyıcısı; muhtemel A veya B kan grubu.",
-        "2": "Muhtemel O kan grubu."
+        "0": "O aleli yok, A, B ya da AB kan grubu. O kan grubu olamaz.",
+        "1": "Heterozigot, A ya da B kan grubu, O aleli taşıyıcısı. AB ve O kan grubu olamaz.",
+        "2": "Çift O aleli: kesin O kan grubu."
       },
       "B": {
-        "0": "Muhtemel A veya O kan grubu.",
-        "1": "Muhtemel B veya AB kan grubu.",
-        "2": "Muhtemel B kan grubu."
+        "0": "B alleli yok, A ya da O kan grubu.",
+        "1": "Heterozigot, B ya da AB kan grubu.",
+        "2": "Çift B aleli, B kan grubu."
       }
     },
     "markers": {
@@ -47,14 +47,14 @@
     }
   },
   "categories": {
+    "blood": "Kan Grubu",
     "cardio": "Kalp ve Damar Sağlığı",
     "cancer": "Hücre Sağlığı ve Onkoloji",
     "metabolism": "Metabolizma, Beslenme ve Endokrin",
     "neuro": "Nöroloji, Psikiyatri ve Bilişsel Yetiler",
     "immunity": "Bağışıklık, İnflamasyon ve Otoimmünite",
     "pharma": "İlaç Yanıtı",
-    "physical": "Fiziksel Özellikler",
-    "blood": "Kan Grubu"
+    "physical": "Fiziksel Özellikler"
   },
   "variants": [
     {

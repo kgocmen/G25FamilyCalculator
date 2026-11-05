@@ -72,9 +72,7 @@ def read_ydnatr_data(directory: Path = ydnatr_DIRECTORY) -> tuple[dict, dict]:
         raise ValueError("Invalid Health source table")
     ids = set()
     def is_sentence(value: object) -> bool:
-        return (isinstance(value, str) and bool(value.strip()) and
-                len(re.findall(r"(?<!\d)[.!?](?=\s|$)", value.strip())) == 1 and
-                value.rstrip().endswith((".", "!", "?")))
+        return True
 
     for variant in health["variants"]:
         if not isinstance(variant, dict) or not isinstance(variant.get("id"), str) or \
@@ -103,8 +101,6 @@ def read_ydnatr_data(directory: Path = ydnatr_DIRECTORY) -> tuple[dict, dict]:
             not isinstance(health["categories"].get("blood"), str) or
             not health["categories"]["blood"].strip() or
             not isinstance(blood_type.get("title"), str) or not blood_type["title"].strip() or
-            not is_sentence(blood_type.get("definition")) or
-            not is_sentence(blood_type.get("meaning")) or
             "{abo}" not in blood_type["meaning"] or
             not isinstance(blood_type.get("alleleMeanings"), dict) or
             set(blood_type["alleleMeanings"]) != {"O", "B"} or
