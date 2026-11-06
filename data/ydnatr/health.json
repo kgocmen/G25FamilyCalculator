@@ -7,8 +7,8 @@
     "meaning": "{abo} kan grubu.",
     "alleleMeanings": {
       "O": {
-        "0": "O aleli yok, A, B ya da AB kan grubu. O kan grubu olamaz.",
-        "1": "Heterozigot, A ya da B kan grubu, O aleli taşıyıcısı. AB ve O kan grubu olamaz.",
+        "0": "O aleli yok, A, B ya da AB kan grubu.",
+        "1": "Heterozigot, A ya da B kan grubu, O aleli taşıyıcısı.",
         "2": "Çift O aleli: kesin O kan grubu."
       },
       "B": {

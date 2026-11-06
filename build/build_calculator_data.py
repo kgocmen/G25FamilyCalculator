@@ -158,8 +158,8 @@ def read_row_sections(path: Path, category: str) -> dict[str, list[list]]:
                 header = row[0].strip()[:-1].lower()
                 if (header == "main" and (headers or sections["main"]) or
                         header == "deep" and headers != ["main"] or
-                        header == "deep mixed" and headers != ["main", "deep"]):
-                    raise ValueError(f"{path}:{number}: expected Main:, Deep:, then Deep Mixed:")
+                        header == "deep mixed" and headers not in (["main"], ["main", "deep"])):
+                    raise ValueError(f"{path}:{number}: expected Main:, optional Deep:, then Deep Mixed:")
                 headers.append(header)
                 current = header
                 sections.setdefault(current, [])
@@ -306,9 +306,9 @@ def read_modern_pcas(modern_rows: list[list], directory: Path = MODERN_PCA_DIREC
         pca = {"id": entry["id"], "title": entry["title"],
                "references": rows, "referenceAnchors": anchors,
                "anchorLabels": list(dict.fromkeys(anchors))}
+        main_groups = {row[1].split(":", 1)[0].strip() for row in rows}
         if "deep" in sections:
             deep_rows = merge_pca_rows(rows, sections["deep"], source_path)
-            main_groups = {row[1].split(":", 1)[0].strip() for row in rows}
             active_deep_rows = []
             deep_anchors = []
             for row in deep_rows:

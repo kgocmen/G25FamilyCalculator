@@ -32,12 +32,18 @@ test("sectioned PCA sources deduplicate main rows in the deep union", (t) => {
     [row("Group: One", 0), row("Group: Two", 0)]);
   assert.deepEqual(readPcaSource(filename).deepMixedReferences,
     [row("Group: Mixed", 0)]);
+  fs.writeFileSync(filename, `Main:\nGroup:One,${coordinates}\nDeep Mixed:\nGroup: Mixed,${coordinates}\n`);
+  assert.deepEqual(readPcaSource(filename), {
+    references: [row("Group:One", 0)],
+    deepMixedReferences: [row("Group: Mixed", 0)],
+  });
   fs.writeFileSync(filename, `Main:\nGroup:One,${coordinates}\nDeep:\n` +
     `Group: One,${Array(25).fill(1).join(",")}\n`);
   assert.throws(() => readPcaSource(filename), /conflicting coordinates/);
-  for (const source of ["Deep:\n", "Main:\nMain:\n", "Main:\nDeep:\nDeep:\n"]) {
+  for (const source of ["Deep:\n", "Main:\nMain:\n", "Main:\nDeep:\nDeep:\n",
+    "Main:\nDeep Mixed:\nDeep:\n"]) {
     fs.writeFileSync(filename, source);
-    assert.throws(() => readPcaSource(filename), /expected Main:, Deep:, then Deep Mixed:/);
+    assert.throws(() => readPcaSource(filename), /expected Main:, optional Deep:, then Deep Mixed:/);
   }
 });
 
@@ -192,9 +198,9 @@ test("global PCA bundles use Main for regular references and the union for deep 
     const mainPath = path.join(__dirname, "../data/pca", entry.file);
     const { references, deepReferences, deepMixedReferences } = readPcaSource(mainPath);
     assert.deepEqual(pcas[index].references, references);
-    const source = deepReferences.filter((row) => row[1].split(":", 1)[0] !== "Deprecated");
-    assert.deepEqual(pcas[index].deepReferences, source);
-    assert.equal(pcas[index].deepReferenceAnchors.length, source.length);
+    const source = (deepReferences || []).filter((row) => row[1].split(":", 1)[0] !== "Deprecated");
+    assert.deepEqual(pcas[index].deepReferences || [], source);
+    assert.equal(pcas[index].deepReferenceAnchors?.length || 0, source.length);
     assert.deepEqual(pcas[index].deepMixedReferences || [], deepMixedReferences || []);
     assert.equal(pcas[index].deepMixedReferenceAnchors?.length || 0,
       deepMixedReferences?.length || 0);

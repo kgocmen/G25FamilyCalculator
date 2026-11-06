@@ -1,11 +1,6 @@
 {
   "modern": [
     {
-      "id": "global-southwest-europe",
-      "title": "Southwest Europe",
-      "file": "modern_pca1.g25.txt"
-    },
-    {
       "id": "global-south-asia",
       "title": "South Asia",
       "file": "modern_pca2.g25.txt"
@@ -56,18 +51,13 @@
       "file": "modern_pca12.g25.txt"
     },
     {
-      "id": "global-northwest-europe",
-      "title": "Northwest Europe",
+      "id": "global-europe",
+      "title": "Europe",
       "file": "modern_pca13.g25.txt"
     },
     {
-      "id": "global-northeast-europe",
-      "title": "Northeast Europe",
-      "file": "modern_pca14.g25.txt"
-    },
-    {
-      "id": "global-southeast-europe",
-      "title": "Southeast Europe",
+      "id": "global-balkans",
+      "title": "Balkans",
       "file": "modern_pca15.g25.txt"
     },
     {

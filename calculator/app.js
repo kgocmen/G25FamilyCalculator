@@ -1689,7 +1689,8 @@
       ...activeModernPcas().filter((pca) => pca.deepReferences?.length &&
         allowedPcaReferences(pca).length >= 3 && allowedDeepPcaReferences(pca).length),
       ...(modernMixedPca && activeModernPcas().some((pca) =>
-        allowedDeepPcaReferences(pca).length) ? [modernMixedPca] : []),
+        allowedDeepPcaReferences(pca).length || allowedDeepMixedPcaReferences(pca).length)
+        ? [modernMixedPca] : []),
     ]
       : modernMixedPca ? [...activeModernPcas(), modernMixedPca] : activeModernPcas();
     if (deep && selectedId !== "auto" && !choices.some((pca) => pca.id === selectedId)) {
@@ -1805,8 +1806,9 @@
     const possibleDeep = activeModernPcas().some((pca) =>
       (state.modernPcaId === "auto" || state.modernPcaId === "mixed" ||
         pca.id === state.modernPcaId) &&
-      pca.deepReferences?.length && allowedPcaReferences(pca).length >= 3 &&
-      allowedDeepPcaReferences(pca).length) &&
+      allowedPcaReferences(pca).length >= 3 &&
+      (allowedDeepPcaReferences(pca).length ||
+        (state.modernPcaId === "mixed" && allowedDeepMixedPcaReferences(pca).length))) &&
       (state.modernPcaId !== "mixed" || Boolean(activeMixedPca()));
     const availableDeep = modernMainFit?.ready
       ? canExpandMainFit(modernMainFit.fit, modernMainFit.pcaId) : possibleDeep;
@@ -1988,7 +1990,8 @@
         displayedPcaId,
         deepAnalysis: isModern && state.deepAnalysis,
         deepPcas: isModern && state.deepAnalysis ? activeModernPcas()
-          .filter((pca) => pca.deepReferences?.length)
+          .filter((pca) => pca.deepReferences?.length ||
+            (displayedPcaId === "mixed" && pca.deepMixedReferences?.length))
           .map((pca) => ({ id: pca.id, title: pca.title,
             references: allowedDeepPcaReferences(pca),
             deepMixedReferences: allowedDeepMixedPcaReferences(pca) })) : [],

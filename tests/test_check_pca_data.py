@@ -14,9 +14,9 @@ class PcaMapTests(unittest.TestCase):
         entries = dict(line.split(", ", 1) for line in lines)
         self.assertEqual(entries["Qizilbash_(n=1)"], "17-Iran-Main:Qizilbash")
         self.assertEqual(entries["Anglo-American_Kentucky_(n=125)"],
-                         "13-Northwest Europe-DeepMixed:British Isles")
+                         "13-Europe-Deep:Germanic North")
         self.assertEqual(entries["Bolivian_Mestizo_(n=5)"],
-                         "11-Indigenous America-DeepMixed:Andes")
+                         "11-Indigenous America-DeepMixed:South America")
         self.assertEqual(entries["Algerian_Jew_(n=9)"],
                          "6-Jewish-Deep:Jewish Middle East")
         self.assertEqual(entries["Iraqi_Arab_Baghdad_(Irano-Mesopotamian_Profile)_(n=9)"],

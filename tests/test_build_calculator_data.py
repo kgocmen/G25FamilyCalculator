@@ -176,10 +176,12 @@ class ReadRowsTests(unittest.TestCase):
     def test_pca_section_headers_must_be_in_order_and_unique(self):
         coordinates = ",".join(["0"] * 25)
         for text in ("Deep:\n", "Main:\nMain:\n", "Main:\nDeep:\nDeep:\n",
-                     "Main:\nDeep Mixed:\n", "Main:\nDeep:\nDeep Mixed:\nDeep Mixed:\n",
+                     "Main:\nDeep Mixed:\nDeep:\n", "Main:\nDeep:\nDeep Mixed:\nDeep Mixed:\n",
                      f"Group:One,{coordinates}\nMain:\n"):
-            with self.subTest(text=text), self.assertRaisesRegex(ValueError, "Main:, Deep:, then Deep Mixed:"):
+            with self.subTest(text=text), self.assertRaisesRegex(ValueError, "Main:, optional Deep:, then Deep Mixed:"):
                 self.read(text, "modern")
+        self.assertEqual(self.read(f"Main:\nGroup:One,{coordinates}\nDeep Mixed:\n", "modern"),
+                         [["modern", "Group:One", *([0.0] * 25)]])
 
     def test_mixed_pca_rebuilds_from_regular_maps_without_istanbul(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -461,17 +463,19 @@ class ReadRowsTests(unittest.TestCase):
         modern = read_rows(ROOT / "data" / "modern_g25.txt", "modern")
         source = {row[1]: row[2:] for row in modern}
         pca = next(pca for pca in read_global_modern_pcas(modern)
-                   if pca["id"] == "global-northwest-europe")
-        main = {row[1].split(":", 1)[1]: row[1].split(":", 1)[0]
+                   if pca["id"] == "global-europe")
+        main = {row[1].split(":", 1)[1].strip(): row[1].split(":", 1)[0]
                 for row in pca["references"]}
-        expected_groups = {"Germanic East", "Germanic West", "Germanic South",
-                           "Scandinavian", "British Isles", "France North"}
+        expected_groups = {"Sardinia", "France South", "Basque", "Iberia",
+                           "Corsica", "Italy North", "Celtic", "Germanic North",
+                           "Germanic East", "West Europe", "Swedish",
+                           "Central Europe", "Balto-Slavic"}
         self.assertEqual(set(main.values()), expected_groups)
+        self.assertLessEqual(len(main), 75)
         self.assertEqual(len(main), len(pca["references"]))
-        self.assertGreaterEqual(len(pca["deepReferences"]), 141)
         deep = {}
         for row in pca["deepReferences"]:
-            group, label = row[1].split(": ", 1)
+            group, label = (part.strip() for part in row[1].split(":", 1))
             self.assertIn(group, expected_groups)
             self.assertNotIn(label, deep)
             self.assertEqual(row[2:], source[label], label)
@@ -479,42 +483,69 @@ class ReadRowsTests(unittest.TestCase):
         self.assertTrue(set(main) <= set(deep))
         self.assertTrue(all(deep[label] == group for label, group in main.items()))
         self.assertEqual(set(deep.values()), expected_groups)
+        mixed = {}
+        for row in pca["deepMixedReferences"]:
+            group, label = (part.strip() for part in row[1].split(":", 1))
+            self.assertNotIn(label, deep)
+            self.assertNotIn(label, mixed)
+            self.assertEqual(row[2:], source[label], label)
+            mixed[label] = group
+        for label, group in {
+            "Breton_(n=3)": "Celtic",
+            "Irish_(n=106)": "Celtic",
+            "English_(n=44)": "Germanic North",
+            "Dutch_North_(n=7)": "Germanic North",
+            "Danish_(n=87)": "Germanic North",
+            "Norwegian_(n=49)": "Germanic North",
+            "Flemish_Belgium_(n=16)": "West Europe",
+            "German_North_Rhine_(n=8)": "West Europe",
+            "German_East_(n=16)": "Germanic East",
+            "Austrian_(n=18)": "Central Europe",
+            "German_Bavaria_(n=3)": "West Europe",
+            "Alsatian_Bas-Rhin_(n=44)": "West Europe",
+            "French_Hauts-de-France_Nord_(n=39)": "West Europe",
+            "Swedish_(n=114)": "Swedish",
+        }.items():
+            self.assertEqual(main[label], group)
+        self.assertEqual(deep["German_Hamburg_(n=16)"], "Germanic East")
+        self.assertEqual(deep["Anglo-American_Kentucky_(n=125)"], "Germanic North")
+        self.assertEqual(deep["Northern_Irish_Mixed_(Ulster_Irish+Ulster_Scot)_(n=2)"], "Celtic")
+        self.assertEqual(mixed["Cuban_Blanco_(n=429)"], "Iberia")
+        self.assertEqual(mixed["Russian_Kamchatka_(n=1)"], "Balto-Slavic")
+        self.assertEqual(sum(group == "Sardinia" for group in main.values()), 4)
+        self.assertEqual(sum(group == "Corsica" for group in main.values()), 2)
 
-    def test_french_regions_are_split_between_north_and_south_europe(self):
+    def test_french_regions_remain_in_europe_pca_south_and_west_groups(self):
         modern = read_rows(ROOT / "data" / "modern_g25.txt", "modern")
         source = {row[1]: row[2:] for row in modern}
         pcas = {pca["id"]: pca for pca in read_global_modern_pcas(modern)}
-        south = pcas["global-southwest-europe"]
-        north = pcas["global-northwest-europe"]
-        self.assertEqual(south["title"], "Southwest Europe")
-        self.assertEqual(north["title"], "Northwest Europe")
+        europe = pcas["global-europe"]
+        self.assertEqual(europe["title"], "Europe")
 
-        south_main = {row[1].split(":", 1)[1] for row in south["references"]
-                      if row[1].startswith("South France:")}
-        north_main = {row[1].split(":", 1)[1] for row in north["references"]
-                      if row[1].startswith("France North:")}
-        self.assertEqual(len(south_main), 8)
-        self.assertEqual(len(north_main), 8)
-        self.assertFalse(south_main & north_main)
-        self.assertNotIn("French_(n=64)", south_main | north_main)
+        south_main = {row[1].split(":", 1)[1].strip() for row in europe["references"]
+                      if row[1].startswith("France South:")}
+        west_main = {row[1].split(":", 1)[1].strip() for row in europe["references"]
+                     if row[1].startswith("West Europe:")}
+        self.assertEqual(len(south_main), 5)
+        self.assertEqual(len(west_main), 11)
+        self.assertFalse(south_main & west_main)
+        self.assertIn("French_(n=64)", west_main)
 
-        south_deep = {row[1].split(": ", 1)[1]: row
-                      for row in south["deepReferences"]
-                      if row[1].startswith("South France: ")}
-        north_deep = {row[1].split(": ", 1)[1]: row
-                      for row in north["deepReferences"]
-                      if row[1].startswith("France North: ")}
-        self.assertGreaterEqual(len(south_deep), 31)
-        self.assertGreaterEqual(len(north_deep), 33)
+        south_deep = {row[1].split(":", 1)[1].strip(): row
+                      for row in europe["deepReferences"]
+                      if row[1].startswith("France South:")}
+        west_deep = {row[1].split(":", 1)[1].strip(): row
+                     for row in europe["deepReferences"]
+                     if row[1].startswith("West Europe:")}
+        self.assertGreaterEqual(len(south_deep), 37)
+        self.assertGreaterEqual(len(west_deep), 80)
         self.assertIn("Swiss_French_(Romand)_(n=8)", south_deep)
-        self.assertIn("Belgian_(n=311)", north_deep)
-        self.assertIn("French_(n=64)", north_deep)
-        self.assertFalse(south_deep.keys() & north_deep.keys())
+        self.assertIn("Belgian_(n=311)", west_deep)
+        self.assertIn("French_(n=64)", west_deep)
+        self.assertFalse(south_deep.keys() & west_deep.keys())
         self.assertTrue(south_main <= south_deep.keys())
-        self.assertTrue(north_main <= north_deep.keys())
-        self.assertTrue(all(row[1].startswith("South France: ") for row in south_deep.values()))
-        self.assertTrue(all(row[1].startswith("France North: ") for row in north_deep.values()))
-        for label, row in (south_deep | north_deep).items():
+        self.assertTrue(west_main <= west_deep.keys())
+        for label, row in (south_deep | west_deep).items():
             self.assertEqual(row[2:], source[label], label)
 
     def test_southwest_southeast_east_europe_and_uralic_maps_partition_references(self):
@@ -642,6 +673,80 @@ class ReadRowsTests(unittest.TestCase):
         self.assertTrue(all(group == "Greek Aegean" for label, group in deep_groups.items()
                             if label.startswith("Greek_Western_Anatolia_")))
         self.assertNotIn("Greek Asia Minor", deep_groups.values())
+
+    def test_pca11_uses_five_groups_without_a_deep_section(self):
+        path = ROOT / "data" / "pca" / "modern_pca11.g25.txt"
+        sections = read_row_sections(path, "modern")
+        expected = ["Inuit", "North America", "Mexico", "South America", "Brazil"]
+        self.assertNotIn("deep", sections)
+        source = {row[1]: row[2:]
+                  for row in read_rows(ROOT / "data" / "modern_g25.txt", "modern")}
+        placements = {}
+        for section in ("main", "deep mixed"):
+            rows = sections[section]
+            self.assertEqual(list(dict.fromkeys(row[1].split(":", 1)[0]
+                                                     for row in rows)),
+                             [group for group in expected
+                              if any(row[1].startswith(group + ":") for row in rows)])
+            for row in rows:
+                group, label = (part.strip() for part in row[1].split(":", 1))
+                self.assertNotIn(label, placements)
+                self.assertEqual(row[2:], source[label], label)
+                placements[label] = (section, group)
+        self.assertEqual(len(sections["main"]), 68)
+        self.assertEqual(len(sections["deep mixed"]), 151)
+        self.assertEqual(len(placements), 219)
+        self.assertEqual(set(group for _, group in placements.values()), set(expected))
+        pca = next(pca for pca in read_global_modern_pcas(read_rows(
+            ROOT / "data" / "modern_g25.txt", "modern"))
+            if pca["id"] == "global-indigenous-america")
+        self.assertNotIn("deepReferences", pca)
+        self.assertEqual(len(pca["deepMixedReferences"]), 151)
+        for label, placement in {
+            "Greenlander_East_(n=4)": ("main", "Inuit"),
+            "Greenlander_East_(European-Mixed)_(n=5)": ("deep mixed", "Inuit"),
+            "Aleut_(European-Mixed)_(n=9)": ("deep mixed", "Inuit"),
+            "Luiseño_(n=1)": ("main", "North America"),
+            "Lumbee_(n=7)": ("deep mixed", "North America"),
+            "Pima_(n=12)": ("main", "Mexico"),
+            "Maya_(n=10)": ("main", "Mexico"),
+            "Amerindian_Guatemala_(n=12)": ("main", "South America"),
+            "Amerindian_Panama_(n=4)": ("main", "South America"),
+            "Garifuna_Belize_(n=3)": ("deep mixed", "South America"),
+            "Mapuche_(n=2)": ("main", "South America"),
+            "Quechua_Peru_(n=21)": ("main", "South America"),
+            "Karitiana_(n=14)": ("main", "Brazil"),
+            "Kaingang_(n=1)": ("main", "Brazil"),
+            "Suruí_(n=8)": ("main", "Brazil"),
+            "Brazilian_Caboclo_(n=6)": ("deep mixed", "Brazil"),
+            "Brazilian_Branco_(n=2032)": ("deep mixed", "Brazil"),
+            "Brazilian_Pardo_(n=967)": ("deep mixed", "Brazil"),
+            "Cuban_Blanco_(n=429)": ("deep mixed", "North America"),
+            "Cuban_Mestizo_(n=15)": ("deep mixed", "North America"),
+            "Cuban_Mulato_(n=1)": ("deep mixed", "North America"),
+            "Peruvian_Mestizo_(SSA-Mixed)_(n=37)": ("deep mixed", "South America"),
+            "Mexican_Mestizo_(n=772)": ("deep mixed", "Mexico"),
+            "Mexican_Euro-Mestizo_(n=199)": ("deep mixed", "Mexico"),
+            "Guatemalan_Ladino_(n=42)": ("deep mixed", "South America"),
+        }.items():
+            self.assertEqual(placements[label], placement)
+        for file, labels in (
+            ("modern_pca13.g25.txt", {"Cuban_Blanco_(n=429)",
+                                     "Brazilian_Branco_(n=2032)"}),
+            ("modern_pca4.g25.txt", {"Brazilian_Pardo_(n=967)",
+                                    "Cuban_Mulato_(n=1)"}),
+        ):
+            copied_source = read_row_sections(path.with_name(file), "modern")["deep mixed"]
+            self.assertTrue(labels <= {row[1].split(":", 1)[1].strip()
+                                       for row in copied_source})
+        european_mixed = read_row_sections(path.with_name("modern_pca13.g25.txt"),
+                                           "modern")["deep mixed"]
+        copied_european_labels = {row[1].split(":", 1)[1].strip()
+                                  for row in european_mixed
+                                  if row[1].startswith("Iberia:")}
+        self.assertEqual(len(copied_european_labels), 17)
+        self.assertTrue(all(placements[label][0] == "deep mixed"
+                            for label in copied_european_labels))
 
     def test_global_modern_maps_have_requested_regions_and_valid_anchors(self):
         modern = read_rows(ROOT / "data" / "modern_g25.txt", "modern")
@@ -922,9 +1027,9 @@ class ReadRowsTests(unittest.TestCase):
                 assigned[label] = (pca["title"], group)
         self.assertEqual(len(assigned), 318)
         self.assertEqual(assigned["Anglo-American_Kentucky_(n=125)"],
-                         ("Northwest Europe", "British Isles"))
+                         ("Northwest Europe", "Germanic North"))
         self.assertEqual(assigned["Bolivian_Mestizo_(n=5)"],
-                         ("Indigenous America", "Andes"))
+                         ("Indigenous America", "South America"))
         self.assertEqual(assigned["Babur-Bura_(n=1)"],
                          ("Sub-Saharan Africa", "Central African"))
         self.assertEqual(assigned["Malagasy_Temoro_(n=24)"],

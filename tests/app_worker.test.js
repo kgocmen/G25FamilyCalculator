@@ -241,7 +241,7 @@ test("Mixed deep analysis can fit a Deep Mixed profile", () => {
     displayedPcaId: "mixed", groupStyle: "mixed", groupLimit: 1,
     modernPcas: null, deepAnalysis: true,
     deepPcas: [{ id: "northwest", title: "Northwest Europe",
-      references: [row("British Isles: English", 0.2)],
+      references: [],
       deepMixedReferences: [row("British Isles: Anglo-American_Kentucky_(n=125)", 0)],
     }] });
   const deep = result.messages.find((message) => message.kind === "deep");
