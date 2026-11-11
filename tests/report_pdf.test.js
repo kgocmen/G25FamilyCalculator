@@ -1,6 +1,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { buildReport, createPdf } = require("../calculator/report_pdf.js");
+const k12b = require("../calculator/k12b.js");
 
 test("PDF report includes requested sections in order and no four-way section", () => {
   const zero = Array(25).fill(0);
@@ -92,6 +93,23 @@ test("PDF Oracle uses the source distance color on the number", () => {
   assert.ok(drawn.some(([value, color]) => value === "Example" && color === "#243d51"));
 });
 
+test("PDF Analysis colors only G25 distance text", () => {
+  const drawn = [];
+  const fills = [];
+  const context = { scale() {}, fillRect() { fills.push(this.fillStyle); },
+    beginPath() {}, moveTo() {}, lineTo() {}, stroke() {},
+    measureText(value) { return { width: value.length * 6 }; },
+    fillText(value) { drawn.push([value, this.fillStyle]); } };
+  const document = { createElement() { return { getContext() { return context; },
+    toDataURL() { return "data:image/jpeg;base64,/9j/2Q=="; } }; } };
+  createPdf({ sample: "Sample", sections: [{ title: "Analysis · Closest 10 modern", entries: [
+    { type: "line", text: "1. 4.500 · Sample", g25Rank: 1, g25Distance: 4.5 },
+  ] }] }, document);
+  assert.ok(!fills.includes("#C73535"));
+  assert.ok(drawn.some(([value, color]) => value === "4.500" && color === "#C73535"));
+  assert.ok(drawn.some(([value, color]) => value === "1. " && color === "#243d51"));
+});
+
 test("PDF Oracle omits two-way fits when every distance is at least four", () => {
   const report = buildReport({ sample: "Sample", results: { k12b: { fit: {
     proportions: [1, ...Array(11).fill(0)],
@@ -103,6 +121,24 @@ test("PDF Oracle omits two-way fits when every distance is at least four", () =>
     assert.equal(section.entries[twoWay + 1].text, "No fit below distance 4.");
     assert.ok(!section.entries.slice(twoWay + 1).some((entry) => Number.isFinite(entry.oracleDistance)));
   }
+});
+
+test("PDF All Oracle includes modern and ancient mixed pairs", () => {
+  const modern = k12b.referenceRows("ikili1", "modern")[0];
+  const ancient = k12b.referenceRows("ikili1", "ancient")[0];
+  const proportions = modern.slice(1).map((value, index) =>
+    (value + ancient[index + 1]) / 200);
+  const report = buildReport({ sample: "Sample", results: {
+    k12b: { fit: { proportions } },
+  }, g25: null, health: null });
+  const all = report.sections.find(({ title }) => title === "K12b Oracle · All (Modern + Ancient)");
+  const mixedHeading = all.entries.findIndex((entry) => entry.text === "Modern + ancient fits");
+  assert.ok(mixedHeading >= 0);
+  const mixedFits = all.entries.slice(mixedHeading + 1).filter((entry) => Number.isFinite(entry.oracleDistance));
+  assert.ok(mixedFits.length > 0);
+  assert.ok(mixedFits.some((entry) => entry.oracleDistance < 1e-8 &&
+    entry.oracleName.includes(modern[0].replaceAll("_", " ")) &&
+    entry.oracleName.includes(ancient[0].replaceAll("_", " "))));
 });
 
 test("PDF keeps the requested Oracle, Analysis, and Health sections on pages 2 through 8", () => {

@@ -79,6 +79,11 @@ test("deep mode keeps the main selection and shows one level of clusters", () =>
   assert.equal(document.querySelector("#matches-panel").hidden, true);
   const ordinary = document.querySelector("#modern-pca-options").children
     .find((option) => option.children[0].textContent === "Ordinary");
+  assert.equal(ordinary.children[0].style.color, undefined);
+  const proximity = ordinary.children[1].children[0];
+  assert.equal(proximity.style.color, "");
+  assert.equal(proximity.children[0].textContent, "Closest ");
+  assert.equal(proximity.children[1].style.color, "#2D65B8");
   ordinary.listeners.click();
   assert.equal(document.querySelector("#modern-deep-filter").hidden, true);
   const choice = document.querySelector("#modern-pca-options").children
@@ -154,6 +159,13 @@ test("deep mode keeps the main selection and shows one level of clusters", () =>
   assert.ok(parents.every((parent) => parent.children.length === 3));
   assert.equal(document.querySelector("#medieval-breakdown-distance").textContent,
     "Deep fit distance 0.500");
+  assert.equal(document.querySelector("#medieval-breakdown-distance").style.color, "");
+  assert.equal(document.querySelector("#medieval-breakdown-distance").children[0].textContent,
+    "Deep fit distance ");
+  assert.equal(document.querySelector("#medieval-breakdown-distance").children[1].style.color,
+    "#71B87D");
+  assert.equal(document.querySelector("#medieval-breakdown-distance").style.backgroundColor,
+    undefined);
 
   renderDeepFit({ pcaId: "regional", mainFit, referenceCount: 3,
     fit: { values: state.single.values, distance: 0,

@@ -55,6 +55,16 @@
     return Math.hypot(...first.map((value, index) => value - second[index])) * 100;
   }
 
+  const g25DistanceColors = [
+    "#71B87D", "#3D9B56", "#1E6B39", "#D8790B", "#C73535", "#2D65B8",
+  ];
+
+  function g25DistanceColor(value) {
+    if (!Number.isFinite(value) || value < 0) return null;
+    const displayed = Number(value.toFixed(3));
+    return g25DistanceColors[Math.min(5, Math.floor(displayed))];
+  }
+
   function nearestMatches(target, references, limit = 10) {
     if (!target || !validateVector(target.values)) throw new Error("The target needs valid G25 coordinates.");
     return references.map((row, index) => ({
@@ -477,7 +487,10 @@
     return [csvLabel, ...values.map(formatNumber)].join(",");
   }
 
-  const api = { optimiseFamily, ancestorWeights, calculate, calculateComparison, closestMatches, distance, estimateChildFromKnown, excludeTargetReferences, visibleRemainingAdmixture, formatLine, missingAncestorLabel, nearestMatches, parseLine, prepareMatches, rankMatches, remainingAdmixture, summarizeRemainingAdmixture, resultLabel };
+  const api = { optimiseFamily, ancestorWeights, calculate, calculateComparison, closestMatches, distance,
+    g25DistanceColor, estimateChildFromKnown, excludeTargetReferences, visibleRemainingAdmixture,
+    formatLine, missingAncestorLabel, nearestMatches, parseLine, prepareMatches, rankMatches,
+    remainingAdmixture, summarizeRemainingAdmixture, resultLabel };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else {
     root.G25Core = api;

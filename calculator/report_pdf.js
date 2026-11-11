@@ -21,18 +21,22 @@
 
   function oracleEntries(values, period, sets) {
     const entries = [];
-    for (const [heading, id, calculate] of sets) {
+    for (const [heading, id, calculate, count] of sets) {
       const rows = k12b.referenceRows(id, period);
       if (!rows.length) continue;
       entries.push({ type: "subheading", text: heading });
-      const fits = calculate(values, rows);
+      const fits = calculate === k12b.twoWayCross
+        ? k12b.twoWayCross(values, k12b.referenceRows(id, "modern"),
+          k12b.referenceRows(id, "ancient"), count)
+        : calculate(values, rows, count);
       entries.push(...fits.map((fit, index) => {
         const name = (fit.other ? `${(fit.weight * 100).toFixed(1)}% ${fit.name} + ${((1 - fit.weight) * 100).toFixed(1)}% ${fit.other}` : fit.name)
           .replaceAll("_", " ");
         return { type: "line", text: `${index + 1}. ${fit.distance.toFixed(3)} · ${name}`,
           oracleRank: index + 1, oracleDistance: fit.distance, oracleName: name };
       }));
-      if (!fits.length && calculate === k12b.twoWay) entries.push({ type: "line", text: "No fit below distance 4." });
+      if (!fits.length && (calculate === k12b.twoWay || calculate === k12b.twoWayCross))
+        entries.push({ type: "line", text: "No fit below distance 4." });
     }
     return entries;
   }
@@ -108,6 +112,7 @@
         entries: oracleEntries(values, "all", [
           ["Closest populations", "yakinlik1", k12b.nearest],
           ["Two-population fits", "ikili1", k12b.twoWay],
+          ["Modern + ancient fits", "ikili1", k12b.twoWayCross, 5],
         ]) });
     } else {
       for (const title of ["K12b Oracle · Modern", "K12b Oracle · Modern two-population fits",
@@ -124,7 +129,8 @@
       sections.push({ title, pageBreakBefore: period === "modern", entries: [
         { type: "line", text: `Reference set: ${referenceLabel}` },
         ...(nearest.length ? nearest.map((match, index) => ({ type: "line",
-          text: `${index + 1}. ${match.distance.toFixed(3)} · ${match.label.replaceAll("_", " ")}` })) :
+          text: `${index + 1}. ${match.distance.toFixed(3)} · ${match.label.replaceAll("_", " ")}`,
+          g25Distance: match.distance, g25Rank: index + 1 })) :
           [{ type: "line", text: target ? `No ${period} references available.` : "Simulated G25 result unavailable." }]),
       ] });
     }
@@ -135,7 +141,8 @@
     ]) {
       const fits = analysisFits?.[key] || [];
       sections.push({ title, pageBreakBefore: key === "relaxedAncient", entries: fits.length
-        ? fits.slice(0, 10).map((fit, index) => ({ type: "line", text: `${index + 1}. ${formatFit(fit)}` }))
+        ? fits.slice(0, 10).map((fit, index) => ({ type: "line", text: `${index + 1}. ${formatFit(fit)}`,
+          g25Distance: fit.distance, g25Rank: index + 1 }))
         : [{ type: "line", text: target ? "No eligible two-way fit was found." : "Simulated G25 result unavailable." }] });
     }
     sections.push({ title: "Health", pageBreakBefore: true, entries: healthEntries(health) });
@@ -261,6 +268,31 @@
       }
       y += 1;
     }
+    function drawG25Line(item, size) {
+      ctx.font = `${size}px Arial, sans-serif`;
+      const lines = wrap(item.text, PAGE.width - 2 * PAGE.margin);
+      ensure(lines.length * (size + 5));
+      const rank = `${item.g25Rank}. `;
+      const number = item.g25Distance.toFixed(3);
+      for (const [index, line] of lines.entries()) {
+        ctx.font = `${size}px Arial, sans-serif`;
+        if (index === 0) {
+          const rankWidth = ctx.measureText(rank).width;
+          const numberWidth = ctx.measureText(number).width;
+          ctx.fillStyle = "#243d51";
+          ctx.fillText(rank, PAGE.margin, y + size);
+          ctx.fillStyle = core.g25DistanceColor(item.g25Distance);
+          ctx.fillText(number, PAGE.margin + rankWidth, y + size);
+          ctx.fillStyle = "#243d51";
+          ctx.fillText(line.slice(rank.length + number.length), PAGE.margin + rankWidth + numberWidth,
+            y + size);
+        } else {
+          ctx.fillStyle = "#243d51";
+          ctx.fillText(line, PAGE.margin, y + size);
+        }
+        y += size + 5;
+      }
+    }
     page();
     for (const section of report.sections) {
       if (section.pageBreakBefore) page();
@@ -272,6 +304,8 @@
         if (item.type === "subheading") { y += 5; text(item.text, 11, true, "#176e8d", 0, 4); }
         else if (item.type === "row") text(item.text, 9, false, "#173c50", 0, 4, true);
         else if (item.type === "line" && Number.isFinite(item.oracleDistance)) drawOracleLine(item);
+        else if (item.type === "line" && Number.isFinite(item.g25Distance))
+          drawG25Line(item, analysisSection ? 8.5 : 9.5);
         else if (item.type === "line") text(item.text, analysisSection ? 8.5 : 9.5,
           false, "#243d51", 0, analysisSection ? 0 : 1);
         else if (item.type === "health") drawHealth(item);

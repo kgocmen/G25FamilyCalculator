@@ -1,10 +1,22 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
-const { ancestorWeights, calculate, calculateComparison, closestMatches, estimateChildFromKnown, excludeTargetReferences, formatLine, missingAncestorLabel, nearestMatches, parseLine, prepareMatches, rankMatches, resultLabel } = require("../calculator/core.js");
+const { ancestorWeights, calculate, calculateComparison, closestMatches, estimateChildFromKnown,
+  excludeTargetReferences, formatLine, g25DistanceColor, missingAncestorLabel, nearestMatches,
+  parseLine, prepareMatches, rankMatches, resultLabel } = require("../calculator/core.js");
 
 function person(label, value) {
   return { label, values: Array(25).fill(value) };
 }
+
+test("G25 distance colors follow the displayed three-decimal distance", () => {
+  assert.deepEqual([0, 0.999, 1, 1.999, 2, 2.999, 3, 3.999, 4, 4.999, 5, 12]
+    .map((value) => g25DistanceColor(value)), [
+    "#71B87D", "#71B87D", "#3D9B56", "#3D9B56", "#1E6B39", "#1E6B39",
+    "#D8790B", "#D8790B", "#C73535", "#C73535", "#2D65B8", "#2D65B8",
+  ]);
+  assert.equal(g25DistanceColor(0.9996), "#3D9B56");
+  assert.equal(g25DistanceColor(NaN), null);
+});
 
 test("target remainders participate in fitting but their result rows are hidden", () => {
   const { remainingAdmixture, visibleRemainingAdmixture } = require("../calculator/core.js");

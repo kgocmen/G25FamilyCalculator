@@ -10,6 +10,23 @@
   const medievalReferences = window.G25_TURKISH_MEDIEVAL_REFERENCES || { early: [], late: [] };
   let references = globalReferences;
   const core = window.G25Core;
+  function toneG25Distance(element, value) {
+    const label = element.textContent || "";
+    const color = core.g25DistanceColor(value);
+    const number = Number.isFinite(value) ? value.toFixed(3) : "";
+    const position = number ? label.lastIndexOf(number) : -1;
+    element.style.color = "";
+    if (!color || position < 0) {
+      element.replaceChildren(document.createTextNode(label));
+      return;
+    }
+    const highlighted = document.createElement("span");
+    highlighted.className = "g25-distance-number";
+    highlighted.textContent = number;
+    highlighted.style.color = color;
+    element.replaceChildren(document.createTextNode(label.slice(0, position)), highlighted,
+      document.createTextNode(label.slice(position + number.length)));
+  }
   const names = {
     2: ["Mother", "Father"],
     4: ["Maternal grandparent 1", "Maternal grandparent 2", "Paternal grandparent 1", "Paternal grandparent 2"],
@@ -1061,6 +1078,7 @@
     const complete = Boolean(state.offspring) && ancestors.every(Boolean);
     $("#family-child-distance").hidden = !complete;
     $("#family-child-distance").textContent = complete ? `Genetic distance: ${result.distance.toFixed(3)}` : "";
+    toneG25Distance($("#family-child-distance"), complete ? result.distance : NaN);
     const selectedIndex = state.selectedIndexByMode[mode];
     const selectedName = selectedIndex === null ? "child" : names[mode][selectedIndex].toLowerCase();
     const targetComparison = complete
@@ -1129,6 +1147,7 @@
     if (targetComparison) {
       comparisonText.textContent = `Entered vs calculated ${selectedName}: ${targetComparison.distance.toFixed(3)}.`;
     }
+    toneG25Distance(comparisonText, targetComparison?.distance);
 
     let methodNote;
     if (result.kind === "residual" && result.missing.length === 1) {
@@ -1171,7 +1190,11 @@
     $("#compare-status").hidden = ready;
     $("#compare-distance").hidden = !ready;
     if (ready) {
-      $("#compare-distance").textContent = `A–B distance: ${core.distance(state.compare[0].values, state.compare[1].values).toFixed(3)}.`;
+      const between = core.distance(state.compare[0].values, state.compare[1].values);
+      $("#compare-distance").textContent = `A–B distance: ${between.toFixed(3)}.`;
+      toneG25Distance($("#compare-distance"), between);
+    } else {
+      toneG25Distance($("#compare-distance"), NaN);
     }
     renderMatches(ready ? { actual: state.compare[0], calculated: state.compare[1] } : null, "", true);
   }
@@ -1520,6 +1543,7 @@
     const closest = core.nearestMatches(state.single, candidates, 1)[0];
     const note = $("#modern-closest-population");
     note.textContent = `Closest population: ${closest.label.replaceAll("_", " ")} · Distance ${closest.distance.toFixed(3)}`;
+    toneG25Distance(note, closest.distance);
     note.hidden = false;
     status.textContent = "Calculating ancestry composition…";
     const requestId = medievalRequest;
@@ -1549,6 +1573,7 @@
         const units = allocatePercentUnits(fit.components.map((part) => part.weight), 1000);
         status.textContent = `${fit.components.length} fitted populations · 100.0% total`;
         $("#medieval-breakdown-distance").textContent = `Fit distance ${fit.distance.toFixed(3)}`;
+        toneG25Distance($("#medieval-breakdown-distance"), fit.distance);
         $("#medieval-breakdown-distance").hidden = false;
         fit.components.forEach((part, index) => {
           const row = document.createElement("div");
@@ -1616,6 +1641,7 @@
       const parts = fit.components;
       status.textContent = `${scope === "turkish" ? "Turkish" : "All"} references`;
       distance.textContent = `Fit distance ${fit.distance.toFixed(3)}`;
+      toneG25Distance(distance, fit.distance);
       distance.hidden = false;
       parts.forEach((part) => {
         const roundedPercent = Math.round(part.weight * 1000) / 10;
@@ -1641,12 +1667,6 @@
     } catch (error) {
       status.textContent = `Neolithic analysis failed: ${error.message}`;
     }
-  }
-
-  function modernPcaColor(position) {
-    const hue = position <= 0.5 ? 145 * (1 - position * 2) : -120 * (position - 0.5) * 2;
-    const lightness = 34 + Math.min(position * 2, 1) * 6;
-    return `hsl(${hue} 68% ${lightness}%)`;
   }
 
   function bestRegularModernFitDistance(pcas = activeModernPcas()) {
@@ -1706,10 +1726,6 @@
       (pca) => pca.id === "mixed" ? pca.references : allowedPcaReferences(pca),
       modernPcaFitDistances, closestPopulationDistance);
     const fitDriven = Number.isFinite(closestPopulationDistance) && closestPopulationDistance > 2;
-    const distances = [...new Set(rankedPcas.map((entry) => entry.distance).filter(Number.isFinite))];
-    const fitDistances = [...new Set(rankedPcas
-      .map(({ pca }) => modernPcaFitDistances.get(pca.id)?.distance)
-      .filter(Number.isFinite))];
     const automatic = rankedPcas.find(({ pca, distance }) =>
       pca.id !== "mixed" && Number.isFinite(distance));
     const closestFit = modernPcaFitDistances.get(automatic?.pca.id);
@@ -1731,8 +1747,9 @@
         mixedFit?.distance);
     const autoFit = autoMixed ? mixedFit : autoRegularFit;
     const entries = new Map();
-    const addOption = (id, title, color, closestDistance, fitDistance) => {
+    const addOption = (id, title, closestDistance, fitDistance) => {
       const manualMain = deep && state.modernGroupLimit !== "auto" && id === currentSelectedId;
+      const fitValue = manualMain ? NaN : fitDistance?.distance;
       const fitText = manualMain ? `Main fit · max ${state.modernGroupLimit} groups`
         : fitDistance && Number.isFinite(fitDistance.distance)
           ? `${deep ? "Main fit" : "Genetic fits"} ${fitDistance.distance.toFixed(3)} (${fitDistance.groupLimit})`
@@ -1745,15 +1762,16 @@
       const name = document.createElement("span");
       name.className = "modern-pca-option-name";
       name.textContent = title;
-      name.style.color = color;
       const metrics = document.createElement("span");
       metrics.className = "modern-pca-metrics";
       const proximity = document.createElement("span");
       proximity.textContent = Number.isFinite(closestDistance)
         ? `Closest ${closestDistance.toFixed(3)}` : "Closest —";
+      toneG25Distance(proximity, closestDistance);
       const fit = document.createElement("span");
       fit.className = "modern-pca-fit";
       fit.textContent = fitText;
+      toneG25Distance(fit, fitValue);
       metrics.append(proximity, fit);
       option.append(name, metrics);
       option.addEventListener("click", () => {
@@ -1771,28 +1789,21 @@
         $("#modern-pca-current").focus();
       });
       options.append(option);
-      entries.set(id, { title, color, fitText });
+      entries.set(id, { title, fitText, fitValue });
     };
     addOption("auto", fitDriven ? "Auto · lowest fit" :
       deep ? "Auto · closest deep PCA" : "Closest population",
-      distances.length ? modernPcaColor(0) : "#687585",
       automatic?.distance, autoFit);
     for (const { pca, distance: geneticDistance } of rankedPcas) {
-      const available = Number.isFinite(geneticDistance);
       const fitDistance = modernPcaFitDistances.get(pca.id);
-      const colorScale = fitDriven && fitDistances.length ? fitDistances : distances;
-      const colorMetric = fitDriven && fitDistances.length ? fitDistance?.distance : geneticDistance;
-      const position = colorScale.length > 1 ?
-        colorScale.indexOf(colorMetric) / (colorScale.length - 1) : 0;
       addOption(pca.id, pca.id === "mixed" ? "Mixed" : pca.title,
-        available && position >= 0 ? modernPcaColor(position) : "#687585",
         geneticDistance, fitDistance);
     }
     const selected = entries.get(currentSelectedId) || entries.get("auto");
     const currentName = $("#modern-pca-current-name");
     currentName.textContent = selected.title;
-    currentName.style.color = selected.color;
     $("#modern-pca-current-fit").textContent = selected.fitText;
+    toneG25Distance($("#modern-pca-current-fit"), selected.fitValue);
     return rankedPcas;
   }
 
@@ -1883,6 +1894,7 @@
       const label = closest ? closest.label.replaceAll("_", " ") : null;
       const closestNote = $("#modern-closest-population");
       closestNote.textContent = closest ? `Closest population: ${label} · Distance ${closest.distance.toFixed(3)}` : "";
+      toneG25Distance(closestNote, closest?.distance);
       if (displayedPcaId && !hasPlot) status.textContent = "At least three included references are needed for ancestry composition and PCA.";
       else if (displayedPcaId) status.textContent = state.deepAnalysis
         ? "Calculating deep analysis…" : "Calculating ancestry composition…";
@@ -2655,6 +2667,7 @@
     status.textContent = `Estimated contributions · ${fit.groups.length} ${fit.groups.length === 1 ? "ethnicity" : "ethnicities"} · 100.0% total`;
     distance.textContent = `${isDeepResult ? "Deep fit distance" :
       isModern && state.deepAnalysis ? "Main fit distance" : "Fit distance"} ${fit.distance.toFixed(3)}`;
+    toneG25Distance(distance, fit.distance);
     distance.hidden = false;
     const groupUnits = allocatePercentUnits(fit.groups.map((group) => group.weight), 1000);
     fit.groups.forEach((group, groupIndex) => {
@@ -2774,6 +2787,7 @@
       cells.forEach((value, column) => {
         const cell = document.createElement("td");
         cell.textContent = value;
+        if (column === cells.length - 1) toneG25Distance(cell, fit.distance);
         if (column > 0 && column <= parts.length) cell.append(excludeButton(parts[column - 1]));
         row.append(cell);
       });
@@ -2962,11 +2976,14 @@
         row.classList.add("admixture-best-row");
         row.title = "Best fit in this table";
       }
-      for (const value of [`${percent}%`, best ? `${best.label} · ${best.category}` : "No matching populations", `${remainingPercent}%`, best ? best.distance.toFixed(3) : "—"]) {
+      const values = [`${percent}%`, best ? `${best.label} · ${best.category}` : "No matching populations",
+        `${remainingPercent}%`, best ? best.distance.toFixed(3) : "—"];
+      values.forEach((value, index) => {
         const cell = row.insertCell();
         cell.textContent = value;
+        if (index === 3 && best) toneG25Distance(cell, best.distance);
         if (best && value === `${best.label} · ${best.category}`) cell.append(excludeButton(best));
-      }
+      });
     }
     container.replaceChildren(table);
   }
@@ -3035,6 +3052,8 @@
       cells.forEach((text, column) => {
         const cell = document.createElement("td");
         cell.textContent = text;
+        if (column === 2 || (!distanceKey && column === 3))
+          toneG25Distance(cell, distanceKey ? match[distanceKey] : column === 2 ? match.ac : match.bc);
         if (column === 1) {
           cell.title = displayName;
           if (match.category !== "target") cell.append(excludeButton(match));

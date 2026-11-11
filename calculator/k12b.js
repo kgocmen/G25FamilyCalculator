@@ -58,7 +58,7 @@
     return vectorRows(rows).map((row) => ({ name: row[0], distance: distance(target, row.slice(1)) }))
       .sort((a, b) => a.distance - b.distance).slice(0, count);
   }
-  function twoWay(target, rows, count = 10) {
+  function twoWay(target, rows, count = 10, acceptPair = () => true) {
     const data = vectorRows(rows), best = [];
     for (let i = 0; i < data.length - 1; i++) for (let j = i + 1; j < data.length; j++) {
       const a = data[i].slice(1), b = data[j].slice(1);
@@ -66,6 +66,7 @@
       for (let k = 0; k < 12; k++) { const delta = a[k] - b[k]; dot += (target[k] - b[k]) * delta; span += delta * delta; }
       if (span < 1e-12) continue;
       const weight = Math.max(0, Math.min(1, dot / span));
+      if (!acceptPair(i, j, weight)) continue;
       const fit = b.map((v, k) => v + weight * (a[k] - v));
       const result = { name: data[i][0], other: data[j][0], weight, distance: distance(target, fit) };
       if (result.distance >= oracleFitLimit) continue;
@@ -74,6 +75,13 @@
       }
     }
     return best;
+  }
+  function twoWayCross(target, modernRows, ancientRows, count = 10) {
+    const modern = vectorRows(modernRows);
+    const ancient = vectorRows(ancientRows);
+    return twoWay(target, modern.concat(ancient), count,
+      (first, second, weight) => first < modern.length && second >= modern.length &&
+        weight >= 0.01 && weight <= 0.99);
   }
 
   const referenceData = root.G25_K12B_DATA ||
@@ -87,7 +95,8 @@
     return category === "all" ? periods.modern.concat(periods.ancient) : periods[category];
   }
 
-  const api = { labels, colors, oracleFitLimit, distanceColor, parseProfile, distance, nearest, twoWay, referenceRows };
+  const api = { labels, colors, oracleFitLimit, distanceColor, parseProfile, distance, nearest,
+    twoWay, twoWayCross, referenceRows };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   root.G25K12B = api;
   if (!root.document) return;
@@ -134,13 +143,16 @@
       ["Two-population fits", "ikili1", twoWay],
       ["Turkey two-population fits", "ikili2tr", twoWay],
     ];
+    if (category === "all") sets.push(["Modern + ancient fits", "ikili1", twoWayCross]);
     for (const [title, id, calculate] of sets) {
       const rows = referenceRows(id, category);
       if (!rows.length) continue;
       const box = appendText(container, "section", "", "k12b-match-set");
       appendText(box, "h3", title);
       const list = appendText(box, "ol", "");
-      const results = calculate(values, rows);
+      const results = calculate === twoWayCross
+        ? twoWayCross(values, referenceRows(id, "modern"), referenceRows(id, "ancient"))
+        : calculate(values, rows);
       for (const result of results) {
         const row = appendText(list, "li", "");
         const number = appendText(row, "span", result.distance.toFixed(3), "k12b-distance");
@@ -148,7 +160,8 @@
         const name = result.other ? `${(result.weight * 100).toFixed(1)}% ${result.name} + ${((1 - result.weight) * 100).toFixed(1)}% ${result.other}` : result.name;
         appendText(row, "span", name.replaceAll("_", " "));
       }
-      if (!results.length && calculate === twoWay) appendText(box, "p", "No fit below distance 4.", "k12b-no-fits");
+      if (!results.length && (calculate === twoWay || calculate === twoWayCross))
+        appendText(box, "p", "No fit below distance 4.", "k12b-no-fits");
     }
     container.hidden = false;
   }

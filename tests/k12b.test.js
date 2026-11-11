@@ -1,6 +1,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { labels, distanceColor, parseProfile, nearest, twoWay, referenceRows } = require("../calculator/k12b.js");
+const { labels, distanceColor, parseProfile, nearest, twoWay, twoWayCross,
+  referenceRows } = require("../calculator/k12b.js");
 
 test("parses GEDmatch-style labeled lines in any order and normalizes rounding", () => {
   const input = labels.map((label, i) => `${i + 1} ${label} ${i === 0 ? "50.1" : i === 1 ? "49.8" : "0"}%`).reverse().join("\n");
@@ -34,6 +35,19 @@ test("K12b Oracle only shows two-way fits strictly below four", () => {
   assert.equal(twoWay(target, [row("Above_four", 5, 0), row("Above_four_other", 5, 1)]).length, 0);
   assert.equal(twoWay(target, [row("Below_four", 3.9, 0), row("Below_four_other", 3.9, 1)]).length, 1);
   assert.equal(nearest(target, [row("At_four", 4, 0)]).length, 1);
+});
+
+test("All Oracle can show a genuine modern and ancient pair", () => {
+  const modern = [["Modern", 100, 0, ...Array(10).fill(0)]];
+  const ancient = [["Ancient", 0, 100, ...Array(10).fill(0)]];
+  const mixed = twoWayCross([50, 50, ...Array(10).fill(0)], modern, ancient);
+  assert.equal(mixed.length, 1);
+  assert.equal(mixed[0].name, "Modern");
+  assert.equal(mixed[0].other, "Ancient");
+  assert.equal(mixed[0].weight, 0.5);
+  assert.ok(mixed[0].distance < 1e-8);
+  assert.equal(twoWayCross(modern[0].slice(1), modern, ancient).length, 0,
+    "an endpoint with 0% ancient ancestry is not a mixed pair");
 });
 
 test("K12b distance colors match the source site's threshold palette", () => {
