@@ -841,19 +841,19 @@
       "id": "rs10455872",
       "category": "cardio",
       "title": "Lipoprotein(a) Riski (LPA)",
-      "definition": "Lp(a) düzeyi ve kalp-damar hastalığı riskiyle ilişkili LPA işaretleyicisi.",
+      "definition": "Kardiyovasküler hastalıklar için LDL'den bağımsız 'gizli kolesterol' yüksekliği belirteci.",
       "genotypes": {
         "GG": {
           "flag": "negative",
-          "meaning": "İki G aleli, daha yüksek Lp(a) düzeyi ve kalp-damar hastalığı riskiyle ilişkilidir; gerçek düzey kan testiyle ölçülür."
+          "meaning": "İki G aleli, daha yüksek Lp(a) düzeyi ve kalp-damar hastalığı riskiyle ilişkilidir."
         },
         "AG": {
           "flag": "negative",
-          "meaning": "Bir G aleli, daha yüksek Lp(a) düzeyi ve kalp-damar hastalığı riskiyle ilişkilidir; gerçek düzey kan testiyle ölçülür."
+          "meaning": "Bir G aleli, daha yüksek Lp(a) düzeyi ve kalp-damar hastalığı riskiyle ilişkilidir."
         },
         "AA": {
           "flag": "positive",
-          "meaning": "Bu işaretleyicide Lp(a) artışıyla ilişkili G aleli yoktur; gerçek Lp(a) düzeyi yalnızca kan testiyle belirlenir."
+          "meaning": "Bu işaretleyicide Lp(a) artışıyla ilişkili G aleli yoktur."
         }
       }
     },
