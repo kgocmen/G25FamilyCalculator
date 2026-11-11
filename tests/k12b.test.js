@@ -1,6 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { labels, parseProfile, nearest, twoWay, referenceRows } = require("../calculator/k12b.js");
+const { labels, distanceColor, parseProfile, nearest, twoWay, referenceRows } = require("../calculator/k12b.js");
 
 test("parses GEDmatch-style labeled lines in any order and normalizes rounding", () => {
   const input = labels.map((label, i) => `${i + 1} ${label} ${i === 0 ? "50.1" : i === 1 ? "49.8" : "0"}%`).reverse().join("\n");
@@ -25,6 +25,26 @@ test("nearest and two-way comparisons use twelve-component Euclidean fits", () =
   const fit = twoWay(target, rows, 1)[0];
   assert.ok(fit.distance < 1e-8);
   assert.ok(fit.weight >= 0 && fit.weight <= 1);
+});
+
+test("K12b Oracle only shows two-way fits strictly below four", () => {
+  const target = Array(12).fill(0);
+  const row = (name, first, second) => [name, first, second, ...Array(10).fill(0)];
+  assert.equal(twoWay(target, [row("At_four", 4, 0), row("At_four_other", 4, 1)]).length, 0);
+  assert.equal(twoWay(target, [row("Above_four", 5, 0), row("Above_four_other", 5, 1)]).length, 0);
+  assert.equal(twoWay(target, [row("Below_four", 3.9, 0), row("Below_four_other", 3.9, 1)]).length, 1);
+  assert.equal(nearest(target, [row("At_four", 4, 0)]).length, 1);
+});
+
+test("K12b distance colors match the source site's threshold palette", () => {
+  assert.equal(distanceColor(0.2), "#2E7D5C");
+  assert.equal(distanceColor(3.8), "#4EB456");
+  assert.equal(distanceColor(4.1), "#75B64D");
+  assert.equal(distanceColor(4.1001), "#9CB945");
+  assert.equal(distanceColor(5.0), "#EABE34");
+  assert.equal(distanceColor(7.4), "#FB8C00");
+  assert.equal(distanceColor(11.4), "#E4223A");
+  assert.equal(distanceColor(26), "#303FB7");
 });
 
 test("ancient category includes source averages and individual samples", () => {

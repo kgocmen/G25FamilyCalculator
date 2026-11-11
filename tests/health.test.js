@@ -89,16 +89,15 @@ test("neutral markers use their own phenotype interpretation without a generic s
   assert.equal(match.meaning, source.genotypes.CT.meaning);
 });
 
-test("Health comparisons explain the phenotype without genotype labels", () => {
+test("Health comparisons retain source interpretations and add context", () => {
   const data = require("../data/ydnatr/health.json");
   const faah = data.variants.find(({ id }) => id === "rs324420").genotypes.CA.meaning;
+  assert.ok(faah.startsWith("Orta seviye yıkım hızı."));
   assert.match(faah, /C\/C.*A\/A/);
-  assert.doesNotMatch(faah, /Orta seviye yıkım hızı/);
-  for (const variant of data.variants) {
-    for (const entry of Object.values(variant.genotypes)) {
-      assert.doesNotMatch(entry.meaning, /heterozigot/i, variant.id);
-    }
-  }
+  const mthfr = data.variants.find(({ id }) => id === "rs1801133").genotypes.AG.meaning;
+  assert.ok(mthfr.startsWith("Enzim kapasitesinde ~%30-40 kayıp. Diyetle alınan folat genellikle yeterlidir."));
+  const prion = data.variants.find(({ id }) => id === "rs1799990").genotypes.AG.meaning;
+  assert.doesNotMatch(prion, /kusursuz bir genetik bağışıklık/);
 });
 
 test("SLCO1B1 rs4149056 keeps the source's genotype-specific statin meanings", () => {

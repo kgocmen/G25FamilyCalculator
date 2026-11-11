@@ -19,22 +19,20 @@
       `${(part.weight * 100).toFixed(1)}% ${part.label.replaceAll("_", " ")}`).join(" + ")}`;
   }
 
-  function oracleEntries(values, period) {
+  function oracleEntries(values, period, sets) {
     const entries = [];
-    const sets = [
-      ["Closest populations", "yakinlik1", k12b.nearest],
-      [period === "modern" ? "Turkey province references" : "Expanded references", "yakinlik2tr", k12b.nearest],
-      ["Two-population fits", "ikili1", k12b.twoWay],
-      ["Turkey two-population fits", "ikili2tr", k12b.twoWay],
-    ];
     for (const [heading, id, calculate] of sets) {
       const rows = k12b.referenceRows(id, period);
       if (!rows.length) continue;
       entries.push({ type: "subheading", text: heading });
       const fits = calculate(values, rows);
-      entries.push(...fits.map((fit, index) => ({ type: "line", text: `${index + 1}. ${fit.distance.toFixed(3)} · ${
-        fit.other ? `${(fit.weight * 100).toFixed(1)}% ${fit.name} + ${((1 - fit.weight) * 100).toFixed(1)}% ${fit.other}` : fit.name
-      }`.replaceAll("_", " ") })));
+      entries.push(...fits.map((fit, index) => {
+        const name = (fit.other ? `${(fit.weight * 100).toFixed(1)}% ${fit.name} + ${((1 - fit.weight) * 100).toFixed(1)}% ${fit.other}` : fit.name)
+          .replaceAll("_", " ");
+        return { type: "line", text: `${index + 1}. ${fit.distance.toFixed(3)} · ${name}`,
+          oracleRank: index + 1, oracleDistance: fit.distance, oracleName: name };
+      }));
+      if (!fits.length && calculate === k12b.twoWay) entries.push({ type: "line", text: "No fit below distance 4." });
     }
     return entries;
   }
@@ -88,22 +86,42 @@
       const values = k12Values.map((value) => value * 100);
       const east = values[1] + values[3] + values[9];
       const oguz = east <= 40 ? `${(east * 2.1).toFixed(1)}–${Math.min(100, east * 2.8).toFixed(1)}%` : "Outside range";
-      sections.push({ title: "K12b Oracle · Modern", entries: [
+      sections.push({ title: "K12b Oracle · Modern", pageBreakBefore: true, entries: [
         { type: "line", text: `East Eurasian component sum: ${east.toFixed(2)}%` },
         { type: "line", text: `Oğuz/Türkmen heuristic: ${oguz}` },
-        ...oracleEntries(values, "modern"),
+        ...oracleEntries(values, "modern", [
+          ["Closest populations", "yakinlik1", k12b.nearest],
+          ["Turkey province references", "yakinlik2tr", k12b.nearest],
+        ]),
       ] });
-      sections.push({ title: "K12b Oracle · Ancient", entries: oracleEntries(values, "ancient") });
+      sections.push({ title: "K12b Oracle · Modern two-population fits", pageBreakBefore: true,
+        entries: oracleEntries(values, "modern", [
+          ["Two-population fits", "ikili1", k12b.twoWay],
+          ["Turkey two-population fits", "ikili2tr", k12b.twoWay],
+        ]) });
+      sections.push({ title: "K12b Oracle · Ancient", pageBreakBefore: true,
+        entries: oracleEntries(values, "ancient", [
+          ["Closest populations", "yakinlik1", k12b.nearest],
+          ["Two-population fits", "ikili1", k12b.twoWay],
+        ]) });
+      sections.push({ title: "K12b Oracle · All (Modern + Ancient)", pageBreakBefore: true,
+        entries: oracleEntries(values, "all", [
+          ["Closest populations", "yakinlik1", k12b.nearest],
+          ["Two-population fits", "ikili1", k12b.twoWay],
+        ]) });
     } else {
-      sections.push({ title: "K12b Oracle · Modern", entries: [{ type: "line", text: "K12b result unavailable." }] });
-      sections.push({ title: "K12b Oracle · Ancient", entries: [{ type: "line", text: "K12b result unavailable." }] });
+      for (const title of ["K12b Oracle · Modern", "K12b Oracle · Modern two-population fits",
+        "K12b Oracle · Ancient", "K12b Oracle · All (Modern + Ancient)"]) {
+        sections.push({ title, pageBreakBefore: true,
+          entries: [{ type: "line", text: "K12b result unavailable." }] });
+      }
     }
     const target = g25 ? { label: `${sample}_simulated_scaled`, values: g25 } : null;
     for (const period of ["modern", "ancient"]) {
       const title = `Analysis · Closest 10 ${period}`;
       const rows = references.filter((row) => row[0] === period);
       const nearest = target ? core.nearestMatches(target, core.excludeTargetReferences(rows, [target]), 10) : [];
-      sections.push({ title, entries: [
+      sections.push({ title, pageBreakBefore: period === "modern", entries: [
         { type: "line", text: `Reference set: ${referenceLabel}` },
         ...(nearest.length ? nearest.map((match, index) => ({ type: "line",
           text: `${index + 1}. ${match.distance.toFixed(3)} · ${match.label.replaceAll("_", " ")}` })) :
@@ -116,11 +134,11 @@
       ["Analysis · Strict two-way fits · Modern", "strictModern"],
     ]) {
       const fits = analysisFits?.[key] || [];
-      sections.push({ title, entries: fits.length
+      sections.push({ title, pageBreakBefore: key === "relaxedAncient", entries: fits.length
         ? fits.slice(0, 10).map((fit, index) => ({ type: "line", text: `${index + 1}. ${formatFit(fit)}` }))
         : [{ type: "line", text: target ? "No eligible two-way fit was found." : "Simulated G25 result unavailable." }] });
     }
-    sections.push({ title: "Health", entries: healthEntries(health) });
+    sections.push({ title: "Health", pageBreakBefore: true, entries: healthEntries(health) });
     return { sample, sections };
   }
 
@@ -217,15 +235,45 @@
       text(`Fenotip yorumu: ${item.meaning}`, 9, false, "#365a72", 13, 0);
       y += 8;
     }
+    function drawOracleLine(item) {
+      const rank = `${item.oracleRank}. `;
+      const distance = item.oracleDistance.toFixed(3);
+      const suffix = " · ";
+      ctx.font = "9.5px Arial, sans-serif";
+      const rankWidth = ctx.measureText(rank).width;
+      const distanceWidth = ctx.measureText(distance).width;
+      const nameOffset = rankWidth + distanceWidth + ctx.measureText(suffix).width;
+      const lines = wrap(item.oracleName, PAGE.width - 2 * PAGE.margin - nameOffset);
+      ensure(lines.length * 14 + 1);
+      for (let index = 0; index < lines.length; index++) {
+        ctx.font = "9.5px Arial, sans-serif";
+        if (index === 0) {
+          ctx.fillStyle = "#243d51";
+          ctx.fillText(rank, PAGE.margin, y + 9.5);
+          ctx.fillStyle = k12b.distanceColor(item.oracleDistance);
+          ctx.fillText(distance, PAGE.margin + rankWidth, y + 9.5);
+          ctx.fillStyle = "#243d51";
+          ctx.fillText(suffix, PAGE.margin + rankWidth + distanceWidth, y + 9.5);
+        }
+        ctx.fillStyle = "#243d51";
+        ctx.fillText(lines[index], PAGE.margin + nameOffset, y + 9.5);
+        y += 14;
+      }
+      y += 1;
+    }
     page();
     for (const section of report.sections) {
+      if (section.pageBreakBefore) page();
       ensure(35);
       y += 8;
-      text(section.title, 15, true, "#14243b", 0, 7);
+      const analysisSection = section.title.startsWith("Analysis ·");
+      text(section.title, analysisSection ? 14 : 15, true, "#14243b", 0, analysisSection ? 5 : 7);
       for (const item of section.entries) {
         if (item.type === "subheading") { y += 5; text(item.text, 11, true, "#176e8d", 0, 4); }
         else if (item.type === "row") text(item.text, 9, false, "#173c50", 0, 4, true);
-        else if (item.type === "line") text(item.text, 9.5, false, "#243d51", 0, 1);
+        else if (item.type === "line" && Number.isFinite(item.oracleDistance)) drawOracleLine(item);
+        else if (item.type === "line") text(item.text, analysisSection ? 8.5 : 9.5,
+          false, "#243d51", 0, analysisSection ? 0 : 1);
         else if (item.type === "health") drawHealth(item);
         else if (item.type === "bars") {
           const max = Math.max(1, ...item.values);

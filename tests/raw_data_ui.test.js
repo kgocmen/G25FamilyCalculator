@@ -68,7 +68,9 @@ test('browser PDF module can calculate K12b Oracle from the exposed K12b API', (
     results: { k12b: { fit: { proportions: Array(12).fill(1 / 12) } } },
     g25: Array(25).fill(0), health: null, references: [], analysisFits: {} });
   assert.equal(report.sections[4].title, 'K12b Oracle · Modern');
-  assert.equal(report.sections[5].title, 'K12b Oracle · Ancient');
+  assert.equal(report.sections[5].title, 'K12b Oracle · Modern two-population fits');
+  assert.equal(report.sections[6].title, 'K12b Oracle · Ancient');
+  assert.equal(report.sections[7].title, 'K12b Oracle · All (Modern + Ancient)');
 });
 
 test('Health is independent of ancestry results; tabs wrap and reset to K12b Chart', () => {

@@ -3,6 +3,23 @@
 
   const labels = ["Gedrosia", "Siberian", "Northwest_African", "Southeast_Asian", "Atlantic_Med", "North_European", "South_Asian", "East_African", "Southwest_Asian", "East_Asian", "Caucasus", "Sub_Saharan"];
   const colors = ["#e94a4a", "#ec8c36", "#a9784c", "#e4c845", "#9eae49", "#91ba62", "#4daa75", "#5bbca0", "#4daeb4", "#7187d0", "#a77bbf", "#c98ac8"];
+  const oracleFitLimit = 4;
+  const distanceColors = [
+    [0.2, "#2E7D5C"], [0.4, "#25895E"], [0.6, "#1C9561"], [0.8, "#13A164"],
+    [1.0, "#09AD66"], [1.3, "#00AF67"], [1.6, "#00AF67"], [1.9, "#00A663"],
+    [2.3, "#00AC66"], [2.7, "#00AD66"], [3.2, "#00AF67"], [3.5, "#27B15E"],
+    [3.8, "#4EB456"], [4.1, "#75B64D"], [4.4, "#9CB945"], [4.7, "#C3BB3C"],
+    [5.0, "#EABE34"], [5.3, "#FBC02D"], [5.6, "#FBB829"], [5.9, "#FBAF24"],
+    [6.2, "#FBA720"], [6.5, "#FB9F1B"], [6.8, "#FB9617"], [7.1, "#FB8E12"],
+    [7.4, "#FB8C00"], [7.9, "#FA7D06"], [8.4, "#F96E0C"], [8.9, "#F85F12"],
+    [9.4, "#F75017"], [9.9, "#F6411D"], [10.4, "#F53223"], [10.8, "#F52329"],
+    [11.4, "#E4223A"], [12.0, "#D3214C"], [12.6, "#C2215D"], [13.2, "#B1206F"],
+    [13.8, "#A01F80"], [14.4, "#8F1E91"], [15.0, "#861B9A"], [16.5, "#7422A0"],
+    [18.0, "#6329A6"], [20.0, "#5231AC"], [25.0, "#4138B2"], [Infinity, "#303FB7"],
+  ];
+  function distanceColor(distance) {
+    return distanceColors.find(([maximum]) => distance <= maximum)?.[1] || "#303FB7";
+  }
 
   function parseProfile(raw) {
     const text = String(raw || "").trim();
@@ -51,6 +68,7 @@
       const weight = Math.max(0, Math.min(1, dot / span));
       const fit = b.map((v, k) => v + weight * (a[k] - v));
       const result = { name: data[i][0], other: data[j][0], weight, distance: distance(target, fit) };
+      if (result.distance >= oracleFitLimit) continue;
       if (best.length < count || result.distance < best[best.length - 1].distance) {
         best.push(result); best.sort((x, y) => x.distance - y.distance); best.length = Math.min(count, best.length);
       }
@@ -69,7 +87,7 @@
     return category === "all" ? periods.modern.concat(periods.ancient) : periods[category];
   }
 
-  const api = { labels, colors, parseProfile, distance, nearest, twoWay, referenceRows };
+  const api = { labels, colors, oracleFitLimit, distanceColor, parseProfile, distance, nearest, twoWay, referenceRows };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   root.G25K12B = api;
   if (!root.document) return;
@@ -122,12 +140,15 @@
       const box = appendText(container, "section", "", "k12b-match-set");
       appendText(box, "h3", title);
       const list = appendText(box, "ol", "");
-      for (const result of calculate(values, rows)) {
+      const results = calculate(values, rows);
+      for (const result of results) {
         const row = appendText(list, "li", "");
-        appendText(row, "span", result.distance.toFixed(3), "k12b-distance");
+        const number = appendText(row, "span", result.distance.toFixed(3), "k12b-distance");
+        number.style.color = distanceColor(result.distance);
         const name = result.other ? `${(result.weight * 100).toFixed(1)}% ${result.name} + ${((1 - result.weight) * 100).toFixed(1)}% ${result.other}` : result.name;
         appendText(row, "span", name.replaceAll("_", " "));
       }
+      if (!results.length && calculate === twoWay) appendText(box, "p", "No fit below distance 4.", "k12b-no-fits");
     }
     container.hidden = false;
   }

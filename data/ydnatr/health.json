@@ -109,7 +109,7 @@
         },
         "CT": {
           "flag": "neutral",
-          "meaning": "C/C’ye göre dopamin reseptör yoğunluğunda hafif azalma ile ilişkilidir; T/T’deki daha belirgin azalma eğilimi beklenmez."
+          "meaning": "Dopamin reseptör sayısında hafif azalma, ödül sisteminde orta düzey duyarlılık. C/C'ye göre hafif, T/T'ye göre daha sınırlı bir azalma eğilimi olarak yorumlanır."
         },
         "TT": {
           "flag": "negative",
@@ -209,7 +209,7 @@
         },
         "CA": {
           "flag": "neutral",
-          "meaning": "C/C’ye göre anandamid yıkımı daha yavaş olabilir; A/A da aynı yönde etki gösterir, ancak iki genotip arasındaki fark kesin değildir."
+          "meaning": "Orta seviye yıkım hızı. C/C'ye kıyasla anandamid yıkımı daha yavaş olabilir; A/A ile farkın büyüklüğü bu işaretleyiciden kesin belirlenemez."
         },
         "AA": {
           "flag": "positive",
@@ -249,7 +249,7 @@
         },
         "CT": {
           "flag": "neutral",
-          "meaning": "C/C’deki güçlü hapşırma eğilimi ile T/T’de refleksin görülmemesi arasında, parlak ışıkla tetiklenme olasılığı orta düzeydedir."
+          "meaning": "Parlak ışıkta hapşırma refleksine orta düzey genetik yatkınlık. C/C'deki güçlü ve T/T'deki düşük yatkınlık arasında yer alır."
         },
         "TT": {
           "flag": "neutral",
@@ -289,7 +289,7 @@
         },
         "CT": {
           "flag": "neutral",
-          "meaning": "C/C’deki yüksek ve T/T’deki düşük BDNF salınımı arasında daha ılımlı bir salınım eğilimiyle ilişkilidir."
+          "meaning": "Val/Met: Ortalama BDNF aktivitesi ve standart bellek performansı. C/C'deki yüksek ve T/T'deki düşük BDNF salınımı arasında daha ılımlı bir eğilimle ilişkilidir."
         },
         "TT": {
           "flag": "negative",
@@ -309,7 +309,7 @@
         },
         "AG": {
           "flag": "positive",
-          "meaning": "A/A ve G/G’ye göre bazı prion hastalıklarıyla ilişkili risk daha düşük olabilir; bu genotip bağışıklık sağlamaz."
+          "meaning": "Heterozigot avantaj. A/A ve G/G'ye göre bazı prion hastalıklarıyla ilişkili risk daha düşük olabilir; bu genotip tam bağışıklık sağlamaz."
         },
         "GG": {
           "flag": "neutral",
@@ -389,7 +389,7 @@
         },
         "AT": {
           "flag": "neutral",
-          "meaning": "T/T’ye göre obezite yatkınlığında hafif artışla ilişkilidir; A/A’daki artış kadar belirgin değildir."
+          "meaning": "Obezite riskinde %15 oranında hafif istatistiksel artış. T/T'ye göre daha yüksek, A/A'ya göre daha düşük bir genetik yatkınlıktır."
         },
         "AA": {
           "flag": "negative",
@@ -409,7 +409,7 @@
         },
         "CT": {
           "flag": "neutral",
-          "meaning": "C/C’ye göre tip 2 diyabet yatkınlığı artabilir; T/T’deki daha yüksek yatkınlıktan daha sınırlıdır."
+          "meaning": "Diyabet gelişim riskinde ~%15 hafif artış. C/C'ye göre daha yüksek, T/T'ye göre daha düşük bir genetik yatkınlıktır."
         },
         "TT": {
           "flag": "negative",
@@ -449,7 +449,7 @@
         },
         "CG": {
           "flag": "neutral",
-          "meaning": "C/C’ye göre karaciğerde yağ birikimi yatkınlığı artabilir; G/G’deki daha yüksek yatkınlıktan daha sınırlıdır."
+          "meaning": "Karaciğer yağlanmasına karşı orta düzey risk taşıyıcılığı. C/C'ye göre daha yüksek, G/G'ye göre daha düşük bir yağlanma yatkınlığıdır."
         },
         "GG": {
           "flag": "negative",
@@ -469,7 +469,7 @@
         },
         "GA": {
           "flag": "neutral",
-          "meaning": "G/G’ye göre alkolü parçalama kapasitesi azalır ve yüz kızarması görülebilir; A/A’daki ağır enzim kaybı beklenmez."
+          "meaning": "Enzim kapasitesinde düşüş. Alkol tüketiminde yüz kızarması ve kalp çarpıntısı gözlemlenir. G/G'ye göre daha düşük, A/A'ya göre daha yüksek enzim etkinliğiyle ilişkilidir."
         },
         "AA": {
           "flag": "negative",
@@ -489,7 +489,7 @@
         },
         "CG": {
           "flag": "neutral",
-          "meaning": "C/C’deki güçlü ve G/G’deki düşük acı tat algısı arasında bir duyarlılıkla ilişkili olabilir."
+          "meaning": "Normal tat algısı dengesi. C/C'deki güçlü ve G/G'deki düşük acı tat algısı arasında bir eğilimdir."
         },
         "GG": {
           "flag": "neutral",
@@ -689,7 +689,7 @@
         },
         "CT": {
           "flag": "neutral",
-          "meaning": "T/T’deki yüksek ve C/C’deki düşük bitkisel omega-3 dönüşüm eğilimleri arasında bir kapasiteyle ilişkilidir."
+          "meaning": "Ortalama Omega-3 sentez ve dönüşüm kapasitesi. T/T'deki yüksek ve C/C'deki düşük bitkisel omega-3 dönüşüm eğilimleri arasında değerlendirilir."
         },
         "CC": {
           "flag": "negative",
@@ -769,7 +769,7 @@
         },
         "AG": {
           "flag": "neutral",
-          "meaning": "A/A’daki yüksek ve G/G’deki düşük PON1 enzim aktivitesi arasında bir aktivite eğilimiyle ilişkilidir."
+          "meaning": "Ortalama toksin temizleme hızı ve standart enzim aktivitesi. A/A'daki yüksek ve G/G'deki düşük PON1 etkinliği arasında değerlendirilir."
         },
         "GG": {
           "flag": "negative",
@@ -889,7 +889,7 @@
         },
         "AG": {
           "flag": "neutral",
-          "meaning": "G/G’ye göre MTHFR enzim aktivitesi düşebilir; A/A’daki daha büyük aktivite kaybından daha hafif bir etkidir."
+          "meaning": "Enzim kapasitesinde ~%30-40 kayıp. Diyetle alınan folat genellikle yeterlidir. G/G'deki tam aktiviteden daha düşük, A/A'daki büyük kayıptan daha hafif bir etkidir."
         },
         "AA": {
           "flag": "negative",
@@ -929,7 +929,7 @@
         },
         "GT": {
           "flag": "neutral",
-          "meaning": "G/G’deki standart damar genişleme eğilimine göre biraz daha düşük, T/T’deki azalmış nitrik oksit üretimine göre daha ılımlı bir tepkiyle ilişkilidir."
+          "meaning": "Orta düzey vazodilatasyon tepkisi. G/G'deki standart ve T/T'deki azalmış nitrik oksit yanıtı arasında değerlendirilir."
         },
         "TT": {
           "flag": "negative",
@@ -1029,7 +1029,7 @@
         },
         "AG": {
           "flag": "neutral",
-          "meaning": "A/A’daki yüksek ve G/G’deki düşük GSTP1 enzim etkinliği arasında bir etkinlikle ilişkilidir."
+          "meaning": "Orta düzey hücresel temizlik. A/A'daki yüksek ve G/G'deki düşük GSTP1 etkinliği arasında değerlendirilir."
         },
         "GG": {
           "flag": "negative",
@@ -1269,7 +1269,7 @@
         },
         "GC": {
           "flag": "neutral",
-          "meaning": "G/G’deki standart ve C/C’deki yüksek IL-6 üretimi eğilimleri arasında bir enflamatuar yanıtla ilişkilidir."
+          "meaning": "Ortalama sistemik iltihap üretim kapasitesi. G/G'deki standart ve C/C'deki yüksek IL-6 üretimi eğilimleri arasındadır."
         },
         "CC": {
           "flag": "negative",
@@ -1329,7 +1329,7 @@
         },
         "AG": {
           "flag": "neutral",
-          "meaning": "G/G’deki yüksek ve A/A’daki düşük IL-10 üretimi eğilimleri arasında bir anti-enflamatuar yanıtla ilişkilidir."
+          "meaning": "Standart anti-enflamatuar kapasite ve hücresel bağışıklık regülasyonu. G/G'deki yüksek ve A/A'daki düşük IL-10 üretimi eğilimleri arasındadır."
         },
         "AA": {
           "flag": "negative",
@@ -1349,7 +1349,7 @@
         },
         "CT": {
           "flag": "neutral",
-          "meaning": "C/C’deki daha düşük ve T/T’deki daha yüksek bazal CRP eğilimleri arasında bir düzeyle ilişkilidir."
+          "meaning": "Standart bazal CRP seviyesi varyansı. C/C'deki düşük ve T/T'deki yüksek bazal CRP eğilimleri arasında değerlendirilir."
         },
         "TT": {
           "flag": "negative",
@@ -1389,7 +1389,7 @@
         },
         "CT": {
           "flag": "negative",
-          "meaning": "Alfa-1 antitripsin düzeyi C/C’ye göre azalabilir; T/T’deki ağır eksiklik beklenmese de sigara dumanına bağlı akciğer riski artabilir."
+          "meaning": "Heterozigot A1AT eksikliği. Çevresel toksinler (özellikle sigara dumanı) varlığında hücresel yıkım ve KOAH riskinde belirgin istatistiksel artış. C/C'deki normal üretimden daha düşük, T/T'deki ağır eksiklikten daha hafif bir profil beklenir."
         },
         "TT": {
           "flag": "negative",
@@ -1529,7 +1529,7 @@
         },
         "AG": {
           "flag": "neutral",
-          "meaning": "Değişimin bir kopyasını taşır; A/A’daki doğuştan laktaz eksikliği genellikle görülmez ve süt sindirimi korunur."
+          "meaning": "Heterozigot taşıyıcı durum. Süt sindiriminde genellikle belirgin bir klinik sorun yaşanmaz. A/A'daki doğuştan laktaz eksikliği bu taşıyıcı genotip için genellikle beklenmez."
         },
         "AA": {
           "flag": "negative",
@@ -1629,7 +1629,7 @@
         },
         "CT": {
           "flag": "neutral",
-          "meaning": "C/C’deki kıvırcık veya belirgin dalgalı ve T/T’deki düz saç eğilimleri arasında hafif dalgalı saçla ilişkilidir."
+          "meaning": "Orta düzeyde, hafif dalgalı saç fenotipine sahip olma eğilimi. C/C'deki belirgin dalgalı ve T/T'deki düz saç eğilimleri arasında yer alır."
         },
         "TT": {
           "flag": "neutral",
@@ -1729,7 +1729,7 @@
         },
         "AG": {
           "flag": "neutral",
-          "meaning": "I/I’deki dayanıklılık ve D/D’deki patlayıcı güç eğilimleri arasında dengeli bir kas performansı profiliyle ilişkilidir."
+          "meaning": "Heterozigot (I/D). Güç ve dayanıklılık arasında dengeli kas fizyolojisi. I/I'deki dayanıklılık ve D/D'deki güç eğilimleri arasında bir profildir."
         },
         "GG": {
           "flag": "positive",
@@ -1749,7 +1749,7 @@
         },
         "CT": {
           "flag": "neutral",
-          "meaning": "C/C’deki tam ACTN3 üretiminden daha düşük, T/T’deki üretim yokluğundan daha yüksek protein üretimiyle ilişkilidir."
+          "meaning": "Kısmi üretim. Güç ve dayanıklılık sporları için dengeli kas yapısı. C/C'deki tam üretim ile T/T'deki üretim yokluğu arasında kısmi ACTN3 üretimi beklenir."
         },
         "TT": {
           "flag": "neutral",
@@ -1809,7 +1809,7 @@
         },
         "AG": {
           "flag": "neutral",
-          "meaning": "A/A’daki kuru kulak kiri ve düşük vücut kokusu eğiliminden farklı olarak G/G’ye benzer biçimde ıslak kulak kiri görülebilir."
+          "meaning": "Standart apokrin salgı. Islak kulak kiri. A/A'daki kuru kulak kiri eğilimine karşılık G/G'ye daha benzer bir sonuçtur."
         },
         "GG": {
           "flag": "neutral",
@@ -1845,7 +1845,7 @@
         },
         "AC": {
           "flag": "neutral",
-          "meaning": "A/A’daki düz ve C/C’deki daha kıvırcık saç eğilimleri arasında dalgalı saçla ilişkilidir."
+          "meaning": "Dalgalı saç yapısına morfolojik yatkınlık. A/A'daki düz ve C/C'deki kıvırcık saç eğilimleri arasında yer alır."
         },
         "CC": {
           "flag": "neutral",
@@ -1865,7 +1865,7 @@
         },
         "GT": {
           "flag": "neutral",
-          "meaning": "G/G’deki daha açık ve T/T’deki daha koyu saç pigmentasyonu eğilimleri arasında kumral veya kestane tonlarıyla ilişkilidir."
+          "meaning": "Orta tonlarda (kumral/kestane) saç rengine yatkınlık. G/G'deki açık ve T/T'deki koyu saç tonları arasında değerlendirilir."
         },
         "TT": {
           "flag": "neutral",
@@ -1905,7 +1905,7 @@
         },
         "AG": {
           "flag": "neutral",
-          "meaning": "A/A’daki açık ve G/G’deki koyu iris pigmentasyonu eğilimleri arasında orta düzey pigmentasyonla ilişkilidir."
+          "meaning": "Orta düzey iris pigmentasyonu. A/A'daki açık ve G/G'deki koyu iris pigmentasyonu arasında bir eğilimdir."
         },
         "GG": {
           "flag": "neutral",
@@ -1945,7 +1945,7 @@
         },
         "AG": {
           "flag": "neutral",
-          "meaning": "A/A’daki açık ve G/G’deki koyu ten pigmentasyonu eğilimleri arasında orta düzey pigmentasyonla ilişkilidir."
+          "meaning": "Melez / Buğday cilt tonu yatkınlığı. Kısmi melanin sentezi. A/A'daki daha açık ve G/G'deki daha koyu ten eğilimleri arasında değerlendirilir."
         },
         "GG": {
           "flag": "neutral",
@@ -1965,7 +1965,7 @@
         },
         "CT": {
           "flag": "neutral",
-          "meaning": "C/C’deki daha kolay bronzlaşma ile T/T’deki kolay kızarma eğilimleri arasında değişken bir güneş yanıtıyla ilişkilidir."
+          "meaning": "Ortalama bronzlaşma kapasitesi. C/C'deki daha kolay bronzlaşma ile T/T'deki kolay kızarma arasında bir eğilimdir."
         },
         "TT": {
           "flag": "neutral",
