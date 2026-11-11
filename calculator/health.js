@@ -14,6 +14,11 @@
     const code = calls.get(Number(id.slice(2)));
     return code === undefined ? null : bases[code >> 2] + bases[code & 3];
   };
+  function cardTone(flag, genotypes) {
+    if (flag !== "neutral") return flag;
+    return new Set(Object.values(genotypes).map((entry) => entry.flag)).size === 3
+      ? "neutral-three" : "plain";
+  }
   function matchCalls(calls, special = new Map()) {
     const matches = [];
     for (const { id, category, genotypes } of variants) {
@@ -28,6 +33,13 @@
       const key = Object.keys(genotypes).find((candidate) => normalize(candidate) === normalize(genotype));
       if (key) matches.push({ id, genotype: normalize(genotype), category,
         flag: genotypes[key].flag, meaning: genotypes[key].meaning });
+    }
+    for (const match of matches) {
+      if (match.flag === "neutral" && match.genotype.length === 2 &&
+          match.genotype[0] !== match.genotype[1] &&
+          !/heterozigot|taşıyıcı/i.test(match.meaning)) {
+        match.meaning += " Heterozigot: bu konumda iki farklı alel bulunuyor.";
+      }
     }
     return matches;
   }
@@ -86,7 +98,7 @@
     return result;
   }
 
-  const api = { variants, definitions, matchCalls, inferBloodType };
+  const api = { variants, definitions, matchCalls, inferBloodType, cardTone };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   root.G25Health = api;
   if (!root.document) return;
@@ -120,7 +132,6 @@
         "health-meaning");
       const details = append(card, "div", "", "health-card-details");
       append(details, "strong", genotype, "health-genotype");
-      append(details, "span", "nötr", "health-flag health-flag-neutral");
     }
     if (bloodGroup?.abo) {
       const card = append(grid, "article", "", "health-card health-combined-card");
@@ -130,9 +141,8 @@
       append(card, "p", `Fenotip yorumu: ${bloodType.meaning.replace("{abo}", bloodGroup.abo)}`,
         "health-meaning");
       const details = append(card, "div", "", "health-card-details");
-      append(details, "span", "Muhtemel alel çifti:", "health-flag health-flag-neutral");
+      append(details, "span", "Muhtemel alel çifti:", "health-allele-label");
       append(details, "strong", bloodGroup.diplotype || bloodGroup.abo, "health-genotype");
-      append(details, "span", "nötr", "health-flag health-flag-neutral");
     }
   }
   function setMatches(matches, bloodGroup) {
@@ -164,7 +174,9 @@
       const grid = append(section, "div", "", "health-grid");
       for (const item of rows) {
         const record = byId.get(item.id);
-        const card = append(grid, "article", "", "health-card");
+        const tone = cardTone(item.flag, record.genotypes);
+        const cardColor = tone === "plain" ? "" : ` health-card-${tone}`;
+        const card = append(grid, "article", "", `health-card${cardColor}`);
         const header = append(card, "div", "", "health-card-header");
         append(header, "h4", record.title);
         append(header, "span", item.id, "health-rsid");
@@ -172,8 +184,6 @@
         append(card, "p", `Fenotip yorumu: ${item.meaning}`, "health-meaning");
         const details = append(card, "div", "", "health-card-details");
         append(details, "strong", item.genotype, "health-genotype");
-        const flag = { positive: "olumlu", neutral: "nötr", negative: "olumsuz" }[item.flag];
-        append(details, "span", flag, `health-flag health-flag-${item.flag}`);
       }
     }
     report.hidden = !valid.length && !bloodMarkers.length && !bloodGroup?.abo;

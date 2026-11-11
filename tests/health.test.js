@@ -16,6 +16,16 @@ test("every reference marker has a readable definition", () => {
   }
 });
 
+test("Health bundle uses the editable source without generic genotype placeholders", () => {
+  const source = require("../data/ydnatr/health.json");
+  assert.deepEqual(health.variants, source.variants);
+  for (const marker of source.variants) {
+    for (const interpretation of Object.values(marker.genotypes)) {
+      assert.doesNotMatch(interpretation.meaning, /^Bu rs\d+ genotipi\b/, marker.id);
+    }
+  }
+});
+
 test("Health uses genotypes from the same parsed raw DNA file", () => {
   const text = [
     "RSID,CHROMOSOME,POSITION,RESULT",
@@ -48,6 +58,43 @@ test("LPA rs10455872 flags the G allele, not AA, as increased Lp(a) association"
     const match = health.matchCalls(parsed.calls, parsed.special).find(({ id }) => id === "rs10455872");
     assert.equal(match?.flag, flag, genotype);
   }
+});
+
+test("APOE markers are explained independently and the e2-neutral result does not imply e3", () => {
+  const result = (risk, protection) => {
+    const parsed = raw.parse("RSID,CHROMOSOME,POSITION,RESULT\n" +
+      `rs429358,19,1,${risk}\nrs7412,19,2,${protection}`);
+    return new Map(health.matchCalls(parsed.calls, parsed.special).map((match) => [match.id, match]));
+  };
+  const noE2 = result("TT", "CC").get("rs7412");
+  assert.equal(noE2.flag, "neutral");
+  assert.match(noE2.meaning, /e2 aleli bulunmaz/);
+  assert.doesNotMatch(noE2.meaning, /e3|e4/);
+  assert.equal(result("CC", "CC").get("rs7412").meaning, noE2.meaning);
+  const oneE2 = result("TT", "CT").get("rs7412");
+  assert.match(oneE2.meaning, /Heterozigot.*bir kopyası/);
+  assert.equal(result("CT", "CT").get("rs7412").meaning, oneE2.meaning);
+  assert.match(result("TT", "TT").get("rs7412").meaning, /Homozigot.*iki kopyası/);
+  assert.equal(result("TT", "CC").get("rs429358").meaning,
+    result("TT", "CT").get("rs429358").meaning);
+});
+
+test("ambiguous neutral heterozygotes state that two different alleles are present", () => {
+  const parsed = raw.parse("RSID,CHROMOSOME,POSITION,RESULT\nrs174537,11,1,CT");
+  const match = health.matchCalls(parsed.calls, parsed.special).find(({ id }) => id === "rs174537");
+  assert.equal(match.flag, "neutral");
+  assert.match(match.meaning, /Heterozigot: bu konumda iki farklı alel bulunuyor/);
+});
+
+test("SLCO1B1 rs4149056 keeps the source's genotype-specific statin meanings", () => {
+  const source = require("../data/ydnatr/health.json").variants.find(({ id }) => id === "rs4149056");
+  const bundled = health.variants.find(({ id }) => id === "rs4149056");
+  assert.deepEqual(bundled, source);
+  assert.equal(bundled.genotypes.TT.meaning, "Kolesterol ilaçları beklenen düzeyde çalışır.");
+  assert.equal(bundled.genotypes.CT.meaning,
+    "Orta düzey statin ilişkili kas yıkımı (Miyopati) riski. Dozaj ayarlaması gerekebilir.");
+  assert.equal(bundled.genotypes.CC.meaning,
+    "Yüksek risk (Miyopati). Kolesterol ilaçları şiddetli kas ağrısına ve doku hasarına sebep olabilir.");
 });
 
 test("ABO estimate combines the O deletion with two B markers", () => {
@@ -117,18 +164,18 @@ test("Health renders separate ABO marker cards with the likely blood group", () 
   assert.equal(cards.length, 4);
   for (const [card, id, genotype, meaning] of cards.slice(0, 3).map((card, index) => [card,
     ["rs505922", "rs8176746", "rs8176747"][index], ["CT", "GT", "CG"][index],
-    ["O aleli taşıyıcısı; muhtemel A veya B kan grubu.",
-      "Muhtemel B veya AB kan grubu.", "Muhtemel B veya AB kan grubu."][index]])) {
+    ["Heterozigot, A ya da B kan grubu, O aleli taşıyıcısı.",
+      "Heterozigot, B ya da AB kan grubu.", "Heterozigot, B ya da AB kan grubu."][index]])) {
     const cardText = content(card);
     assert.match(cardText, new RegExp(id));
     assert.match(cardText, new RegExp(genotype));
     assert.ok(cardText.includes(`Fenotip yorumu: ${meaning}`));
-    assert.match(cardText, /nötr/);
+    assert.doesNotMatch(cardText, /nötr/);
   }
   const combined = cards[3];
   assert.match(content(combined), /Kan Grubu \(ABO\)/);
-  assert.match(content(combined), /Fenotip yorumu: Muhtemel B kan grubu\./);
-  assert.match(content(combined), /nötr/);
+  assert.match(content(combined), /Fenotip yorumu: B kan grubu\./);
+  assert.doesNotMatch(content(combined), /nötr/);
   assert.equal(combined.children[3].children[0].textContent, "Muhtemel alel çifti:");
   assert.equal(combined.children[3].children[1].textContent, "BO");
   assert.doesNotMatch(content(report), /Vekil O işaretleyicisi|düşük güven|RhD|laboratuvar testi|Kaynak etiketi/);
@@ -137,18 +184,52 @@ test("Health renders separate ABO marker cards with the likely blood group", () 
   const metabolismMatch = { id: "rs4988235", genotype: "CT", category: "metabolism",
     flag: "positive", meaning: "Örnek fenotip yorumu." };
   root.G25HealthUI.setMatches([metabolismMatch], bloodGroup);
-  assert.match(report.children[0].children[0].textContent, /Metabolizma/);
-  assert.match(report.children[1].children[0].textContent, /Kan Grubu · 4/);
+  assert.match(report.children[0].children[0].textContent, /Kan Grubu · 4/);
+  assert.match(report.children[1].children[0].textContent, /Metabolizma/);
   root.G25HealthUI.setMatches([], { abo: null, basis: "insufficient", observed: [
     { id: "rs8176719", genotype: "DD", alleleCount: 2 },
   ] });
   assert.equal(elements.get("raw-health-report").children.length, 1);
-  assert.match(content(elements.get("raw-health-report")), /Muhtemel O kan grubu\./);
+  assert.match(content(elements.get("raw-health-report")), /Çift O aleli: kesin O kan grubu\./);
   assert.equal(elements.get("raw-health-report").hidden, false);
   root.G25HealthUI.setMatches([metabolismMatch]);
-  assert.match(content(elements.get("raw-health-report")), /olumlu/);
+  assert.doesNotMatch(content(elements.get("raw-health-report")), /olumlu|olumsuz|nötr/);
   assert.doesNotMatch(content(elements.get("raw-health-report")), /Kaynak etiketi:/);
   root.G25HealthUI.setMatches([], { abo: null, basis: "insufficient", rhD: null, observed: [] });
   assert.equal(elements.get("raw-health-report").children.length, 0);
   assert.equal(elements.get("raw-health-report").hidden, true);
+});
+
+test("Health card colors follow available outcomes without outcome badges", () => {
+  class Element {
+    constructor() { this.children = []; this.textContent = ""; this.hidden = false; }
+    append(child) { this.children.push(child); }
+    replaceChildren() { this.children = []; }
+  }
+  const elements = new Map(["raw-health-status", "raw-health-report"].map((id) => [id, new Element()]));
+  const document = { getElementById: (id) => elements.get(id), createElement: () => new Element(),
+    addEventListener() {} };
+  const root = { G25_HEALTH_DATA: require("../calculator/health_data.js"), document };
+  vm.runInNewContext(fs.readFileSync(path.join(__dirname, "../calculator/health.js"), "utf8"),
+    { self: root });
+
+  const cases = [
+    ["rs1800497", "CC", "positive", "health-card health-card-positive"],
+    ["rs1800497", "CT", "neutral", "health-card health-card-neutral-three"],
+    ["rs1800497", "TT", "negative", "health-card health-card-negative"],
+    ["rs17070145", "CT", "neutral", "health-card"],
+    ["rs17070145", "TT", "positive", "health-card health-card-positive"],
+    ["rs713598", "CC", "neutral", "health-card"],
+  ];
+  for (const [id, genotype, flag, cardClass] of cases) {
+    const record = health.variants.find((variant) => variant.id === id);
+    assert.equal(record.genotypes[genotype].flag, flag);
+    root.G25HealthUI.setMatches([{ id, genotype, flag, category: record.category,
+      meaning: record.genotypes[genotype].meaning }]);
+    const card = elements.get("raw-health-report").children[0].children[1].children[0];
+    assert.equal(card.className, cardClass);
+    const details = card.children[3];
+    assert.equal(details.children.length, 1);
+    assert.equal(details.children[0].textContent, genotype);
+  }
 });

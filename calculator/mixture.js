@@ -349,6 +349,12 @@ function G25MixtureModule(root) {
     return { parents, grandparents };
   }
 
+  function estimateStrictPairs(target, references, limit = 10) {
+    if (!Number.isInteger(limit) || limit < 1 || limit > 100) throw new Error("Choose 1 to 100 strict fits.");
+    const rows = prepare(target, references, true);
+    return bestPairs(rows, { fixed: 0.5, limit }).best.map((fit) => decorate(fit, rows, true));
+  }
+
   function estimateRelaxed(target, references, limit = 100) {
     if (!Number.isInteger(limit) || limit < 1 || limit > 100) throw new Error("Choose 1 to 100 fits.");
     const rows = prepare(target, references);
@@ -363,7 +369,7 @@ function G25MixtureModule(root) {
     };
   }
 
-  const api = { estimateStrict, estimateRelaxed, estimateRelaxedByCategory };
+  const api = { estimateStrict, estimateStrictPairs, estimateRelaxed, estimateRelaxedByCategory };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else {
     root.G25Mixtures = api;

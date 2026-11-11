@@ -1,6 +1,6 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
-const { estimateStrict, estimateRelaxed, estimateRelaxedByCategory } = require("../calculator/mixture.js");
+const { estimateStrict, estimateStrictPairs, estimateRelaxed, estimateRelaxedByCategory } = require("../calculator/mixture.js");
 
 function row(label, values, category = "modern") {
   return { category, label, values };
@@ -19,6 +19,15 @@ test("strict two-way fit uses exactly 50/50", () => {
   assert.ok(offCenter.distance > 0);
   assert.equal(exact.grandparents.length, 5);
   assert.deepEqual(exact.grandparents[0].parts.map((part) => part.id), [0, 0, 1, 1]);
+});
+
+test("PDF strict pairs match the app's two-way fits without running four-way search", () => {
+  const target = row("Target", [0.2, -0.1, ...Array(23).fill(0)]);
+  const references = [row("A", [1, 0, ...Array(23).fill(0)]),
+    row("B", [-1, 0, ...Array(23).fill(0)]),
+    row("C", [0, 1, ...Array(23).fill(0)]),
+    row("D", [0, -1, ...Array(23).fill(0)])];
+  assert.deepEqual(estimateStrictPairs(target, references), estimateStrict(target, references).parents);
 });
 
 test("strict fits can reuse one reference in multiple slots", () => {

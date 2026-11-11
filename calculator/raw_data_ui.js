@@ -2,9 +2,10 @@
   "use strict";
   window.G25RawDataUI = { init };
 
-  function init(onAnalyse) {
+  function init(onAnalyse, getReportReferences = () => ({ rows: window.G25_REFERENCES || [], label: "Global references" })) {
     const $ = (id) => document.getElementById(id);
-    let worker = null, results = {}, inputStats = null, g25 = null;
+    let worker = null, results = {}, g25 = null, healthResult = null;
+    let reportWorker = null, reportReject = null, reportRequest = 0;
     const modelIds = ["k12b", "k36"], settledModels = new Set(), copyTimers = new WeakMap();
     const tabIds = [...modelIds, "health"];
     let selectedModel = "k12b";
@@ -38,7 +39,8 @@
       $("raw-workspace").setAttribute("aria-busy", String(value));
     }
     function clearResults() {
-      results = {}; inputStats = null; g25 = null;
+      cancelReport();
+      results = {}; g25 = null; healthResult = null;
       settledModels.clear();
       $("raw-model-results").hidden = false;
       for (const id of ["raw-g25", "raw-summary"]) $(id).hidden = true;
@@ -64,6 +66,16 @@
       if (worker) worker.terminate();
       worker = null;
       busy(false);
+    }
+    function cancelReport() {
+      reportRequest += 1;
+      if (reportWorker) reportWorker.terminate();
+      reportWorker = null;
+      if (reportReject) {
+        const reject = reportReject;
+        reportReject = null;
+        reject(new Error("PDF export cancelled."));
+      }
     }
     function reset() {
       cancel(); clearResults();
@@ -122,7 +134,6 @@
         button.disabled = false;
         if (data.id === "k12b") button.hidden = false;
       }
-      $("raw-export").disabled = false;
       if (data.g25) {
         g25 = data.g25;
         $("raw-g25").hidden = false;
@@ -149,7 +160,7 @@
         message("Open this calculator through its hosted site or a local web server to process raw DNA."); return;
       }
       try {
-        worker = new Worker(new URL("raw_dna_worker.js?v=20261104-11", document.baseURI));
+        worker = new Worker(new URL("raw_dna_worker.js?v=20261111-5", document.baseURI));
         const current = worker;
         busy(true); message("Starting local DNA analysis…");
         for (const id of modelIds) $("raw-" + id + "-status").textContent = `Calculating ${id === "k36" ? "K36" : "K12b"}…`;
@@ -157,14 +168,16 @@
           if (current !== worker) return;
           if (data.type === "status") message(data.message);
           if (data.type === "parsed") {
-            inputStats = data.stats;
             $("raw-summary").hidden = false;
             $("raw-summary").textContent = `${data.stats.usable.toLocaleString()} unique autosomal calls · build ${data.stats.build} · ` +
               `${data.stats.noCalls.toLocaleString()} no-calls/indels · ${data.stats.nonAutosomal.toLocaleString()} non-autosomal rows skipped · ` +
               `${data.stats.invalid.toLocaleString()} invalid rows · ${data.stats.duplicates.toLocaleString()} duplicates (${data.stats.conflicts.toLocaleString()} conflicting SNPs excluded).`;
           }
           if (data.type === "result") showResult(data);
-          if (data.type === "health") window.G25HealthUI?.setMatches(data.matches, data.bloodType);
+          if (data.type === "health") {
+            healthResult = { matches: data.matches, bloodType: data.bloodType };
+            window.G25HealthUI?.setMatches(data.matches, data.bloodType);
+          }
           if (data.type === "model-error") {
             settledModels.add(data.id);
             showModels();
@@ -173,6 +186,7 @@
           if (data.type === "error") { cancel(); stopPendingModels("Calculation stopped."); message(data.message); }
           if (data.type === "done") {
             cancel();
+            $("raw-export").disabled = !results.k12b && !results.k36 && !healthResult;
             const complete = results.k36?.fit.converged && results.k12b?.fit.converged && g25;
             message(complete ? "Analysis complete. Your DNA stayed in this browser." : "Processing finished. Review the result notes below.");
           }
@@ -199,13 +213,61 @@
     });
     $("raw-g25-copy").addEventListener("click", (event) => copy(line(), event.currentTarget));
     $("raw-analyse").addEventListener("click", () => onAnalyse({ label: `${cleanName()}_simulated_scaled`, values: g25.slice(), source: "raw-regression" }));
-    $("raw-export").addEventListener("click", () => {
-      const result = { sample: cleanName(), method: "fixed-frequency maximum likelihood; published Vbknethio K36 to scaled G25 regression",
-        simulated: true, inputStats, results, g25: g25 ? line() : null };
-      const url = URL.createObjectURL(new Blob([JSON.stringify(result, null, 2)], { type: "application/json" }));
-      const link = document.createElement("a"); link.href = url;
-      link.download = `${cleanName().replace(/[^a-zA-Z0-9_-]/g, "_")}_ancestry.json`;
-      document.body.append(link); link.click(); link.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+    function calculateReportFits(target, references) {
+      return new Promise((resolve, reject) => {
+        try {
+          const worker = new Worker(new URL("report_analysis_worker.js?v=20261111-1", document.baseURI));
+          reportWorker = worker;
+          reportReject = reject;
+          worker.onmessage = ({ data }) => {
+            if (worker !== reportWorker) return;
+            if (data.type === "progress") message(data.message);
+            if (data.type === "result" || data.type === "error") {
+              worker.terminate();
+              reportWorker = null;
+              reportReject = null;
+              if (data.type === "error") reject(new Error(data.message));
+              else resolve(data.fits);
+            }
+          };
+          worker.onerror = () => {
+            if (worker !== reportWorker) return;
+            worker.terminate();
+            reportWorker = null;
+            reportReject = null;
+            reject(new Error("Background PDF analysis could not finish."));
+          };
+          worker.postMessage({ target, references });
+        } catch (error) { reportWorker = null; reportReject = null; reject(error); }
+      });
+    }
+    $("raw-export").addEventListener("click", async () => {
+      if ($("raw-export").disabled) return;
+      const request = ++reportRequest;
+      $("raw-export").disabled = true;
+      try {
+        const sample = cleanName();
+        const source = getReportReferences();
+        const references = source.rows || [];
+        const target = g25 ? { label: `${sample}_simulated_scaled`, values: g25.slice() } : null;
+        message("Preparing PDF report…");
+        const analysisFits = target ? await calculateReportFits(target, references) : null;
+        if (request !== reportRequest) return;
+        const report = window.G25ReportPdf.buildReport({ sample, results, g25,
+          health: healthResult, references, analysisFits, referenceLabel: source.label });
+        const pdf = window.G25ReportPdf.createPdf(report);
+        const url = URL.createObjectURL(pdf);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `${sample.replace(/[^a-zA-Z0-9_-]/g, "_")}_ancestry.pdf`;
+        document.body.append(link); link.click(); link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        message("PDF report downloaded. Your DNA stayed in this browser.");
+      } catch (error) {
+        if (request === reportRequest) message(`PDF export failed: ${error.message}`);
+      } finally {
+        if (request === reportRequest) $("raw-export").disabled = false;
+      }
     });
     reset();
     return { reset };

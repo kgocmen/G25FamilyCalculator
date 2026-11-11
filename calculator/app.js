@@ -3436,6 +3436,7 @@
     modernMixedPca = null;
     modernPcaFitDistances.clear();
     render();
-  });
+  }, () => ({ rows: allowedReferences(activeReferenceRows()),
+    label: state.turkish ? "Turkish references" : "Global references" }));
   render();
 })();

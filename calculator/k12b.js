@@ -71,6 +71,7 @@
 
   const api = { labels, colors, parseProfile, distance, nearest, twoWay, referenceRows };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
+  root.G25K12B = api;
   if (!root.document) return;
 
   const $ = (id) => root.document.getElementById(id);
