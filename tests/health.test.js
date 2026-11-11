@@ -72,7 +72,7 @@ test("APOE markers are explained independently and the e2-neutral result does no
   assert.doesNotMatch(noE2.meaning, /e3|e4/);
   assert.equal(result("CC", "CC").get("rs7412").meaning, noE2.meaning);
   const oneE2 = result("TT", "CT").get("rs7412");
-  assert.match(oneE2.meaning, /Heterozigot.*bir kopyası/);
+  assert.match(oneE2.meaning, /bir kopyası/);
   assert.equal(result("CT", "CT").get("rs7412").meaning, oneE2.meaning);
   assert.match(result("TT", "TT").get("rs7412").meaning, /Homozigot.*iki kopyası/);
   assert.equal(result("TT", "CC").get("rs429358").meaning,
@@ -85,6 +85,18 @@ test("neutral markers use their own phenotype interpretation without a generic s
   assert.equal(match.flag, "neutral");
   const source = health.variants.find(({ id }) => id === "rs174537");
   assert.equal(match.meaning, source.genotypes.CT.meaning);
+});
+
+test("Health comparisons explain the phenotype without genotype labels", () => {
+  const data = require("../data/ydnatr/health.json");
+  const faah = data.variants.find(({ id }) => id === "rs324420").genotypes.CA.meaning;
+  assert.match(faah, /C\/C.*A\/A/);
+  assert.doesNotMatch(faah, /Orta seviye yıkım hızı/);
+  for (const variant of data.variants) {
+    for (const entry of Object.values(variant.genotypes)) {
+      assert.doesNotMatch(entry.meaning, /heterozigot/i, variant.id);
+    }
+  }
 });
 
 test("SLCO1B1 rs4149056 keeps the source's genotype-specific statin meanings", () => {
@@ -165,8 +177,9 @@ test("Health renders separate ABO marker cards with the likely blood group", () 
   assert.equal(cards.length, 4);
   for (const [card, id, genotype, meaning] of cards.slice(0, 3).map((card, index) => [card,
     ["rs505922", "rs8176746", "rs8176747"][index], ["CT", "GT", "CG"][index],
-    ["Heterozigot, A ya da B kan grubu, O aleli taşıyıcısı.",
-      "Heterozigot, B ya da AB kan grubu.", "Heterozigot, B ya da AB kan grubu."][index]])) {
+    ["A ya da B kan grubu olasılığı ve bir O aleli taşıyıcılığı.",
+      "B ya da AB kan grubu olasılığı ve bir B aleli taşıyıcılığı.",
+      "B ya da AB kan grubu olasılığı ve bir B aleli taşıyıcılığı."][index]])) {
     const cardText = content(card);
     assert.match(cardText, new RegExp(id));
     assert.match(cardText, new RegExp(genotype));

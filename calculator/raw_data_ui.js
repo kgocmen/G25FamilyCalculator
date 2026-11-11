@@ -160,7 +160,7 @@
         message("Open this calculator through its hosted site or a local web server to process raw DNA."); return;
       }
       try {
-        worker = new Worker(new URL("raw_dna_worker.js?v=20261111-6", document.baseURI));
+        worker = new Worker(new URL("raw_dna_worker.js?v=20261111-7", document.baseURI));
         const current = worker;
         busy(true); message("Starting local DNA analysis…");
         for (const id of modelIds) $("raw-" + id + "-status").textContent = `Calculating ${id === "k36" ? "K36" : "K12b"}…`;
