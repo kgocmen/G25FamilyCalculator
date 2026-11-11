@@ -13,8 +13,8 @@ class Element {
   setAttribute(name,value) { this[name]=value; }
   focus() { this.focused=true; }
   close() { this.listeners.close?.(); }
-  createTHead() { return new Element(); }
-  createTBody() { return new Element(); }
+  createTHead() { const e = new Element(); this.append(e); return e; }
+  createTBody() { const e = new Element(); this.append(e); return e; }
   insertRow() { const e=new Element(); this.append(e); return e; }
   insertCell() { const e=new Element(); this.append(e); return e; }
 }
@@ -48,11 +48,15 @@ const storage = new Map();
 const sessionStorage = { getItem(key) { return storage.get(key) || null; }, setItem(key, value) { storage.set(key, value); } };
 vm.runInNewContext(fs.readFileSync(require('node:path').join(__dirname, '../calculator/mixture.js'), 'utf8'), { window });
 const context={window,document,Worker,URL:workerURLs,Blob,console,sessionStorage};
+document.querySelector('#remaining-step').value = '5';
 let source=fs.readFileSync(require('node:path').join(__dirname, '../calculator/app.js'),'utf8');
 source=source.replace('  render();\n})();','  window.testApi = {state, familyLocks, familyReverts, render, optimiseFamily, setTarget, changeBlacklist, changeWhitelist, allowedReferences, allowedPcaReferences, renderMedievalFit};\n  render();\n})();');
 vm.runInNewContext(source,context);
 const api=window.testApi;
 const button=()=>document.querySelector('#family-optimise');
+assert.equal(api.state.mode, 11);
+assert.equal(document.querySelector('#raw-workspace').hidden, false);
+assert.equal(document.querySelector('#family-inputs').hidden, true);
 familyTabs[1].listeners.click();
 assert.equal(api.state.mode,4);
 api.state.slots[4][0]=row('Saved grandparent',.2);
@@ -142,25 +146,42 @@ api.state.slots[4][1]=row('Paste2',.3,undefined); delete api.state.slots[4][1].s
 api.render();
 assert.equal(button().disabled,false);
 assert.ok(revoked.length > 0);
-for (const key of ['suggestions', 'closest', 'metrics']) {
+for (const key of ['suggestions', 'closest', 'remaining', 'metrics']) {
   const toggle = document.querySelector('#' + key + '-accordion-toggle');
   const body = document.querySelector('#' + key + '-accordion-body');
   assert.equal(toggle.hidden, false);
   toggle.listeners.click();
   assert.equal(body.hidden, true);
   assert.equal(toggle['aria-expanded'], 'false');
-  for (const mode of [0, 1]) {
-    api.state.mode = mode;
-    api.render();
-    assert.equal(toggle.hidden, true);
-    assert.equal(body.hidden, false);
-  }
+  api.state.mode = 1;
+  api.render();
+  assert.equal(toggle.hidden, true);
+  assert.equal(body.hidden, false);
+  api.state.mode = 0;
+  api.render();
+  assert.equal(toggle.hidden, key === 'suggestions');
+  assert.equal(body.hidden, key !== 'suggestions');
   api.state.mode = 4;
   api.render();
   assert.equal(body.hidden, true);
   toggle.listeners.click();
   assert.equal(body.hidden, false);
 }
+api.state.mode = 2;
+api.state.offspring = row('Entered child', .5);
+api.state.slots[2] = [row('Mother', .2), row('Father', .6)];
+api.render();
+for (const id of ['matches-panel', 'remaining-admixture-panel', 'metrics-group']) {
+  assert.equal(document.querySelector('#' + id).hidden, false);
+}
+assert.equal(document.querySelector('#suggestions-panel').hidden, true);
+assert.match(document.querySelector('#remaining-a-title').textContent, /Entered child/);
+assert.match(document.querySelector('#remaining-b-title').textContent, /Mother\+Father/);
+api.state.selectedIndexByMode[2] = 0;
+api.render();
+assert.match(document.querySelector('#remaining-a-title').textContent, /Mother/);
+assert.equal(document.querySelector('#remaining-admixture-panel').hidden, false);
+api.state.selectedIndexByMode[2] = null;
 // Blacklisting changes the search pool, leaves current/locked inputs intact,
 // persists for this tab, and cancels old searches before rerunning Analyse.
 api.state.mode = 2;
@@ -407,6 +428,16 @@ api.state.mode = 0;
 api.state.compare = [row('A', .2), row('B', .2001)];
 document.querySelector('#remaining-step').value = '5';
 api.render();
+for (const key of ['closest', 'remaining', 'metrics']) {
+  assert.equal(document.querySelector('#' + key + '-accordion-toggle').hidden, false);
+  assert.equal(document.querySelector('#' + key + '-accordion-body').hidden, false);
+}
+document.querySelector('#remaining-accordion-toggle').listeners.click();
+assert.equal(document.querySelector('#remaining-accordion-body').hidden, true);
+api.render();
+assert.equal(document.querySelector('#remaining-accordion-body').hidden, true);
+document.querySelector('#remaining-accordion-toggle').listeners.click();
+assert.equal(document.querySelector('#suggestions-accordion-toggle').hidden, true);
 const closestNames = (selector) => document.querySelector(selector).children[0].children[1].children
   .map((tableRow) => tableRow.children[1].textContent);
 assert.equal(closestNames('#actual-matches').filter((name) => name.startsWith('B: ')).length, 1);
@@ -415,6 +446,14 @@ assert.equal(closestNames('#actual-matches').some((name) => name.startsWith('A �
 assert.equal(closestNames('#calculated-matches').filter((name) => name.startsWith('A: ')).length, 1);
 assert.equal(closestNames('#calculated-matches').some((name) => name.startsWith('A · modern') ||
   name.startsWith('B · modern')), false);
+for (const selector of ['#remaining-a', '#remaining-b']) {
+  const cells = document.querySelector(selector).children[0].children[1].children
+    .flatMap((tableRow) => tableRow.children.map((cell) => cell.textContent));
+  assert.equal(cells.some((value) => /^A · modern$|^B · modern$/.test(value)), false);
+}
+const html = fs.readFileSync(require('node:path').join(__dirname, '../calculator/index.html'), 'utf8');
+assert.ok(html.indexOf('id="matches-panel"') < html.indexOf('id="remaining-admixture-panel"'));
+assert.ok(html.indexOf('id="remaining-admixture-panel"') < html.indexOf('id="metrics-group"'));
 const previousParents = JSON.stringify(api.state.slots[2]);
 modeButtons[5].listeners.click();
 assert.equal(api.state.mode, 11);

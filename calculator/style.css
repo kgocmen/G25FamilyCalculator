@@ -285,9 +285,10 @@ dialog::backdrop { background: rgba(13, 35, 54, .55); }
 .accordion-toggle::after { content: "−"; font-size: 22px; }
 .accordion-toggle[aria-expanded="false"]::after { content: "+"; }
 .accordion-toggle[aria-expanded="true"] { margin-bottom: 16px; }
-.family-accordion #matches-title, .family-accordion #suggestions-title { display: none; }
-#metrics-group.family-accordion .panel { width: auto; margin: 0; padding: 16px 0; transform: none; border: 0; border-radius: 0; box-shadow: none; }
-#metrics-group.family-accordion .panel + .panel { border-top: 1px solid #e9eef2; }
+.comparison-accordion #matches-title, .comparison-accordion #suggestions-title,
+.comparison-accordion #remaining-admixture-title { display: none; }
+#metrics-group.comparison-accordion .panel { width: auto; margin: 0; padding: 16px 0; transform: none; border: 0; border-radius: 0; box-shadow: none; }
+#metrics-group.comparison-accordion .panel + .panel { border-top: 1px solid #e9eef2; }
 
 /* Population controls: compact entry point, spacious shared drawer. */
 .page-title-row { display: flex; align-items: center; justify-content: space-between; gap: 20px; }

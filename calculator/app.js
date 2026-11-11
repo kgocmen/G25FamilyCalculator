@@ -23,7 +23,7 @@
   const generation = { 2: "PARENTS", 4: "GRANDPARENTS", 8: "GREAT-GRANDPARENTS" };
   const singular = { 2: "parent", 4: "grandparent", 8: "great_grandparent" };
   const state = {
-    mode: 2,
+    mode: 11,
     familyMode: 2,
     turkish: false,
     analysisView: "modern",
@@ -492,20 +492,23 @@
   let familyJob = null;
   let familyMessage = "";
 
-  const familyAccordionOpen = { suggestions: true, closest: true, metrics: true };
+  const comparisonAccordionOpen = { suggestions: true, closest: true, remaining: true, metrics: true };
 
-  function renderFamilyAccordions() {
+  function renderComparisonAccordions() {
     const family = [2, 4, 8].includes(state.mode);
-    for (const [key, panel] of [["suggestions", "suggestions-panel"], ["closest", "matches-panel"], ["metrics", "metrics-group"]]) {
-      const expanded = !family || familyAccordionOpen[key];
-      $("#" + panel).classList.toggle("family-accordion", family);
+    const comparing = family || state.mode === 0;
+    for (const [key, panel] of [["suggestions", "suggestions-panel"], ["closest", "matches-panel"],
+      ["remaining", "remaining-admixture-panel"], ["metrics", "metrics-group"]]) {
+      const enabled = key === "suggestions" ? family : comparing;
+      const expanded = !enabled || comparisonAccordionOpen[key];
+      $("#" + panel).classList.toggle("comparison-accordion", enabled);
       const button = $("#" + key + "-accordion-toggle");
-      button.hidden = !family;
+      button.hidden = !enabled;
       button.setAttribute("aria-expanded", String(expanded));
       $("#" + key + "-accordion-body").hidden = !expanded;
     }
-    $("#metrics-group").classList.toggle("panel", family);
-    $("#metrics-group").classList.toggle("matches-panel", family);
+    $("#metrics-group").classList.toggle("panel", comparing);
+    $("#metrics-group").classList.toggle("matches-panel", comparing);
   }
 
   function familyFingerprint(mode) {
@@ -962,7 +965,7 @@
     if (familyMode) state.familyMode = mode;
     if (mode !== 9) cancelVisualiseClusters();
     renderFamilyOptimise();
-    renderFamilyAccordions();
+    renderComparisonAccordions();
     if (mode !== 10) cancelMedieval();
     references = allowedReferences(activeReferenceRows());
     renderBlacklist();
@@ -2903,7 +2906,7 @@
     const candidates = category === "all" ? references : references.filter((row) => row[0] === category);
     preparedMatches = core.prepareMatches(targetComparison.actual, targetComparison.calculated, candidates);
     preparedContext = { selectedName, compareMode };
-    if (compareMode) renderRemainingTables();
+    renderRemainingTables();
     const slider = $("#metric-limit");
     slider.max = String(preparedMatches.furthestDistance);
     slider.value = String(Math.min(state.metricLimit, preparedMatches.furthestDistance));
@@ -2912,19 +2915,27 @@
   }
 
   function renderRemainingTables() {
-    if (state.mode !== 0 || !state.compare.every(Boolean) || !references.length) return;
+    if (![0, 2, 4, 8].includes(state.mode) || !preparedMatches || !references.length) return;
     $("#remaining-admixture-panel").hidden = false;
-    const [actual, calculated] = state.compare;
+    const { actual, calculated } = preparedMatches;
     const category = $("#remaining-category").value;
     const step = Number($("#remaining-step").value);
-    const candidates = category === "all" ? references : references.filter((row) => row[0] === category);
+    const pool = category === "all" ? references : references.filter((row) => row[0] === category);
+    const candidates = core.excludeTargetReferences(pool, [actual, calculated]);
     $("#remaining-a-title").textContent = `A: ${actual.label} ≈ % B: ${calculated.label} + remainder`;
     $("#remaining-b-title").textContent = `B: ${calculated.label} ≈ % A: ${actual.label} + remainder`;
+    if (!candidates.length) {
+      for (const [selector, source] of [["#remaining-a", "B"], ["#remaining-b", "A"]]) {
+        renderRemainingAdmixture($(selector), [], source, "No other reference populations are available.");
+      }
+      return;
+    }
     renderRemainingAdmixture($("#remaining-a"), core.visibleRemainingAdmixture(core.summarizeRemainingAdmixture(core.remainingAdmixture(actual, calculated, candidates, step), actual, calculated, candidates), candidates, [actual, calculated]), "B");
     renderRemainingAdmixture($("#remaining-b"), core.visibleRemainingAdmixture(core.summarizeRemainingAdmixture(core.remainingAdmixture(calculated, actual, candidates, step), calculated, actual, candidates), candidates, [actual, calculated]), "A");
   }
 
-  function renderRemainingAdmixture(container, fits, sourceName) {
+  function renderRemainingAdmixture(container, fits, sourceName,
+    emptyMessage = "No remaining population improves on the direct A–B distance.") {
     const table = document.createElement("table");
     table.className = "matches-table";
     const head = table.createTHead().insertRow();
@@ -2934,6 +2945,12 @@
       head.append(cell);
     }
     const body = table.createTBody();
+    if (!fits.length) {
+      const cell = body.insertRow().insertCell();
+      cell.colSpan = 4;
+      cell.className = "empty-matches";
+      cell.textContent = emptyMessage;
+    }
     const bestDistance = Math.min(...fits.filter((fit) => fit.best).map((fit) => fit.best.distance));
     for (const { percent, remainingPercent, best, isGroupBest } of fits) {
       const row = body.insertRow();
@@ -2959,7 +2976,7 @@
     const metricLimit = Number($("#metric-limit").value);
     $("#metric-limit-value").textContent = metricLimit.toFixed(3);
     const { selectedName, compareMode } = preparedContext;
-    const lists = core.rankMatches(preparedMatches, 10, metricLimit, state.closestCount, compareMode);
+    const lists = core.rankMatches(preparedMatches, 10, metricLimit, state.closestCount, true);
     $("#actual-matches-title").textContent = compareMode
       ? `Up to ${state.closestCount} closest to A: ${preparedMatches.actual.label}`
       : `Up to ${state.closestCount} closest to entered ${selectedName}: ${preparedMatches.actual.label}`;
@@ -3184,10 +3201,10 @@
     familyMessage = "";
     render();
   });
-  for (const key of ["suggestions", "closest", "metrics"]) {
+  for (const key of ["suggestions", "closest", "remaining", "metrics"]) {
     $("#" + key + "-accordion-toggle").addEventListener("click", () => {
-      familyAccordionOpen[key] = !familyAccordionOpen[key];
-      renderFamilyAccordions();
+      comparisonAccordionOpen[key] = !comparisonAccordionOpen[key];
+      renderComparisonAccordions();
     });
   }
   $("#open-populations").addEventListener("click", () => {

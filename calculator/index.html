@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#14243b">
   <link rel="icon" href="../favicon.ico?v=20261106-1" type="image/x-icon">
   <title>G25 Family Calculator</title>
-  <link rel="stylesheet" href="style.css?v=20261027-6">
+  <link rel="stylesheet" href="style.css?v=20261111-1">
   <link rel="stylesheet" href="k12b.css?v=20261029-1">
   <link rel="stylesheet" href="health.css?v=20261111-1">
   <script defer src="references.js?v=20261026-2"></script>
@@ -33,7 +33,7 @@
   <script defer src="health.js?v=20261111-5"></script>
   <script defer src="report_pdf.js?v=20261111-3"></script>
   <script defer src="raw_data_ui.js?v=20261111-7"></script>
-  <script defer src="app.js?v=20261111-1"></script>
+  <script defer src="app.js?v=20261111-2"></script>
 </head>
 <body>
   <main class="shell">
@@ -50,7 +50,7 @@
     <section class="panel input-panel" aria-labelledby="inputs-title">
       <div class="section-head">
         <div>
-          <h2 id="inputs-title">Family</h2>
+          <h2 id="inputs-title">Raw Data</h2>
           <p id="inputs-intro" class="legacy-copy" hidden></p>
         </div>
         <div class="input-head-actions">
@@ -62,11 +62,11 @@
         <button class="mode-button" type="button" data-mode="1" aria-pressed="false">Analyse</button>
         <button class="mode-button" type="button" data-mode="0" aria-pressed="false">Compare</button>
         <button class="mode-button" type="button" data-mode="9" aria-pressed="false">Visualise</button>
-        <button class="mode-button active" type="button" data-mode="family" aria-pressed="true" aria-controls="family-tabs">Family</button>
+        <button class="mode-button" type="button" data-mode="family" aria-pressed="false" aria-controls="family-tabs">Family</button>
         <button class="mode-button" type="button" data-mode="10" aria-pressed="false" aria-controls="period-tabs">Breakdown</button>
-        <button class="mode-button" type="button" data-mode="11" aria-pressed="false" aria-controls="raw-workspace">Raw Data</button>
+        <button class="mode-button active" type="button" data-mode="11" aria-pressed="true" aria-controls="raw-workspace">Raw Data</button>
       </div>
-      <div id="family-tabs" class="family-tabs" role="tablist" aria-label="Family generation">
+      <div id="family-tabs" class="family-tabs" role="tablist" aria-label="Family generation" hidden>
         <button id="family-tab-parents" class="family-tab active" type="button" role="tab" data-family-mode="2" aria-selected="true" aria-controls="family-inputs">2 parents</button>
         <button id="family-tab-grandparents" class="family-tab" type="button" role="tab" data-family-mode="4" aria-selected="false" aria-controls="family-inputs">4 grandparents</button>
         <button id="family-tab-great-grandparents" class="family-tab" type="button" role="tab" data-family-mode="8" aria-selected="false" aria-controls="family-inputs">8 great-grandparents</button>
@@ -77,7 +77,7 @@
         <button id="late-medieval-tab" class="analysis-tab" type="button" role="tab" aria-selected="false" aria-controls="medieval-breakdown-panel">Late Medieval</button>
         <button id="modern-analysis-tab" class="analysis-tab active" type="button" role="tab" aria-selected="true" aria-controls="medieval-breakdown-panel">Modern</button>
       </div>
-      <div id="raw-workspace" hidden aria-busy="false">
+      <div id="raw-workspace" aria-busy="false">
         <p class="raw-intro">MyHeritage or AncestryDNA → Eurogenes K36 &amp; Dodecad K12b → simulated G25</p>
         <p class="method-note">Your DNA is processed in this browser and is never uploaded or saved.</p>
         <div class="raw-input-grid">
@@ -173,7 +173,7 @@
         <p id="compare-status" class="method-note" role="status">Enter both A and B.</p>
         <p id="compare-distance" class="comparison" hidden></p>
       </div>
-      <div id="family-inputs" role="tabpanel" aria-labelledby="family-tab-parents">
+      <div id="family-inputs" role="tabpanel" aria-labelledby="family-tab-parents" hidden>
         <div class="group-label"><span>CHILD</span></div>
         <div class="family-controls">
           <div class="family-weight-controls">
@@ -198,7 +198,7 @@
       </div>
     </section>
 
-    <section id="result-panel" class="panel result-panel" aria-labelledby="result-title">
+    <section id="result-panel" class="panel result-panel" aria-labelledby="result-title" hidden>
       <div class="section-head">
         <div>
           <h2 id="result-title">Calculated G25 row</h2>
@@ -452,6 +452,8 @@
     </section>
 
     <section id="remaining-admixture-panel" class="panel matches-panel" aria-labelledby="remaining-admixture-title" hidden>
+      <button id="remaining-accordion-toggle" class="accordion-toggle" type="button" aria-expanded="true" aria-controls="remaining-accordion-body" hidden>Best fitting remaining</button>
+      <div id="remaining-accordion-body">
       <div class="section-head">
         <h2 id="remaining-admixture-title">Best fitting remaining admixture</h2>
         <label class="match-filter">Percentage step
@@ -478,6 +480,7 @@
           <h3 id="remaining-b-title">B ≈ % A + remainder</h3>
           <div id="remaining-b" class="table-scroll" tabindex="0" role="region" aria-label="Best remaining admixture for B"></div>
         </div>
+      </div>
       </div>
     </section>
 
