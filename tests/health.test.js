@@ -57,6 +57,9 @@ test("LPA rs10455872 flags the G allele, not AA, as increased Lp(a) association"
     const parsed = raw.parse(`RSID,CHROMOSOME,POSITION,RESULT\nrs10455872,6,1,${genotype}`);
     const match = health.matchCalls(parsed.calls, parsed.special).find(({ id }) => id === "rs10455872");
     assert.equal(match?.flag, flag, genotype);
+    assert.match(match.meaning, /kan testiyle/);
+    if (genotype === "AA") assert.match(match.meaning, /G aleli yoktur/);
+    else assert.match(match.meaning, new RegExp(`${genotype === "AG" ? "Bir" : "İki"} G aleli, daha yüksek Lp\\(a\\)`));
   }
 });
 
