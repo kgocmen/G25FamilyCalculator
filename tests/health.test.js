@@ -79,11 +79,12 @@ test("APOE markers are explained independently and the e2-neutral result does no
     result("TT", "CT").get("rs429358").meaning);
 });
 
-test("ambiguous neutral heterozygotes state that two different alleles are present", () => {
+test("neutral markers use their own phenotype interpretation without a generic suffix", () => {
   const parsed = raw.parse("RSID,CHROMOSOME,POSITION,RESULT\nrs174537,11,1,CT");
   const match = health.matchCalls(parsed.calls, parsed.special).find(({ id }) => id === "rs174537");
   assert.equal(match.flag, "neutral");
-  assert.match(match.meaning, /Heterozigot: bu konumda iki farklı alel bulunuyor/);
+  const source = health.variants.find(({ id }) => id === "rs174537");
+  assert.equal(match.meaning, source.genotypes.CT.meaning);
 });
 
 test("SLCO1B1 rs4149056 keeps the source's genotype-specific statin meanings", () => {

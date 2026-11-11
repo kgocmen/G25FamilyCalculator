@@ -34,13 +34,6 @@
       if (key) matches.push({ id, genotype: normalize(genotype), category,
         flag: genotypes[key].flag, meaning: genotypes[key].meaning });
     }
-    for (const match of matches) {
-      if (match.flag === "neutral" && match.genotype.length === 2 &&
-          match.genotype[0] !== match.genotype[1] &&
-          !/heterozigot|taşıyıcı/i.test(match.meaning)) {
-        match.meaning += " Heterozigot: bu konumda iki farklı alel bulunuyor.";
-      }
-    }
     return matches;
   }
 
