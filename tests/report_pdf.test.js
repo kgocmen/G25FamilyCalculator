@@ -116,7 +116,8 @@ test("PDF Oracle omits two-way fits when every distance is at least four", () =>
   } } }, g25: null, health: null });
   for (const section of report.sections.filter(({ title }) => title.startsWith("K12b Oracle") &&
     (title.includes("two-population fits") || title.includes("Ancient") || title.includes("All")))) {
-    const twoWay = section.entries.findIndex((entry) => entry.text === "Two-population fits");
+    const heading = section.title.includes("All") ? "Modern + ancient fits" : "Two-population fits";
+    const twoWay = section.entries.findIndex((entry) => entry.text === heading);
     assert.ok(twoWay >= 0);
     assert.equal(section.entries[twoWay + 1].text, "No fit below distance 4.");
     assert.ok(!section.entries.slice(twoWay + 1).some((entry) => Number.isFinite(entry.oracleDistance)));
@@ -132,10 +133,13 @@ test("PDF All Oracle includes modern and ancient mixed pairs", () => {
     k12b: { fit: { proportions } },
   }, g25: null, health: null });
   const all = report.sections.find(({ title }) => title === "K12b Oracle · All (Modern + Ancient)");
+  assert.ok(!all.entries.some((entry) => entry.text === "Two-population fits"));
+  assert.equal(all.entries.filter((entry) => entry.text === "Closest populations").length, 1);
+  assert.equal(all.entries.slice(1, 16).filter((entry) => Number.isFinite(entry.oracleDistance)).length, 15);
   const mixedHeading = all.entries.findIndex((entry) => entry.text === "Modern + ancient fits");
   assert.ok(mixedHeading >= 0);
   const mixedFits = all.entries.slice(mixedHeading + 1).filter((entry) => Number.isFinite(entry.oracleDistance));
-  assert.ok(mixedFits.length > 0);
+  assert.equal(mixedFits.length, 10);
   assert.ok(mixedFits.some((entry) => entry.oracleDistance < 1e-8 &&
     entry.oracleName.includes(modern[0].replaceAll("_", " ")) &&
     entry.oracleName.includes(ancient[0].replaceAll("_", " "))));

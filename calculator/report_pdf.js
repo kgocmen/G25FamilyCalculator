@@ -111,8 +111,7 @@
       sections.push({ title: "K12b Oracle · All (Modern + Ancient)", pageBreakBefore: true,
         entries: oracleEntries(values, "all", [
           ["Closest populations", "yakinlik1", k12b.nearest],
-          ["Two-population fits", "ikili1", k12b.twoWay],
-          ["Modern + ancient fits", "ikili1", k12b.twoWayCross, 5],
+          ["Modern + ancient fits", "ikili1", k12b.twoWayCross, 10],
         ]) });
     } else {
       for (const title of ["K12b Oracle · Modern", "K12b Oracle · Modern two-population fits",
