@@ -1,7 +1,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { labels, distanceColor, parseProfile, nearest, twoWay, twoWayCross,
-  referenceRows } = require("../calculator/k12b.js");
+  referenceRows, oracleSets } = require("../calculator/k12b.js");
 
 test("parses GEDmatch-style labeled lines in any order and normalizes rounding", () => {
   const input = labels.map((label, i) => `${i + 1} ${label} ${i === 0 ? "50.1" : i === 1 ? "49.8" : "0"}%`).reverse().join("\n");
@@ -48,6 +48,14 @@ test("All Oracle can show a genuine modern and ancient pair", () => {
   assert.ok(mixed[0].distance < 1e-8);
   assert.equal(twoWayCross(modern[0].slice(1), modern, ancient).length, 0,
     "an endpoint with 0% ancient ancestry is not a mixed pair");
+});
+
+test("site Oracle sets match the PDF for Ancient and All", () => {
+  assert.deepEqual(oracleSets("ancient").map(([title]) => title),
+    ["Closest populations", "Two-population fits"]);
+  assert.deepEqual(oracleSets("all").map(([title]) => title),
+    ["Closest populations", "Modern + ancient fits"]);
+  assert.equal(oracleSets("modern").length, 4);
 });
 
 test("K12b distance colors match the source site's threshold palette", () => {

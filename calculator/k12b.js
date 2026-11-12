@@ -95,8 +95,25 @@
     return category === "all" ? periods.modern.concat(periods.ancient) : periods[category];
   }
 
+  function oracleSets(category) {
+    if (category === "all") return [
+      ["Closest populations", "yakinlik1", nearest],
+      ["Modern + ancient fits", "ikili1", twoWayCross],
+    ];
+    if (category === "ancient") return [
+      ["Closest populations", "yakinlik1", nearest],
+      ["Two-population fits", "ikili1", twoWay],
+    ];
+    return [
+      ["Closest populations", "yakinlik1", nearest],
+      ["Turkey province references", "yakinlik2tr", nearest],
+      ["Two-population fits", "ikili1", twoWay],
+      ["Turkey two-population fits", "ikili2tr", twoWay],
+    ];
+  }
+
   const api = { labels, colors, oracleFitLimit, distanceColor, parseProfile, distance, nearest,
-    twoWay, twoWayCross, referenceRows };
+    twoWay, twoWayCross, referenceRows, oracleSets };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   root.G25K12B = api;
   if (!root.document) return;
@@ -137,14 +154,7 @@
   function renderMatches(values) {
     const container = $("k12b-matches"); container.replaceChildren();
     const category = $("k12b-reference-category").value;
-    const sets = [
-      ["Closest populations", "yakinlik1", nearest],
-      [category === "modern" ? "Turkey province references" : "Expanded references", "yakinlik2tr", nearest],
-      ["Two-population fits", "ikili1", twoWay],
-      ["Turkey two-population fits", "ikili2tr", twoWay],
-    ];
-    if (category === "all") sets.push(["Modern + ancient fits", "ikili1", twoWayCross]);
-    for (const [title, id, calculate] of sets) {
+    for (const [title, id, calculate] of oracleSets(category)) {
       const rows = referenceRows(id, category);
       if (!rows.length) continue;
       const box = appendText(container, "section", "", "k12b-match-set");
