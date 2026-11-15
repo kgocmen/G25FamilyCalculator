@@ -62,7 +62,7 @@ From the repository root:
 
 ```sh
 OPENBLAS_NUM_THREADS=1 python build/build_raw_models.py /path/to/source/files
-node --test tests/raw_dna.test.js
+node --test tests/raw_dna.test.js tests/k12b_engine.test.js tests/raw_dna_worker.test.js
 ```
 
 Also save the published script as `K36vertical.js` in the source directory.
@@ -82,7 +82,7 @@ on demand in a dedicated worker, keeping existing tabs responsive.
 
 ## Inference and allele orientation
 
-`raw_dna.js` matches rsID, excludes no-calls, indels, non-autosomal records and
+For K36 and Health, `raw_dna.js` matches rsID, excludes no-calls, indels, non-autosomal records and
 conflicting duplicate rsIDs, and complements alleles only when an unambiguous
 direct match fails. Positions are not used for matching, so no genome lift-over
 is performed. Both supplied panels exclude A/T and C/G palindromic sites. The
@@ -94,7 +94,7 @@ table row. This is also explicit in radmixture's
 it uses `1-F` when counting the first allele. Our dosage counts the second allele
 directly and uses the published `F` unchanged.
 
-For each called SNP, let `g` be the second-allele dosage (0/1/2), `f` its fixed
+For K36, let `g` be the second-allele dosage (0/1/2), `f` its fixed
 component frequencies and `q` the ancestry fractions. Maximize:
 
 ```text
@@ -110,9 +110,53 @@ produce G25. At least 10,000 matched SNPs are required by this app; below 40,000
 coverage is flagged as low. These are application quality thresholds, not a claim
 that every export exceeding them has a calibrated ancestry estimate.
 
-K36 and K12b are independent fitted profiles; neither is inferred from the other.
-Results are not claimed to reproduce GEDmatch exactly. Calculator effects,
-reference coverage, array ascertainment and different numerical methods matter.
+### K12b compatibility with Turkish Genomics
+
+K12b uses the mathematical procedure published by
+[Emre Tarhan's admixture engine](https://github.com/emre-tarhan/admixture/tree/8d9f0cbc856ee37c53593e8541eb17bd328187e2).
+The developer explicitly identifies it as the engine running on Turkish Genomics
+in [his article](https://emretarhan.net/admixture-ancestral-composition/).
+The audited revision is `8d9f0cbc856ee37c53593e8541eb17bd328187e2` (v0.1.1).
+The implementation here is independent JavaScript; the fixture outputs were
+evaluated by the unmodified upstream Go calculator against synthetic genotypes.
+
+`k12b_engine.js` matches rsIDs and counts the first and last reported genotype
+characters directly, without strand complements. Each recognizable allele
+contributes separately; partial calls can therefore contribute one copy, and a
+single-character call contributes two copies, matching upstream behavior. The
+last row for a duplicate rsID wins. These reported calls are kept separately
+from the filtered calls used by K36 and Health and are cleared after processing.
+Sites with neither allele matching the reference contribute nothing. Coverage
+in this app counts sites that actually contribute; the upstream matched-SNP
+counter includes all overlapping rsIDs, even no-calls.
+
+The frequency table is numerically identical to our existing Dodecad/radmixture
+table (SHA-256 `4570adb5faef88dbe5b211845879e3be9d459cb9a45dfdff5d5ab8a2ec5ce3fd`).
+All original values have at most six decimal places. Rounding the float32 bundle
+to those six decimals recovers the exact published float64 inputs, avoiding
+precision differences at the solver's stopping boundary. No model asset is
+replaced or downloaded from Turkish Genomics at runtime.
+
+K12b minimizes the unaveraged binomial negative log-likelihood with observed
+copy counts. It starts at a uniform mixture and projects gradient steps onto
+the simplex. The initial learning rate is 0.001; accepted steps multiply it by
+1.1, rejected steps halve it. Probabilities are clamped to `[1e-9, 1-1e-9]`.
+It stops after an accepted likelihood improvement below **1e-4** (the upstream
+HTTP API default), a learning rate below 1e-10, or 5,000 proposals. Iteration-limit
+results are provisional. Completing this upstream stopping rule does not mean
+the stricter K36 projected-gradient criterion has been met.
+
+The earlier K12b calculation used the same strand matching and strict optimizer
+as K36. Matching the allele-frequency table alone did not establish Turkish
+Genomics compatibility. The new conformance fixtures exercise the published
+engine's stopping rule, direct matching, partial calls, and missing data.
+
+K36 and K12b remain independent fitted profiles; neither is inferred from the
+other. Compatibility is checked against the pinned public engine, not a live
+server revision or the user's private DNA. Exact agreement with GEDmatch is
+not established: Dienekes also
+[documented different termination criteria in GEDmatch](https://dodecad.blogspot.com/2011/09/third-party-tools-based-on-dodecad.html)
+in 2011; that historical note does not identify GEDmatch's current implementation.
 
 ## Active G25 regression: published Vbknethio formula
 

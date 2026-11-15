@@ -73,6 +73,48 @@ test('browser PDF module can calculate K12b Oracle from the exposed K12b API', (
   assert.equal(report.sections[7].title, 'K12b Oracle · All (Modern + Ancient)');
 });
 
+test('K12b status identifies the Turkish Genomics method and its partial allele coverage', () => {
+  const { $, start } = workspace();
+  const worker = start();
+  worker.onmessage({ data: { type: 'result', id: 'k12b',
+    fit: { proportions: [1, ...Array(11).fill(0)], converged: true, iterations: 90,
+      method: 'turkish-genomics-k12b-8d9f0cbc' },
+    stats: { matched: 50000, total: 166770, coverage: 50000 / 166770, partial: 12, incompatible: 34 } } });
+  assert.match($('raw-k12b-status').textContent, /Completed in 90 iterations/);
+  assert.match($('raw-k12b-status').textContent, /12 SNPs used one reported allele/);
+});
+
+test('calculated K12b percentages render at full precision before display rounding', () => {
+  const { $, window } = workspace();
+  const values = [.156450001, .843549999, ...Array(10).fill(0)];
+  window.G25K12BUI.setProfile(values);
+  assert.equal($('k12b-table').children[0].children[2].textContent, '15.65%');
+  assert.equal($('k12b-table').children[1].children[2].textContent, '84.35%');
+});
+
+test('selecting another raw file refreshes the sample name and stops the previous calculation', () => {
+  const { $, start } = workspace();
+  const worker = start();
+  assert.equal($('raw-sample-name').value, 'synthetic');
+  $('raw-sample-name').value = 'Previous custom name';
+  $('raw-file').files = [{ name: 'Next sample.csv', size: 100 }];
+  $('raw-file').listeners.change();
+  assert.equal($('raw-sample-name').value, 'Next sample');
+  assert.equal(worker.terminated, true);
+  $('raw-file').files = [];
+  $('raw-file').listeners.change();
+  assert.equal($('raw-sample-name').value, '');
+});
+
+test('K12b summary shows Medieval Turkic as a rounded integer percentage', () => {
+  const { $, window } = workspace();
+  const values = [.8946, .039, ...Array(7).fill(0), .0664, 0, 0];
+  window.G25K12BUI.setProfile(values);
+  const card = $('k12b-summary').children[1];
+  assert.equal(card.children[0].textContent, 'Medieval Turkic');
+  assert.equal(card.children[1].textContent, '24%');
+});
+
 test('Health is independent of ancestry results; tabs wrap and reset to K12b Chart', () => {
   const { $, click, key, start, document } = workspace();
   const worker = start();
@@ -102,19 +144,33 @@ test('Health is independent of ancestry results; tabs wrap and reset to K12b Cha
   assert.equal($('k12b-chart').children.length, 0);
 });
 
-test('K36 renders a normalized pie and all 36 legend rows, then clears both', () => {
+test('K36 sorts the pie and legend descending while retaining component colors and model order', () => {
   const { $, click, start } = workspace();
   const worker = start();
+  const components = Array.from({ length: 36 }, (_, i) => 'Component_' + i);
+  const proportions = [1, 3, ...Array(34).fill(0)];
   worker.onmessage({ data: { type: 'result', id: 'k36',
-    components: Array.from({ length: 36 }, (_, i) => 'Component_' + i),
-    fit: { proportions: [3, 1, ...Array(34).fill(0)], converged: true, iterations: 5 },
+    components,
+    fit: { proportions, converged: true, iterations: 5 },
     stats: { matched: 50000, total: 160000, coverage: .3125, flipped: 0, incompatible: 0 } } });
   click('raw-k36-tab');
   assert.equal($('raw-k36').hidden, false);
   const svg = $('raw-k36-chart').children[0];
   assert.equal(svg.children.length, 2);
-  assert.equal(svg.children[0].children[0].textContent, 'Component 0 75.00%');
+  assert.equal(svg.children[0].children[0].textContent, 'Component 1 75.00%');
+  assert.equal(svg.children[1].children[0].textContent, 'Component 0 25.00%');
+  assert.equal(svg.children[0].fill, 'hsl(137.508 55% 52%)');
+  assert.equal(svg.children[1].fill, 'hsl(0 55% 52%)');
   assert.equal($('raw-k36-table').children.length, 36);
+  const rows = $('raw-k36-table').children;
+  assert.equal(rows[0].children[1].textContent, 'Component 1');
+  assert.equal(rows[0].children[2].textContent, '75.00%');
+  assert.equal(rows[0].children[0].style.backgroundColor, svg.children[0].fill);
+  assert.equal(rows[1].children[1].textContent, 'Component 0');
+  assert.equal(rows[1].children[0].style.backgroundColor, svg.children[1].fill);
+  assert.equal(rows[2].children[1].textContent, 'Component 2');
+  assert.deepEqual(proportions, [1, 3, ...Array(34).fill(0)]);
+  assert.equal(components[0], 'Component_0');
   assert.equal($('raw-k36-copy-row').disabled, false);
   click('raw-reset');
   assert.equal($('raw-k36-chart').children.length, 0);
@@ -139,6 +195,8 @@ test('Download results creates a PDF after fitting without requesting four-way f
   let payload;
   window.G25ReportPdf = { buildReport(input) { payload = input; return { sections: [] }; },
     createPdf() { return new Blob(['%PDF-1.4'], { type: 'application/pdf' }); } };
+  $('raw-file').files = [{ name: 'Previous sample.txt', size: 100 }];
+  $('raw-file').listeners.change();
   const rawWorker = start();
   rawWorker.onmessage({ data: { type: 'health', matches: [], bloodType: { observed: [] } } });
   rawWorker.onmessage({ data: { type: 'result', id: 'k12b',

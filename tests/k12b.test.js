@@ -1,7 +1,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { labels, distanceColor, parseProfile, nearest, twoWay, twoWayCross,
-  referenceRows, oracleSets } = require("../calculator/k12b.js");
+const { labels, distanceColor, parseProfile, nearest, twoWay, twoWay50, twoWayCross,
+  referenceRows, oracleSets, summarizeProfile } = require("../calculator/k12b.js");
 
 test("parses GEDmatch-style labeled lines in any order and normalizes rounding", () => {
   const input = labels.map((label, i) => `${i + 1} ${label} ${i === 0 ? "50.1" : i === 1 ? "49.8" : "0"}%`).reverse().join("\n");
@@ -37,6 +37,24 @@ test("K12b Oracle only shows two-way fits strictly below four", () => {
   assert.equal(nearest(target, [row("At_four", 4, 0)]).length, 1);
 });
 
+test("50/50 fits rank fixed averages without optimizing the proportions", () => {
+  const row = (name, first) => [name, first, 100 - first, ...Array(10).fill(0)];
+  const rows = [row("A", 55), row("B", 45), row("C", 49)];
+  const target = row("Target", 52).slice(1);
+  const fits = twoWay50(target, rows);
+  assert.equal(fits[0].name, "A");
+  assert.equal(fits[0].other, "C");
+  assert.equal(fits[0].distance, 0);
+  assert.ok(fits.every(({ weight }) => weight === 0.5));
+  const ab = fits.find(({ name, other }) => name === "A" && other === "B");
+  assert.ok(Math.abs(ab.distance - Math.sqrt(8)) < 1e-10);
+  assert.equal(twoWay(target, rows.slice(0, 2))[0].distance, 0);
+  assert.equal(twoWay50(target, rows, 1).length, 1);
+  assert.equal(twoWay50(target, [row("Same A", 52), row("Same B", 52)])[0].distance, 0);
+  assert.equal(twoWay50(Array(12).fill(0), [["A", 4, ...Array(11).fill(0)],
+    ["B", 4, ...Array(11).fill(0)]]).length, 0);
+});
+
 test("All Oracle can show a genuine modern and ancient pair", () => {
   const modern = [["Modern", 100, 0, ...Array(10).fill(0)]];
   const ancient = [["Ancient", 0, 100, ...Array(10).fill(0)]];
@@ -55,7 +73,36 @@ test("site Oracle sets match the PDF for Ancient and All", () => {
     ["Closest populations", "Two-population fits"]);
   assert.deepEqual(oracleSets("all").map(([title]) => title),
     ["Closest populations", "Modern + ancient fits"]);
-  assert.equal(oracleSets("modern").length, 4);
+  assert.deepEqual(oracleSets("modern").map(([title]) => title), [
+    "Closest populations", "Closest Turkey provinces", "Two-population fits (Global)",
+    "Two-population fits (Global, 50/50)",
+    "Two-population fits (Turkish)", "Two-population fits (Turkish, 50/50)",
+  ]);
+  const fixed = oracleSets("modern").filter(([, , calculate]) => calculate === twoWay50);
+  assert.deepEqual(fixed.map(([, id]) => id), ["ikili1", "ikili2tr"]);
+  assert.ok(!oracleSets("ancient").some(([, , calculate]) => calculate === twoWay50));
+  assert.ok(!oracleSets("all").some(([, , calculate]) => calculate === twoWay50));
+});
+
+test("Medieval Turkic multiplies the East Eurasian sum by 2.3 and rounds to an integer", () => {
+  const values = Array(12).fill(0);
+  values[1] = 3.9; values[9] = 6.64;
+  assert.equal(summarizeProfile(values).medievalTurkic, 24);
+  values[3] = 1.17;
+  assert.equal(summarizeProfile(values).medievalTurkic, 27);
+  values[1] = 41; values[3] = 0; values[9] = 0;
+  assert.equal(summarizeProfile(values).medievalTurkic, 94);
+});
+
+test("Turkish 50/50 fits use the existing Turkish reference set at equal proportions", () => {
+  const [, id, calculate] = oracleSets("modern").at(-1);
+  assert.equal(id, "ikili2tr");
+  const rows = referenceRows(id, "modern");
+  const target = rows[0].slice(1).map((value, index) => (value + rows[1][index + 1]) / 2);
+  const fits = calculate(target, rows);
+  assert.ok(fits.some((fit) => fit.distance < 1e-8));
+  const labels = new Set(rows.map(([name]) => name));
+  assert.ok(fits.every((fit) => fit.weight === 0.5 && labels.has(fit.name) && labels.has(fit.other)));
 });
 
 test("K12b distance colors match the source site's threshold palette", () => {
@@ -80,7 +127,7 @@ test("ancient category includes source averages and individual samples", () => {
   assert.ok(ancient.some((row) => row[0] === "Kilis_Orta_Çağ_Türk_MS_950-1050_%10"));
   assert.ok(!modern.some((row) => row[0] === "Kilis_Orta_Çağ_Türk_MS_950-1050_%10"));
   assert.equal(referenceRows("yakinlik2tr", "ancient").length, 150);
-  assert.equal(referenceRows("yakinlik2tr", "modern").length, 650);
+  assert.equal(referenceRows("yakinlik2tr", "modern").length, 649);
   assert.equal(referenceRows("ikili1", "ancient").length, 150);
   assert.equal(referenceRows("ikili2tr", "ancient").length, 0);
 });

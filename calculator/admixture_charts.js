@@ -2,7 +2,7 @@
   "use strict";
   const svgNS = "http://www.w3.org/2000/svg";
 
-  function render({ chart, table, components, values, colors }) {
+  function render({ chart, table, components, values, colors, descending = false }) {
     if (components.length !== values.length || !values.every((v) => Number.isFinite(v) && v >= 0))
       throw new Error("Invalid admixture chart values.");
     const total = values.reduce((sum, value) => sum + value, 0);
@@ -14,7 +14,10 @@
     svg.setAttribute("viewBox", "0 0 300 300");
     svg.setAttribute("aria-hidden", "true");
     let angle = -Math.PI / 2;
-    components.forEach((component, i) => {
+    const order = components.map((_, i) => i);
+    if (descending) order.sort((a, b) => values[b] - values[a] || a - b);
+    order.forEach((i) => {
+      const component = components[i];
       const percent = values[i] * 100 / total;
       const color = colors?.[i] || `hsl(${(i * 137.508) % 360} 55% 52%)`;
       if (percent > 0) {

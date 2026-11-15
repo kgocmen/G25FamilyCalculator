@@ -1,5 +1,5 @@
 "use strict";
-importScripts("raw_dna.js?v=20261104-1");
+importScripts("raw_dna.js?v=20261115-1", "k12b_engine.js?v=20261115-1");
 importScripts("health_data.js?v=20261111-9", "health.js?v=20261111-5");
 
 self.onmessage = async ({ data }) => {
@@ -7,7 +7,7 @@ self.onmessage = async ({ data }) => {
   try {
     if (!data.file || !data.file.size || data.file.size > 100 * 1024 * 1024) throw new Error("Choose a nonempty DNA file smaller than 100 MB.");
     send("status", { message: "Reading DNA SNP calls…" });
-    const { calls, special, stats } = G25RawDNA.parse(await G25RawDNA.readRawText(data.file));
+    const { calls, reportedCalls, special, stats } = G25RawDNA.parse(await G25RawDNA.readRawText(data.file));
     send("parsed", { stats });
     send("health", { matches: G25Health.matchCalls(calls, special),
       bloodType: G25Health.inferBloodType(calls, special) });
@@ -35,11 +35,12 @@ self.onmessage = async ({ data }) => {
         const buffer = await new Response(new Blob([compressed]).stream().pipeThrough(new DecompressionStream("gzip"))).arrayBuffer();
         const model = G25RawDNA.decodeModel(buffer);
         if (model.n !== info.snps || model.k !== info.components.length) throw new Error(`${title} model metadata does not match.`);
-        const matched = G25RawDNA.match(calls, model);
+        const engine = id === "k12b" ? G25K12bEngine : G25RawDNA;
+        const matched = engine.match(id === "k12b" ? reportedCalls : calls, model);
         send("coverage", { id, stats: matched.stats });
         if (matched.stats.matched < 10000) throw new Error(`${title}: only ${matched.stats.matched.toLocaleString()} usable model SNPs matched. At least 10,000 are required; check that this is a complete MyHeritage or AncestryDNA export.`);
         send("status", { message: `Fitting ${title} to ${matched.stats.matched.toLocaleString()} SNPs…` });
-        const fit = G25RawDNA.fit(matched, ({ iteration }) => send("status", {
+        const fit = engine.fit(matched, ({ iteration }) => send("status", {
           message: `Fitting ${title} · iteration ${iteration.toLocaleString()}…`,
         }));
         let g25 = null, regression = null, regressionError = null;
@@ -58,6 +59,7 @@ self.onmessage = async ({ data }) => {
       } catch (error) { send("model-error", { id, message: error.message }); }
     }
     calls.clear();
+    reportedCalls.clear();
     special.clear();
     send("done");
   } catch (error) { send("error", { message: error.message || "Raw DNA processing failed." }); }

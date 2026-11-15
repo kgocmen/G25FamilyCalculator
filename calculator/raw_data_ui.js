@@ -116,17 +116,20 @@
       const prefix = "raw-" + data.id;
       showModels();
       const low = data.stats.matched < 40000;
+      const compatibleK12b = data.id === "k12b" && data.fit.method?.startsWith("turkish-genomics-k12b-");
       $(prefix + "-status").textContent = `${data.stats.matched.toLocaleString()} / ${data.stats.total.toLocaleString()} SNPs used (${(data.stats.coverage * 100).toFixed(1)}%). ` +
-        (data.fit.converged ? `Fit converged in ${data.fit.iterations} iterations.` : "Fit did not converge; proportions are provisional and G25 is unavailable.") +
+        (data.fit.converged ? (compatibleK12b ? `Completed in ${data.fit.iterations} iterations.` :
+          `Fit converged in ${data.fit.iterations} iterations.`) : "Fit did not converge; proportions are provisional and G25 is unavailable.") +
         (low ? " Low SNP coverage: results may be unstable." : "") +
-        ` ${data.stats.flipped.toLocaleString()} strand complements; ${data.stats.incompatible.toLocaleString()} incompatible calls excluded.`;
+        (compatibleK12b ? ` ${data.stats.partial.toLocaleString()} SNPs used one reported allele; ${data.stats.incompatible.toLocaleString()} calls had no matching alleles.` :
+          ` ${data.stats.flipped.toLocaleString()} strand complements; ${data.stats.incompatible.toLocaleString()} incompatible calls excluded.`);
       if (data.id === "k12b") {
         window.G25K12BUI?.setProfile(data.fit.proportions);
       }
       else {
         window.G25AdmixtureCharts.render({
           chart: $("raw-k36-chart"), table: $("raw-k36-table"),
-          components: data.components, values: data.fit.proportions,
+          components: data.components, values: data.fit.proportions, descending: true,
         });
       }
       for (const format of ["row", "table"]) {
@@ -143,9 +146,10 @@
       }
     }
     $("raw-file").addEventListener("change", () => {
+      cancel();
       clearResults();
       const file = $("raw-file").files[0];
-      if (file && !$("raw-sample-name").value) $("raw-sample-name").value = file.name.replace(/\.[^.]+$/, "").slice(0, 120);
+      $("raw-sample-name").value = file ? file.name.replace(/\.[^.]+$/, "").slice(0, 120) : "";
       busy(false);
       message(file ? `${file.name} selected. Ready to calculate.` : "");
     });
@@ -160,7 +164,7 @@
         message("Open this calculator through its hosted site or a local web server to process raw DNA."); return;
       }
       try {
-        worker = new Worker(new URL("raw_dna_worker.js?v=20261111-10", document.baseURI));
+        worker = new Worker(new URL("raw_dna_worker.js?v=20261115-1", document.baseURI));
         const current = worker;
         busy(true); message("Starting local DNA analysis…");
         for (const id of modelIds) $("raw-" + id + "-status").textContent = `Calculating ${id === "k36" ? "K36" : "K12b"}…`;

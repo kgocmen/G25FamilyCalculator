@@ -35,7 +35,7 @@
         return { type: "line", text: `${index + 1}. ${fit.distance.toFixed(3)} · ${name}`,
           oracleRank: index + 1, oracleDistance: fit.distance, oracleName: name };
       }));
-      if (!fits.length && (calculate === k12b.twoWay || calculate === k12b.twoWayCross))
+      if (!fits.length && (calculate === k12b.twoWay || calculate === k12b.twoWay50 || calculate === k12b.twoWayCross))
         entries.push({ type: "line", text: "No fit below distance 4." });
     }
     return entries;
@@ -88,21 +88,16 @@
       : [{ type: "line", text: "K12b result unavailable." }] });
     if (k12Values) {
       const values = k12Values.map((value) => value * 100);
-      const east = values[1] + values[3] + values[9];
-      const oguz = east <= 40 ? `${(east * 2.1).toFixed(1)}–${Math.min(100, east * 2.8).toFixed(1)}%` : "Outside range";
+      const { eastEurasian, medievalTurkic } = k12b.summarizeProfile(values);
+      const modernSets = k12b.oracleSets("modern");
       sections.push({ title: "K12b Oracle · Modern", pageBreakBefore: true, entries: [
-        { type: "line", text: `East Eurasian component sum: ${east.toFixed(2)}%` },
-        { type: "line", text: `Oğuz/Türkmen heuristic: ${oguz}` },
-        ...oracleEntries(values, "modern", [
-          ["Closest populations", "yakinlik1", k12b.nearest],
-          ["Turkey province references", "yakinlik2tr", k12b.nearest],
-        ]),
+        { type: "line", text: `East Eurasian component sum: ${eastEurasian.toFixed(2)}%` },
+        { type: "line", text: `Medieval Turkic: ${medievalTurkic}%` },
+        ...oracleEntries(values, "modern", modernSets.filter(([, , calculate]) => calculate === k12b.nearest)),
       ] });
       sections.push({ title: "K12b Oracle · Modern two-population fits", pageBreakBefore: true,
-        entries: oracleEntries(values, "modern", [
-          ["Two-population fits", "ikili1", k12b.twoWay],
-          ["Turkey two-population fits", "ikili2tr", k12b.twoWay],
-        ]) });
+        entries: oracleEntries(values, "modern", modernSets.filter(([, , calculate]) =>
+          calculate === k12b.twoWay || calculate === k12b.twoWay50)) });
       sections.push({ title: "K12b Oracle · Ancient", pageBreakBefore: true,
         entries: oracleEntries(values, "ancient", [
           ["Closest populations", "yakinlik1", k12b.nearest],

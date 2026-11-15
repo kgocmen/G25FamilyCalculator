@@ -17,7 +17,7 @@ class ydnatrDataTests(unittest.TestCase):
         k12b, health = read_ydnatr_data()
         self.assertEqual(len(k12b["sets"]["yakinlik1"]["modern"]), 521)
         self.assertEqual(len(k12b["sets"]["yakinlik1"]["ancient"]), 150)
-        self.assertEqual(len(k12b["sets"]["yakinlik2tr"]["modern"]), 650)
+        self.assertEqual(len(k12b["sets"]["yakinlik2tr"]["modern"]), 649)
         self.assertEqual(len(k12b["sets"]["yakinlik2tr"]["ancient"]), 150)
         self.assertEqual(len(k12b["sets"]["ikili1"]["ancient"]), 150)
         self.assertEqual(k12b["sets"]["ikili2tr"]["ancient"], [])

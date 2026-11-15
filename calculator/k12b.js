@@ -58,14 +58,14 @@
     return vectorRows(rows).map((row) => ({ name: row[0], distance: distance(target, row.slice(1)) }))
       .sort((a, b) => a.distance - b.distance).slice(0, count);
   }
-  function twoWay(target, rows, count = 10, acceptPair = () => true) {
+  function twoWay(target, rows, count = 10, acceptPair = () => true, fixedWeight = null) {
     const data = vectorRows(rows), best = [];
     for (let i = 0; i < data.length - 1; i++) for (let j = i + 1; j < data.length; j++) {
       const a = data[i].slice(1), b = data[j].slice(1);
       let dot = 0, span = 0;
       for (let k = 0; k < 12; k++) { const delta = a[k] - b[k]; dot += (target[k] - b[k]) * delta; span += delta * delta; }
-      if (span < 1e-12) continue;
-      const weight = Math.max(0, Math.min(1, dot / span));
+      if (span < 1e-12 && fixedWeight === null) continue;
+      const weight = fixedWeight ?? Math.max(0, Math.min(1, dot / span));
       if (!acceptPair(i, j, weight)) continue;
       const fit = b.map((v, k) => v + weight * (a[k] - v));
       const result = { name: data[i][0], other: data[j][0], weight, distance: distance(target, fit) };
@@ -75,6 +75,9 @@
       }
     }
     return best;
+  }
+  function twoWay50(target, rows, count = 10) {
+    return twoWay(target, rows, count, () => true, 0.5);
   }
   function twoWayCross(target, modernRows, ancientRows, count = 10) {
     const modern = vectorRows(modernRows);
@@ -106,14 +109,21 @@
     ];
     return [
       ["Closest populations", "yakinlik1", nearest],
-      ["Turkey province references", "yakinlik2tr", nearest],
-      ["Two-population fits", "ikili1", twoWay],
-      ["Turkey two-population fits", "ikili2tr", twoWay],
+      ["Closest Turkey provinces", "yakinlik2tr", nearest],
+      ["Two-population fits (Global)", "ikili1", twoWay],
+      ["Two-population fits (Global, 50/50)", "ikili1", twoWay50],
+      ["Two-population fits (Turkish)", "ikili2tr", twoWay],
+      ["Two-population fits (Turkish, 50/50)", "ikili2tr", twoWay50],
     ];
   }
 
+  function summarizeProfile(values) {
+    const eastEurasian = values[1] + values[3] + values[9];
+    return { eastEurasian, medievalTurkic: Math.round(eastEurasian * 2.3) };
+  }
+
   const api = { labels, colors, oracleFitLimit, distanceColor, parseProfile, distance, nearest,
-    twoWay, twoWayCross, referenceRows, oracleSets };
+    twoWay, twoWay50, twoWayCross, referenceRows, oracleSets, summarizeProfile };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   root.G25K12B = api;
   if (!root.document) return;
@@ -142,13 +152,13 @@
   }
   function renderSummary(values) {
     const container = $("k12b-summary"); container.replaceChildren();
-    const east = values[1] + values[3] + values[9];
+    const { eastEurasian, medievalTurkic } = summarizeProfile(values);
     const eastCard = appendText(container, "div", "", "k12b-summary-card");
     appendText(eastCard, "span", "East Eurasian component sum");
-    appendText(eastCard, "strong", `${east.toFixed(2)}%`);
-    const oguzCard = appendText(container, "div", "", "k12b-summary-card");
-    appendText(oguzCard, "span", "Oğuz/Türkmen heuristic");
-    appendText(oguzCard, "strong", east <= 40 ? `${(east * 2.1).toFixed(1)}–${Math.min(100, east * 2.8).toFixed(1)}%` : "Outside range");
+    appendText(eastCard, "strong", `${eastEurasian.toFixed(2)}%`);
+    const turkicCard = appendText(container, "div", "", "k12b-summary-card");
+    appendText(turkicCard, "span", "Medieval Turkic");
+    appendText(turkicCard, "strong", `${medievalTurkic}%`);
     container.hidden = false;
   }
   function renderMatches(values) {
@@ -170,7 +180,7 @@
         const name = result.other ? `${(result.weight * 100).toFixed(1)}% ${result.name} + ${((1 - result.weight) * 100).toFixed(1)}% ${result.other}` : result.name;
         appendText(row, "span", name.replaceAll("_", " "));
       }
-      if (!results.length && (calculate === twoWay || calculate === twoWayCross))
+      if (!results.length && (calculate === twoWay || calculate === twoWay50 || calculate === twoWayCross))
         appendText(box, "p", "No fit below distance 4.", "k12b-no-fits");
     }
     container.hidden = false;
@@ -186,6 +196,9 @@
       $("k12b-matches").hidden = true;
       return;
     }
+    renderProfile(values);
+  }
+  function renderProfile(values) {
     currentValues = values;
     root.G25AdmixtureCharts.render({ chart: $("k12b-chart"), table: $("k12b-table"), components: labels, values, colors });
     renderSummary(values); renderMatches(values);
@@ -202,7 +215,8 @@
   function setProfile(proportions) {
     if (!Array.isArray(proportions) || proportions.length !== 12 || !proportions.every((v) => Number.isFinite(v) && v >= 0)) return;
     $("k12b-input").value = proportions.map((v, i) => `${labels[i]}\t${(v * 100).toFixed(5)}`).join("\n");
-    generate();
+    error("");
+    renderProfile(proportions.map((value) => value * 100));
   }
   for (const view of views) $("raw-k12b-" + view + "-tab").addEventListener("click", () => selectView(view));
   root.document.querySelector(".k12b-subtabs").addEventListener("keydown", (event) => {

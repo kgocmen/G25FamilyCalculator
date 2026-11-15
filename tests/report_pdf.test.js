@@ -56,6 +56,42 @@ test("PDF Health colors use the same neutral rules as the Health tab", () => {
   assert.equal(cards.find((entry) => entry.title.includes("rs505922")).flag, "plain");
 });
 
+test("PDF modern Oracle includes the shared Medieval Turkic estimate and all two-population sets", () => {
+  const report = buildReport({ sample: "Sample", results: { k12b: { fit: {
+    proportions: [.1499, .039, .0301, 0, .1128, .0773, .023, 0, .1126, .0664, .3814, .0075],
+  } } }, g25: null, health: null });
+  const modern = report.sections.find(({ title }) => title === "K12b Oracle · Modern");
+  assert.ok(modern.entries.some(({ text }) => text === "Medieval Turkic: 24%"));
+  assert.ok(modern.entries.some(({ text }) => text === "Closest Turkey provinces"));
+  const pairs = report.sections.find(({ title }) => title === "K12b Oracle · Modern two-population fits");
+  assert.deepEqual(pairs.entries.filter(({ type }) => type === "subheading").map(({ text }) => text),
+    ["Two-population fits (Global)", "Two-population fits (Global, 50/50)",
+      "Two-population fits (Turkish)", "Two-population fits (Turkish, 50/50)"]);
+  const headings = k12b.oracleSets("modern").map(([title]) => title);
+  assert.deepEqual([...modern.entries, ...pairs.entries].filter(({ type }) => type === "subheading").map(({ text }) => text), headings);
+  assert.ok(!JSON.stringify(report).includes("Oğuz/Türkmen"));
+});
+
+for (const [label, id] of [["Global", "ikili1"], ["Turkish", "ikili2tr"]])
+test(`PDF ${label} modern 50/50 results show exactly equal proportions`, () => {
+  const rows = k12b.referenceRows(id, "modern");
+  const proportions = rows[0].slice(1).map((value, index) => (value + rows[1][index + 1]) / 200);
+  const report = buildReport({ sample: "Sample", results: { k12b: { fit: { proportions } } }, g25: null, health: null });
+  const pairs = report.sections.find(({ title }) => title === "K12b Oracle · Modern two-population fits");
+  const start = pairs.entries.findIndex(({ text }) => text === `Two-population fits (${label}, 50/50)`);
+  assert.ok(start >= 0);
+  const end = pairs.entries.findIndex((entry, index) => index > start && entry.type === "subheading");
+  const fits = pairs.entries.slice(start + 1, end < 0 ? undefined : end).filter(({ oracleName }) => oracleName);
+  assert.ok(fits.length > 0);
+  assert.ok(fits.every(({ oracleName }) => /^50\.0% .+ \+ 50\.0% .+$/.test(oracleName)));
+  const labels = new Set(rows.map(([name]) => name.replaceAll("_", " ")));
+  assert.ok(fits.every(({ oracleName }) => oracleName.split(" + ")
+    .every((part) => labels.has(part.replace(/^50\.0% /, "")))));
+  assert.ok(fits.some(({ oracleDistance }) => oracleDistance < 1e-8));
+  for (const section of report.sections.filter(({ title }) => title.includes("Ancient") || title.includes("All")))
+    assert.ok(!section.entries.some(({ text }) => text?.includes("50/50")));
+});
+
 test("PDF generator returns a valid PDF container", async () => {
   const jpeg = "data:image/jpeg;base64,/9j/2Q==";
   const context = { scale() {}, fillRect() {}, fillText() {}, beginPath() {}, moveTo() {},
@@ -116,11 +152,15 @@ test("PDF Oracle omits two-way fits when every distance is at least four", () =>
   } } }, g25: null, health: null });
   for (const section of report.sections.filter(({ title }) => title.startsWith("K12b Oracle") &&
     (title.includes("two-population fits") || title.includes("Ancient") || title.includes("All")))) {
-    const heading = section.title.includes("All") ? "Modern + ancient fits" : "Two-population fits";
-    const twoWay = section.entries.findIndex((entry) => entry.text === heading);
-    assert.ok(twoWay >= 0);
-    assert.equal(section.entries[twoWay + 1].text, "No fit below distance 4.");
-    assert.ok(!section.entries.slice(twoWay + 1).some((entry) => Number.isFinite(entry.oracleDistance)));
+    const headings = section.entries.map((entry, index) => ({ ...entry, index })).filter((entry) =>
+      entry.type === "subheading" && (entry.text.startsWith("Two-population fits") || entry.text === "Modern + ancient fits"));
+    assert.ok(headings.length > 0);
+    for (const { index } of headings) {
+      assert.equal(section.entries[index + 1].text, "No fit below distance 4.");
+      const next = section.entries.findIndex((entry, at) => at > index && entry.type === "subheading");
+      assert.ok(!section.entries.slice(index + 1, next < 0 ? undefined : next)
+        .some((entry) => Number.isFinite(entry.oracleDistance)));
+    }
   }
 });
 

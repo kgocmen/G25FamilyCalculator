@@ -26,13 +26,13 @@
   <script defer src="pca.js?v=20261104-1"></script>
   <script defer src="modern_pca.js?v=20261030-2"></script>
   <script defer src="pca_layout.js?v=20261024-6"></script>
-  <script defer src="k12b_data.js?v=20261026-2"></script>
+  <script defer src="k12b_data.js?v=20261115-6"></script>
   <script defer src="health_data.js?v=20261111-9"></script>
-  <script defer src="admixture_charts.js?v=20261029-1"></script>
-  <script defer src="k12b.js?v=20261112-1"></script>
+  <script defer src="admixture_charts.js?v=20261115-5"></script>
+  <script defer src="k12b.js?v=20261115-6"></script>
   <script defer src="health.js?v=20261111-5"></script>
-  <script defer src="report_pdf.js?v=20261112-1"></script>
-  <script defer src="raw_data_ui.js?v=20261111-8"></script>
+  <script defer src="report_pdf.js?v=20261115-4"></script>
+  <script defer src="raw_data_ui.js?v=20261115-5"></script>
   <script defer src="app.js?v=20261111-5"></script>
 </head>
 <body>
@@ -78,7 +78,6 @@
         <button id="modern-analysis-tab" class="analysis-tab active" type="button" role="tab" aria-selected="true" aria-controls="medieval-breakdown-panel">Modern</button>
       </div>
       <div id="raw-workspace" aria-busy="false">
-        <p class="raw-intro">MyHeritage or AncestryDNA → Eurogenes K36 &amp; Dodecad K12b → simulated G25</p>
         <p class="method-note">Your DNA is processed in this browser and is never uploaded or saved.</p>
         <div class="raw-input-grid">
           <label class="raw-field">MyHeritage or AncestryDNA raw DNA file
@@ -99,8 +98,8 @@
         <p id="raw-summary" class="method-note" hidden></p>
         <section id="raw-g25" class="raw-result raw-g25-result" aria-labelledby="raw-g25-title" hidden>
           <div class="section-head">
-            <div><h2 id="raw-g25-title">Simulated G25 <span class="badge">Scaled · regression estimate</span></h2>
-              <p>Estimated from K36 proportions.</p></div>
+            <div><h2 id="raw-g25-title">Simulated G25 <span class="badge">Scaled</span></h2>
+              <p>Estimated from K36 proportions, not equal to the original G25 values.</p></div>
             <button id="raw-g25-copy" class="text-button" type="button">Copy</button>
           </div>
           <textarea id="raw-g25-line" rows="4" readonly spellcheck="false" aria-label="Simulated scaled G25 coordinates"></textarea>

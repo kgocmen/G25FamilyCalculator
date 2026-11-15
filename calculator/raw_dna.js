@@ -119,6 +119,7 @@
 
   function parse(text) {
     const calls = new Map(), conflicts = new Set(), special = new Map(), specialConflicts = new Set();
+    const reportedCalls = new Map();
     const stats = { rows: 0, noCalls: 0, nonAutosomal: 0, invalid: 0, duplicates: 0, conflicts: 0, build: "unspecified" };
     let columns = null, delimiter;
     for (let line of text.replace(/^\uFEFF/, "").split(/\r\n|\n|\r/)) {
@@ -144,6 +145,12 @@
       }
       stats.rows++;
       const row = fields(line, delimiter);
+      const reportedId = /^rs([1-9]\d*)$/i.exec(row[columns.rs] || "");
+      const reportedCall = columns.result >= 0 ? row[columns.result] || "" :
+        (row[columns.a] || "") + (row[columns.b] || "");
+      // K12b compatibility needs the uncomplemented calls, partial calls, and
+      // last duplicate exactly as reported, independently of K36/Health filters.
+      if (reportedId && Number(reportedId[1]) <= 0xffffffff) reportedCalls.set(Number(reportedId[1]), reportedCall);
       const chromosome = (row[columns.chr] || "").replace(/^chr/i, "").toUpperCase();
       const chr = Number(chromosome);
       if (!Number.isInteger(chr) || chr < 1 || chr > 22) {
@@ -190,7 +197,7 @@
     if (!calls.size) throw new Error("No usable autosomal SNP calls were found in this file.");
     stats.conflicts = conflicts.size + specialConflicts.size;
     stats.usable = calls.size + Number(special.has(8176719));
-    return { calls, special, stats };
+    return { calls, reportedCalls, special, stats };
   }
 
   function decodeModel(buffer) {
