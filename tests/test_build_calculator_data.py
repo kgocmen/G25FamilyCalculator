@@ -39,6 +39,11 @@ class NeolithicDataTests(unittest.TestCase):
             selected_rows = read_rows(ROOT / "data" / filename, "ancient")
             self.assertEqual([entry["name"] for entry in data[scope]],
                              list(dict.fromkeys(row[1].partition(":")[0] for row in selected_rows)))
+            bundled_sources = [(entry["name"], sample["source"], sample["values"])
+                               for entry in data[scope] for sample in entry["samples"]]
+            self.assertEqual(bundled_sources,
+                             [(row[1].partition(":")[0], row[1].partition(":")[2], row[2:])
+                              for row in selected_rows])
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory) / "neolithic_references.js"
             build_neolithic_data(output=output)

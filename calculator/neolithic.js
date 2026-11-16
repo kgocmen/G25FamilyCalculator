@@ -11,11 +11,21 @@ function G25NeolithicModule(root) {
     if (scope !== "turkish" && scope !== "global") throw new Error("Unknown Neolithic reference set.");
     const entries = data[scope];
     if (!Array.isArray(entries) || !entries.length) throw new Error("Neolithic references are unavailable.");
-    const rows = entries.map(({ name, values }) => ["ancient", name, ...values]);
+    const rows = [];
+    const groupByIndex = [];
+    entries.forEach(({ name, samples }, groupIndex) => {
+      for (const { source, values } of samples) {
+        rows.push(["ancient", `${name}:${source}`, ...values]);
+        groupByIndex.push(groupIndex);
+      }
+    });
     const fit = medieval.fitUnrestricted(target, rows);
-    const weights = new Map(fit.components.map(({ referenceIndex, weight }) => [referenceIndex, weight]));
+    const weights = Array(entries.length).fill(0);
+    for (const { referenceIndex, weight } of fit.components) {
+      weights[groupByIndex[referenceIndex]] += weight;
+    }
     const components = entries.map(({ name, sources }, index) =>
-      ({ name, sources, weight: weights.get(index) || 0 }))
+      ({ name, sources, weight: weights[index] }))
       .sort((first, second) => second.weight - first.weight || first.name.localeCompare(second.name));
     return { distance: fit.distance, components };
   }

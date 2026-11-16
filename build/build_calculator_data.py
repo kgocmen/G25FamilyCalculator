@@ -249,8 +249,7 @@ def read_neolithic_data(data_directory: Path = ROOT / "data") -> dict:
             groups.setdefault(name, []).append((source, row[2:]))
         result[scope] = [
             {"name": name, "sources": [source for source, _ in rows],
-             "values": [sum(values[dimension] for _, values in rows) / len(rows)
-                        for dimension in range(25)]}
+             "samples": [{"source": source, "values": values} for source, values in rows]}
             for name, rows in groups.items()
         ]
     return result
