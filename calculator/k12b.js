@@ -60,6 +60,7 @@
   }
   function twoWay(target, rows, count = 10, acceptPair = () => true, fixedWeight = null) {
     const data = vectorRows(rows), best = [];
+    const directDistances = data.map((row) => distance(target, row.slice(1)));
     for (let i = 0; i < data.length - 1; i++) for (let j = i + 1; j < data.length; j++) {
       const a = data[i].slice(1), b = data[j].slice(1);
       let dot = 0, span = 0;
@@ -68,8 +69,14 @@
       const weight = fixedWeight ?? Math.max(0, Math.min(1, dot / span));
       if (!acceptPair(i, j, weight)) continue;
       const fit = b.map((v, k) => v + weight * (a[k] - v));
-      const result = { name: data[i][0], other: data[j][0], weight, distance: distance(target, fit) };
-      if (result.distance >= oracleFitLimit) continue;
+      const fitDistance = distance(target, fit);
+      if (fitDistance >= oracleFitLimit) continue;
+      const firstShown = Number((weight * 100).toFixed(1));
+      const secondShown = Number(((1 - weight) * 100).toFixed(1));
+      const swap = firstShown < secondShown ||
+        (firstShown === secondShown && directDistances[j] < directDistances[i]);
+      const result = { name: data[swap ? j : i][0], other: data[swap ? i : j][0],
+        weight: swap ? 1 - weight : weight, distance: fitDistance };
       if (best.length < count || result.distance < best[best.length - 1].distance) {
         best.push(result); best.sort((x, y) => x.distance - y.distance); best.length = Math.min(count, best.length);
       }

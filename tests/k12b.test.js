@@ -28,6 +28,28 @@ test("nearest and two-way comparisons use twelve-component Euclidean fits", () =
   assert.ok(fit.weight >= 0 && fit.weight <= 1);
 });
 
+test("two-population fits display the larger share first", () => {
+  const rows = [["First", 100, 0, ...Array(10).fill(0)],
+    ["Second", 0, 100, ...Array(10).fill(0)]];
+  const fit = twoWay([45, 55, ...Array(10).fill(0)], rows, 1)[0];
+  assert.equal(fit.name, "Second");
+  assert.equal(fit.other, "First");
+  assert.equal(fit.weight.toFixed(3), "0.550");
+});
+
+test("50/50 two-population fits display the closer reference first", () => {
+  const rows = [["First", 100, 0, ...Array(10).fill(0)],
+    ["Second", 0, 100, ...Array(10).fill(0)]];
+  const fit = twoWay50([49, 51, ...Array(10).fill(0)], rows, 1)[0];
+  assert.equal(fit.name, "Second");
+  assert.equal(fit.other, "First");
+  assert.equal(fit.weight, 0.5);
+  const roundedTie = twoWay([49.99, 50.01, ...Array(10).fill(0)], rows, 1)[0];
+  assert.equal(roundedTie.name, "Second");
+  assert.equal((roundedTie.weight * 100).toFixed(1), "50.0");
+  assert.equal(twoWay50([50, 50, ...Array(10).fill(0)], rows, 1)[0].name, "First");
+});
+
 test("K12b Oracle only shows two-way fits strictly below four", () => {
   const target = Array(12).fill(0);
   const row = (name, first, second) => [name, first, second, ...Array(10).fill(0)];
