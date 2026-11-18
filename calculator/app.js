@@ -1404,7 +1404,8 @@
     $("#visualise-pc-y").value = String(state.visualisePcY);
     $("#pca-heading-title").textContent = state.visualisePcView ? "Only use PC view" : "Only use PCA";
     renderMedievalPca(rows, "Only use", false, null, true, { clusterFit: fit,
-      pcAxes: state.visualisePcView ? [state.visualisePcX, state.visualisePcY] : null });
+      pcAxes: state.visualisePcView ? [state.visualisePcX, state.visualisePcY] : null,
+      showNeighborLinks: !state.visualisePcView });
     renderVisualisePcExtremes();
   }
 
@@ -2223,6 +2224,15 @@
         stroke: groupColor(group), class: hull.length === 2 ? "pca-cluster-line" : "pca-cluster" });
       clusterPaths.push({ node, positions });
     }
+    const neighborLinks = options.showNeighborLinks
+      ? window.G25PcaLayout.neighborEdges(projection.points).map(([first, second]) => {
+        const from = projection.points[first], to = projection.points[second];
+        const x1 = plotX(from.x), y1 = plotY(from.y);
+        const x2 = plotX(to.x), y2 = plotY(to.y);
+        const node = add(plotLayer, "line", { x1, y1, x2, y2,
+          class: "pca-neighbor-link", "aria-hidden": "true" });
+        return { node, x1, y1, x2, y2 };
+      }) : [];
     const referenceMarkers = [];
     const customLabels = [];
     const addCustomLabel = (name, x, y) => {
@@ -2391,6 +2401,14 @@
         node.setAttribute("d", hull.length === 2
           ? `M ${hull[0].x} ${hull[0].y} L ${hull[1].x} ${hull[1].y}`
           : `M ${hull.map((point) => `${point.x} ${point.y}`).join(" L ")} Z`);
+      }
+      for (const { node, x1, y1, x2, y2 } of neighborLinks) {
+        const from = screen({ x: x1, y: y1 });
+        const to = screen({ x: x2, y: y2 });
+        node.setAttribute("x1", from.x);
+        node.setAttribute("y1", from.y);
+        node.setAttribute("x2", to.x);
+        node.setAttribute("y2", to.y);
       }
       for (const { node, x, y } of referenceMarkers) {
         const point = screen({ x, y });

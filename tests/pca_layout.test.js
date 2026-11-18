@@ -1,12 +1,22 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
-const { convexHull, inputLabelLayout } = require("../calculator/pca_layout.js");
+const { convexHull, neighborEdges, inputLabelLayout } = require("../calculator/pca_layout.js");
 
 test("cluster outline excludes interior points", () => {
   const hull = convexHull([{ x: 0, y: 0 }, { x: 4, y: 0 }, { x: 4, y: 4 },
     { x: 0, y: 4 }, { x: 2, y: 2 }]);
   assert.equal(hull.length, 4);
   assert.ok(hull.every((point) => point.x !== 2 || point.y !== 2));
+});
+
+test("midpoint neighbors exclude an edge when a third point is closer to its midpoint", () => {
+  const points = [{ x: 0, y: 0 }, { x: 4, y: 0 }, { x: 2, y: 1 }];
+  assert.deepEqual(neighborEdges(points), [[0, 2], [1, 2]]);
+});
+
+test("midpoint neighbors retain ties at the endpoints' distance", () => {
+  const points = [{ x: 0, y: 0 }, { x: 4, y: 0 }, { x: 2, y: 2 }];
+  assert.deepEqual(neighborEdges(points), [[0, 1], [0, 2], [1, 2]]);
 });
 
 test("input labels connect the dot edge to the label edge in every direction", () => {

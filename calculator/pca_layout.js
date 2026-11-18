@@ -17,6 +17,30 @@ function G25PcaLayoutModule(root) {
     return [...lower.slice(0, -1), ...upper.slice(0, -1)];
   }
 
+  function neighborEdges(points) {
+    const edges = [];
+    for (let first = 0; first < points.length; first += 1) {
+      for (let second = first + 1; second < points.length; second += 1) {
+        const midpointX = (points[first].x + points[second].x) / 2;
+        const midpointY = (points[first].y + points[second].y) / 2;
+        const halfDistanceSquared = ((points[first].x - points[second].x) ** 2 +
+          (points[first].y - points[second].y) ** 2) / 4;
+        let blocked = false;
+        for (let other = 0; other < points.length; other += 1) {
+          if (other === first || other === second) continue;
+          const distanceSquared = (points[other].x - midpointX) ** 2 +
+            (points[other].y - midpointY) ** 2;
+          if (distanceSquared < halfDistanceSquared * (1 - 1e-12)) {
+            blocked = true;
+            break;
+          }
+        }
+        if (!blocked) edges.push([first, second]);
+      }
+    }
+    return edges;
+  }
+
   function inputLabelLayout(target, offset, size, bounds, radius = 11) {
     const clamp = (value, low, high) => Math.max(low, Math.min(high, value));
     const left = clamp(target.x + offset.x, bounds.left + 4, bounds.right - size.width - 4);
@@ -31,7 +55,7 @@ function G25PcaLayoutModule(root) {
     } };
   }
 
-  const api = { convexHull, inputLabelLayout };
+  const api = { convexHull, neighborEdges, inputLabelLayout };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.G25PcaLayout = api;
 }
