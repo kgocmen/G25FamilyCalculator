@@ -136,6 +136,7 @@ p { margin: 0; }
 .visualise-neighbor-control[hidden] { display: none; }
 .visualise-neighbor-control input { width: min(250px, 100%); accent-color: #176e8d; }
 .visualise-neighbor-control output { min-width: 26px; color: #173c50; font-variant-numeric: tabular-nums; }
+#visualise-neighbor-scope-control { width: max-content; max-width: 100%; margin-bottom: 12px; }
 .cluster-auto-note { color: #71899b; font-weight: 500; }
 .visualise-pc-switch { display: flex; align-items: center; gap: 9px; margin-left: auto; color: #365a72; font-size: 13px; font-weight: 700; white-space: nowrap; }
 .visualise-pc-switch[hidden], .visualise-pc-controls[hidden], .visualise-pc-extremes[hidden] { display: none; }

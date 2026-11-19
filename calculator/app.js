@@ -52,6 +52,9 @@
     visualiseCategory: "modern",
     visualiseLimit: null,
     visualiseNeighborCount: 10,
+    visualiseNeighborScope: "hide",
+    visualiseNearestCount: 1,
+    visualiseNeighborRankCount: 10,
     visualiseClusterK: null,
     visualisePcView: false,
     visualisePcX: 1,
@@ -91,6 +94,7 @@
   const visualiseLocks = new Set();
   let visualisePcaContext = null;
   let visualiseClusterContext = null;
+  let visualiseNeighborRankContext = null;
   let clusterWorker = null;
   let clusterWorkerUrl = null;
   let clusterRequest = 0;
@@ -996,6 +1000,9 @@
     $("#medieval-breakdown-panel").hidden = true;
     $("#neolithic-panel").hidden = true;
     $("#visualise-neighbor-control").hidden = true;
+    $("#visualise-neighbor-scope-control").hidden = true;
+    $("#visualise-nearest-control").hidden = true;
+    $("#visualise-neighbor-ranks").hidden = true;
     $("#visualise-cluster-control").hidden = true;
     $("#visualise-pc-toggle-control").hidden = true;
     $("#visualise-pc-controls").hidden = true;
@@ -1402,14 +1409,53 @@
       list.append(item);
     });
     $("#pca-section").hidden = false;
+    $("#visualise-neighbor-scope-control").hidden = state.visualisePcView;
+    $("#visualise-neighbor-scope").value = state.visualiseNeighborScope;
+    $("#visualise-nearest-control").hidden = state.visualisePcView ||
+      !state.visualiseNeighborScope.startsWith("nearest-");
+    $("#visualise-nearest-count").value = String(state.visualiseNearestCount);
+    $("#visualise-nearest-value").textContent = String(state.visualiseNearestCount);
     $("#visualise-pc-controls").hidden = !state.visualisePcView;
     $("#visualise-pc-x").value = String(state.visualisePcX);
     $("#visualise-pc-y").value = String(state.visualisePcY);
     $("#pca-heading-title").textContent = state.visualisePcView ? "Only use PC view" : "Only use PCA";
-    renderMedievalPca(rows, "Only use", false, null, true, { clusterFit: fit,
+    const neighborMode = state.visualiseNeighborScope;
+    const globalMode = neighborMode === "child-global" || neighborMode === "nearest-global";
+    const neighborCategories = new Set(rows.map((row) => row[0] === "modern" ? "modern" : "ancient"));
+    const neighborPairs = renderMedievalPca(rows, "Only use", false, null, true, { clusterFit: fit,
       pcAxes: state.visualisePcView ? [state.visualisePcX, state.visualisePcY] : null,
-      showNeighborLinks: !state.visualisePcView });
+      neighborMode: state.visualisePcView ? "hide" : neighborMode,
+      nearestCount: state.visualiseNearestCount,
+      neighborGlobalRows: !state.visualisePcView && globalMode
+        ? globalReferences.filter((row) => neighborCategories.has(row[0])) : [] });
+    visualiseNeighborRankContext = !state.visualisePcView && neighborMode !== "hide" &&
+      Array.isArray(neighborPairs) ? { rows, pairs: neighborPairs } : null;
+    renderVisualiseNeighborRanks();
     renderVisualisePcExtremes();
+  }
+
+  function renderVisualiseNeighborRanks() {
+    const visible = state.mode === 9 && !state.single && !state.visualisePcView &&
+      visualiseNeighborRankContext;
+    $("#visualise-neighbor-ranks").hidden = !visible;
+    if (!visible) return;
+    $("#visualise-neighbor-rank-count").value = String(state.visualiseNeighborRankCount);
+    $("#visualise-neighbor-rank-value").textContent = String(state.visualiseNeighborRankCount);
+    const { rows, pairs } = visualiseNeighborRankContext;
+    const ranks = window.G25PcaLayout.rankNeighborDegrees(rows, pairs, state.visualiseNeighborRankCount);
+    for (const direction of ["most", "least"]) {
+      const fragment = document.createDocumentFragment();
+      for (const { index, degree } of ranks[direction]) {
+        const item = document.createElement("li");
+        const name = document.createElement("span");
+        name.textContent = rows[index][1].replaceAll("_", " ");
+        const value = document.createElement("strong");
+        value.textContent = `${degree} ${degree === 1 ? "link" : "links"}`;
+        item.append(name, value);
+        fragment.append(item);
+      }
+      $("#visualise-neighbor-" + direction).replaceChildren(fragment);
+    }
   }
 
   function renderVisualisePcExtremes() {
@@ -1491,6 +1537,7 @@
     cancelVisualiseClusters();
     visualisePcaContext = null;
     visualiseClusterContext = null;
+    visualiseNeighborRankContext = null;
     suggestionTarget = null;
     preparedMatches = null;
     preparedContext = null;
@@ -1503,6 +1550,9 @@
     $("#ancestry-composition-title").hidden = true;
     $("#pca-heading-title").textContent = "PCA";
     $("#visualise-cluster-control").hidden = true;
+    $("#visualise-neighbor-scope-control").hidden = true;
+    $("#visualise-nearest-control").hidden = true;
+    $("#visualise-neighbor-ranks").hidden = true;
     $("#copy-admixed").hidden = !state.single;
     for (const selector of ["#medieval-group-filter", "#modern-group-filter", "#modern-pca-filter",
       "#modern-deep-filter"]) $(selector).hidden = true;
@@ -2227,15 +2277,39 @@
         stroke: groupColor(group), class: hull.length === 2 ? "pca-cluster-line" : "pca-cluster" });
       clusterPaths.push({ node, positions });
     }
-    const neighborLinks = options.showNeighborLinks
-      ? window.G25PcaLayout.neighborEdges(projection.points).map(([first, second]) => {
-        const from = projection.points[first], to = projection.points[second];
-        const x1 = plotX(from.x), y1 = plotY(from.y);
-        const x2 = plotX(to.x), y2 = plotY(to.y);
-        const node = add(plotLayer, "line", { x1, y1, x2, y2,
-          class: "pca-neighbor-link", "aria-hidden": "true" });
-        return { node, x1, y1, x2, y2 };
-      }) : [];
+    let neighborPairs = [];
+    if (options.neighborMode === "child-local") {
+      neighborPairs = window.G25PcaLayout.neighborEdges(periodReferences);
+    } else if (options.neighborMode === "child-global") {
+      neighborPairs = window.G25PcaLayout.neighborEdges(periodReferences,
+        options.neighborGlobalRows || [], periodReferences.map((row) =>
+          row[0] === "modern" ? "modern" : "ancient"));
+    } else if (options.neighborMode === "pca") {
+      neighborPairs = window.G25PcaLayout.neighborEdges(projection.points);
+    } else if (options.neighborMode === "nearest-local" || options.neighborMode === "nearest-global") {
+      const globalMode = options.neighborMode === "nearest-global";
+      const candidates = globalMode ? [...periodReferences, ...(options.neighborGlobalRows || [])]
+        : periodReferences;
+      neighborPairs = window.G25PcaLayout.nearestConnections(periodReferences, candidates,
+        options.nearestCount || 1, globalMode)
+        .filter(({ to }) => to < periodReferences.length)
+        .map(({ from, to }) => [from, to]);
+    }
+    const seenNeighborLinks = new Set();
+    const uniqueNeighborPairs = neighborPairs.filter(([first, second]) => {
+      const key = `${Math.min(first, second)}:${Math.max(first, second)}`;
+      if (seenNeighborLinks.has(key)) return false;
+      seenNeighborLinks.add(key);
+      return true;
+    });
+    const neighborLinks = uniqueNeighborPairs.map(([first, second]) => {
+      const from = projection.points[first], to = projection.points[second];
+      const x1 = plotX(from.x), y1 = plotY(from.y);
+      const x2 = plotX(to.x), y2 = plotY(to.y);
+      const node = add(plotLayer, "line", { x1, y1, x2, y2,
+        class: "pca-neighbor-link", "aria-hidden": "true" });
+      return { node, x1, y1, x2, y2 };
+    });
     const referenceMarkers = [];
     const customLabels = [];
     const addCustomLabel = (name, x, y) => {
@@ -2673,6 +2747,7 @@
       input.textContent = `● ${inputName}`;
       legend.append(input);
     }
+    return uniqueNeighborPairs;
   }
 
   function prepareAdmixedCopy(fit) {
@@ -3230,6 +3305,9 @@
     state.visualiseCategory = "modern";
     state.visualiseLimit = null;
     state.visualiseNeighborCount = 10;
+    state.visualiseNeighborScope = "hide";
+    state.visualiseNearestCount = 1;
+    state.visualiseNeighborRankCount = 10;
     state.visualiseClusterK = null;
     state.visualisePcView = false;
     state.visualisePcX = 1;
@@ -3330,6 +3408,18 @@
     state.visualiseNeighborCount = Math.max(5, Math.min(100, Number(event.currentTarget.value)));
     $("#visualise-neighbor-value").textContent = String(state.visualiseNeighborCount);
     renderVisualisePca();
+  });
+  $("#visualise-neighbor-scope").addEventListener("change", (event) => {
+    state.visualiseNeighborScope = event.currentTarget.value;
+    renderVisualiseClusters();
+  });
+  $("#visualise-nearest-count").addEventListener("input", (event) => {
+    state.visualiseNearestCount = Math.max(1, Math.min(10, Number(event.currentTarget.value)));
+    renderVisualiseClusters();
+  });
+  $("#visualise-neighbor-rank-count").addEventListener("input", (event) => {
+    state.visualiseNeighborRankCount = Math.max(5, Math.min(100, Number(event.currentTarget.value)));
+    renderVisualiseNeighborRanks();
   });
   $("#visualise-cluster-count").addEventListener("input", (event) => {
     state.visualiseClusterK = Number(event.currentTarget.value);

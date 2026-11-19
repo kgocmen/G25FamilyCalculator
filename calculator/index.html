@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#14243b">
   <link rel="icon" href="../favicon.ico?v=20261106-1" type="image/x-icon">
   <title>G25 Family Calculator</title>
-  <link rel="stylesheet" href="style.css?v=20261118-1">
+  <link rel="stylesheet" href="style.css?v=20261119-1">
   <link rel="stylesheet" href="k12b.css?v=20261111-2">
   <link rel="stylesheet" href="health.css?v=20261111-1">
   <script defer src="references.js?v=20261026-2"></script>
@@ -25,7 +25,7 @@
   <script defer src="clusters.js?v=20261020-1"></script>
   <script defer src="pca.js?v=20261104-1"></script>
   <script defer src="modern_pca.js?v=20261030-2"></script>
-  <script defer src="pca_layout.js?v=20261118-1"></script>
+  <script defer src="pca_layout.js?v=20261119-5"></script>
   <script defer src="k12b_data.js?v=20261115-6"></script>
   <script defer src="health_data.js?v=20261111-9"></script>
   <script defer src="admixture_charts.js?v=20261115-5"></script>
@@ -33,7 +33,7 @@
   <script defer src="health.js?v=20261111-5"></script>
   <script defer src="report_pdf.js?v=20261115-4"></script>
   <script defer src="raw_data_ui.js?v=20261115-5"></script>
-  <script defer src="app.js?v=20261119-1"></script>
+  <script defer src="app.js?v=20261119-8"></script>
 </head>
 <body>
   <main class="shell">
@@ -371,12 +371,36 @@
           <output id="visualise-cluster-value" for="visualise-cluster-count">1</output>
           <span id="visualise-cluster-auto" class="cluster-auto-note"></span>
         </div>
+        <label id="visualise-neighbor-scope-control" class="match-filter" hidden>Neighbours
+          <select id="visualise-neighbor-scope" aria-label="Neighbour display mode">
+            <option value="hide" selected>Hide</option>
+            <option value="child-local">Child (Local)</option>
+            <option value="child-global">Child (Global)</option>
+            <option value="pca">PCA</option>
+            <option value="nearest-local">Nearest (Local)</option>
+            <option value="nearest-global">Nearest (Global)</option>
+          </select>
+        </label>
+        <div id="visualise-nearest-control" class="visualise-neighbor-control" hidden>
+          <label for="visualise-nearest-count">Nearest populations</label>
+          <input id="visualise-nearest-count" type="range" min="1" max="10" step="1" value="1">
+          <output id="visualise-nearest-value" for="visualise-nearest-count">1</output>
+        </div>
         <div id="visualise-pc-controls" class="visualise-pc-controls" hidden>
           <label class="match-filter">X axis <select id="visualise-pc-x" aria-label="X axis G25 coordinate"></select></label>
           <label class="match-filter">Y axis <select id="visualise-pc-y" aria-label="Y axis G25 coordinate"></select></label>
         </div>
         <div id="medieval-pca-plot" class="pca-scroll" role="region" tabindex="0" aria-label="PCA plot"></div>
         <div id="medieval-pca-legend" class="pca-legend"></div>
+        <div id="visualise-neighbor-ranks" class="visualise-pc-extremes" hidden>
+          <label class="result-count"><span>Rows per list <output id="visualise-neighbor-rank-value" for="visualise-neighbor-rank-count">10</output></span>
+            <input id="visualise-neighbor-rank-count" type="range" min="5" max="100" step="1" value="10" aria-label="Rows per neighbour list">
+          </label>
+          <div class="visualise-pc-grid">
+            <section><h3>Most neighbours</h3><ol id="visualise-neighbor-most"></ol></section>
+            <section><h3>Fewest neighbours</h3><ol id="visualise-neighbor-least"></ol></section>
+          </div>
+        </div>
         <div id="visualise-pc-extremes" class="visualise-pc-extremes" hidden>
           <label class="result-count"><span>Rows per list <output id="visualise-pc-count-value" for="visualise-pc-count">5</output></span>
             <input id="visualise-pc-count" type="range" min="5" max="100" step="1" value="5" aria-label="Rows per PC extrema list">
