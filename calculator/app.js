@@ -161,11 +161,14 @@
       ...activeModernPcas().flatMap((pca) => pca.references),
       ...(activeMixedPca()?.references || []),
       ...(medievalReferences.early || []), ...(medievalReferences.late || [])];
-    const seen = new Set();
+    const seenLabels = new Set();
+    const seenCoordinates = new Set();
     return allowedReferences(pool).filter((row) => {
       const key = populationKey(row);
-      if (seen.has(key)) return false;
-      seen.add(key);
+      const coordinates = JSON.stringify(row.slice(2));
+      if (seenLabels.has(key) || seenCoordinates.has(coordinates)) return false;
+      seenLabels.add(key);
+      seenCoordinates.add(coordinates);
       return true;
     });
   }

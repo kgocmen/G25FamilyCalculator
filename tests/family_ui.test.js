@@ -50,7 +50,7 @@ vm.runInNewContext(fs.readFileSync(require('node:path').join(__dirname, '../calc
 const context={window,document,Worker,URL:workerURLs,Blob,console,sessionStorage};
 document.querySelector('#remaining-step').value = '5';
 let source=fs.readFileSync(require('node:path').join(__dirname, '../calculator/app.js'),'utf8');
-source=source.replace('  render();\n})();','  window.testApi = {state, familyLocks, familyReverts, render, optimiseFamily, setTarget, changeBlacklist, changeWhitelist, allowedReferences, allowedPcaReferences, renderMedievalFit};\n  render();\n})();');
+source=source.replace('  render();\n})();','  window.testApi = {state, familyLocks, familyReverts, render, optimiseFamily, setTarget, changeBlacklist, changeWhitelist, allowedReferences, allowedPcaReferences, onlyUseReferenceRows, renderMedievalFit};\n  render();\n})();');
 vm.runInNewContext(source,context);
 const api=window.testApi;
 const button=()=>document.querySelector('#family-optimise');
@@ -467,4 +467,9 @@ api.render();
 assert.equal(document.querySelector('#raw-workspace').hidden, true);
 assert.equal(document.querySelector('#family-inputs').hidden, false);
 assert.equal(JSON.stringify(api.state.slots[2]), previousParents);
+api.state.mode = 11;
+api.state.turkish = true;
+api.changeWhitelist({ label: 'Group_A:Unused', category: 'modern' }, true);
+api.changeWhitelist({ label: 'Other_Group:Alias', category: 'modern' }, true);
+assert.deepEqual(Array.from(api.onlyUseReferenceRows(), (entry) => entry[1]), ['Group_A:Unused']);
 });
