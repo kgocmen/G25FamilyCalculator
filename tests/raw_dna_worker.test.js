@@ -7,9 +7,9 @@ const zlib = require("node:zlib");
 
 test("raw worker calculates K12b, K36 and the direct G25 blend independently", async () => {
   const calls = new Map([[1, 2]]), reportedCalls = new Map([[1, "AG"]]), special = new Map();
-  const events = [], selected = [];
+  const events = [], selected = [], fetched = [];
   const manifest = { directBlend: { file: "g25_blend.bin.gz", snps: 52961,
-    bytes: 100, minCoverage: .99 }, models: {
+    bytes: 100, minCoverage: .99, sha256: "abcdef1234567890test" }, models: {
     k12b: { snps: 10000, components: Array(12).fill("component"), bytes: 1 },
     k36: { snps: 10000, components: Array(36).fill("component"), bytes: 1 },
   } };
@@ -18,9 +18,12 @@ test("raw worker calculates K12b, K36 and the direct G25 blend independently", a
     postMessage: (event) => events.push(event) };
   const context = vm.createContext({ self, URL, Response, Blob, DecompressionStream,
     importScripts() {},
-    fetch: async (url) => url.pathname.endsWith("manifest.json")
-      ? { ok: true, json: async () => manifest }
-      : new Response(zlib.gzipSync(Buffer.from([url.pathname.includes("k12b") ? 12 : 36]))),
+    fetch: async (url) => {
+      fetched.push(url);
+      return url.pathname.endsWith("manifest.json")
+        ? { ok: true, json: async () => manifest }
+        : new Response(zlib.gzipSync(Buffer.from([url.pathname.includes("k12b") ? 12 : 36])));
+    },
     G25Health: { matchCalls: () => [], inferBloodType: () => null },
     G25Direct: { decode: () => ({ n: 52961 }), predict: () => ({
       values: Array(25).fill(.02), matched: 52960, coverage: 52960 / 52961,
@@ -51,6 +54,7 @@ test("raw worker calculates K12b, K36 and the direct G25 blend independently", a
   assert.deepEqual(selected, ["k12b", "k36"]);
   assert.equal(events.filter((event) => event.type === "result").length, 2);
   assert.equal(events.find((event) => event.type === "g25-blend").matched, 52960);
+  assert.equal(fetched.find((url) => url.pathname.endsWith("g25_blend.bin.gz")).searchParams.get("v"), "abcdef1234567890");
   assert.equal(events.at(-1).type, "done");
   assert.equal(calls.size, 0);
   assert.equal(reportedCalls.size, 0);

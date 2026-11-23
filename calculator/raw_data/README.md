@@ -74,11 +74,14 @@ two neighbor maps, marker indices, and projector source. Raw DNA is not stored
 there. Run this after `build_raw_models.py`, which rewrites the
 manifest. The exporter uses a deterministic gzip timestamp.
 
-The model selection used population-held-out validation; the final blend had
-a mean scaled G25 distance of 3.573 on that validation set and 3.580 on five
-separately held-out ancient genomes after excluding alternate versions of the
-same individuals from training. These are estimates on the available reference
-panels, not an accuracy guarantee for other populations or chip types.
+The current blend adds 1,040 ancient preparation-alias pairings from the
+[AADR v66.p1 panel](https://doi.org/10.7910/DVN/FFIDCW) to the matched official
+G25 references. Fitting keeps one preparation per individual. On three
+population-held-out splits, the expanded blend lowered mean scaled G25 distance
+by 0.021–0.035 and the 95th percentile by 0.012–0.236 compared with an
+exact-match-only model trained on the same splits. See `data/blend/README.md`
+for the data and evaluation procedure. These are estimates on the available
+reference panels, not an accuracy guarantee for other populations or chip types.
 
 ## Rebuild
 

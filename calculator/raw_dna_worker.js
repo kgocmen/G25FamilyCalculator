@@ -64,7 +64,9 @@ self.onmessage = async ({ data }) => {
       if (!info?.file) throw new Error("The G25 kgocmen algorithm model is unavailable.");
       if (typeof DecompressionStream === "undefined") throw new Error("This browser cannot decompress the G25 kgocmen algorithm model.");
       send("status", { message: `Loading G25 kgocmen algorithm model (${(info.bytes / 1048576).toFixed(1)} MB)…` });
-      const response = await fetch(new URL(`raw_data/${info.file}`, self.location.href));
+      const modelUrl = new URL(`raw_data/${info.file}`, self.location.href);
+      if (info.sha256) modelUrl.searchParams.set("v", info.sha256.slice(0, 16));
+      const response = await fetch(modelUrl);
       if (!response.ok) throw new Error("Could not load the G25 kgocmen algorithm model.");
       const compressed = await response.arrayBuffer();
       if (self.crypto?.subtle) {
