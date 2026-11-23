@@ -200,6 +200,57 @@
     return { calls, reportedCalls, special, stats };
   }
 
+  function matchPositionCalls(text, model, calls) {
+    const needed = new Map(), known = new Map(), found = new Map(), conflicts = new Set();
+    for (let i = 0; i < model.n; i++) {
+      const key = `${model.chrom[i]}:${model.pos[i]}`;
+      known.set(model.ids[i], key);
+      if (!calls.has(model.ids[i])) needed.set(key, model.ids[i]);
+    }
+    if (!needed.size) return found;
+    let columns = null, delimiter, checked = 0, agreed = 0;
+    for (let rowText of text.replace(/^\uFEFF/, "").split(/\r\n|\n|\r/)) {
+      rowText = rowText.trim();
+      if (!rowText) continue;
+      if (rowText.startsWith("#")) {
+        if (!/^#+\s*"?RSID["\s,\t]/i.test(rowText)) continue;
+        rowText = rowText.replace(/^#+\s*/, "");
+      }
+      if (!columns) {
+        delimiter = rowText.includes("\t") ? "\t" : ",";
+        const names = fields(rowText, delimiter).map((value) => value.toUpperCase().replace(/[ _]/g, ""));
+        columns = { rs: names.indexOf("RSID"), chr: names.indexOf("CHROMOSOME"),
+          pos: names.indexOf("POSITION"), result: names.indexOf("RESULT"),
+          a: names.indexOf("ALLELE1"), b: names.indexOf("ALLELE2") };
+        if (columns.result < 0) columns.result = names.indexOf("GENOTYPE");
+        continue;
+      }
+      const row = fields(rowText, delimiter);
+      const chromosome = Number((row[columns.chr] || "").replace(/^chr/i, ""));
+      const position = Number((row[columns.pos] || "").replaceAll(",", ""));
+      if (!Number.isInteger(chromosome) || chromosome < 1 || chromosome > 22 ||
+          !Number.isInteger(position) || position < 1) continue;
+      const key = `${chromosome}:${position}`;
+      const rs = /^rs([1-9]\d*)$/i.exec(row[columns.rs] || "");
+      if (rs && known.has(Number(rs[1]))) {
+        checked++;
+        if (known.get(Number(rs[1])) === key) agreed++;
+      }
+      const target = needed.get(key);
+      if (!target || conflicts.has(target)) continue;
+      if (rs && Number(rs[1]) === target) continue;
+      const genotype = (columns.result >= 0 ? row[columns.result] || "" :
+        (row[columns.a] || "") + (row[columns.b] || "")).toUpperCase();
+      if (!/^[ACGT]{2}$/.test(genotype)) continue;
+      const first = BASES.indexOf(genotype[0]), second = BASES.indexOf(genotype[1]);
+      const code = Math.min(first, second) * 4 + Math.max(first, second);
+      if (found.has(target) && found.get(target) !== code) {
+        found.delete(target); conflicts.add(target);
+      } else found.set(target, code);
+    }
+    return checked && agreed / checked >= 0.5 ? found : new Map();
+  }
+
   function decodeModel(buffer) {
     const view = new DataView(buffer);
     if (buffer.byteLength < 16 || new TextDecoder().decode(new Uint8Array(buffer, 0, 8)) !== "G25RAW01") {
@@ -328,7 +379,7 @@
       sum + weight / total * scale * regression.coefficients[i][pc], published ? regression.intercept[pc] : 0));
   }
 
-  const api = { fields, parse, readRawText, decodeModel, match, simplex, evaluate, fit, regress };
+  const api = { fields, parse, matchPositionCalls, readRawText, decodeModel, match, simplex, evaluate, fit, regress };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.G25RawDNA = api;
 })(typeof self !== "undefined" ? self : globalThis);

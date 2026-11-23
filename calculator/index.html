@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#14243b">
   <link rel="icon" href="../favicon.ico?v=20261106-1" type="image/x-icon">
   <title>G25 Family Calculator</title>
-  <link rel="stylesheet" href="style.css?v=20261119-1">
+  <link rel="stylesheet" href="style.css?v=20261123-1">
   <link rel="stylesheet" href="k12b.css?v=20261120-1">
   <link rel="stylesheet" href="health.css?v=20261111-1">
   <script defer src="references.js?v=20261026-2"></script>
@@ -31,8 +31,8 @@
   <script defer src="admixture_charts.js?v=20261115-5"></script>
   <script defer src="k12b.js?v=20261116-1"></script>
   <script defer src="health.js?v=20261111-5"></script>
-  <script defer src="report_pdf.js?v=20261115-4"></script>
-  <script defer src="raw_data_ui.js?v=20261115-5"></script>
+  <script defer src="report_pdf.js?v=20261123-2"></script>
+  <script defer src="raw_data_ui.js?v=20261123-5"></script>
   <script defer src="app.js?v=20261119-8"></script>
 </head>
 <body>
@@ -96,22 +96,39 @@
         <progress id="raw-progress" aria-label="Calculating ancestry" hidden></progress>
         <p id="raw-status" class="raw-status" role="status" aria-live="polite" hidden></p>
         <p id="raw-summary" class="method-note" hidden></p>
-        <section id="raw-g25" class="raw-result raw-g25-result" aria-labelledby="raw-g25-title" hidden>
-          <div class="section-head">
-            <div><h2 id="raw-g25-title">Simulated G25 <span class="badge">Scaled</span></h2>
-              <p>Estimated from K36 proportions, not equal to the original G25 values.</p></div>
-            <button id="raw-g25-copy" class="text-button" type="button">Copy</button>
-          </div>
-          <textarea id="raw-g25-line" rows="4" readonly spellcheck="false" aria-label="Simulated scaled G25 coordinates"></textarea>
-          <div class="raw-g25-footer"><button id="raw-analyse" class="primary-button" type="button">Use in Analyse</button></div>
-        </section>
         <div id="raw-model-results">
           <div id="raw-model-tabs" class="analysis-tabs raw-model-tabs" role="tablist" aria-label="Raw DNA results">
-            <button id="raw-k12b-tab" class="analysis-tab active" type="button" role="tab" aria-selected="true" aria-controls="raw-k12b">K12b</button>
+            <button id="raw-g25-tab" class="analysis-tab active" type="button" role="tab" aria-selected="true" aria-controls="raw-g25">G25</button>
+            <button id="raw-k12b-tab" class="analysis-tab" type="button" role="tab" aria-selected="false" aria-controls="raw-k12b" tabindex="-1">K12b</button>
             <button id="raw-k36-tab" class="analysis-tab" type="button" role="tab" aria-selected="false" aria-controls="raw-k36" tabindex="-1">K36</button>
             <button id="raw-health-tab" class="analysis-tab" type="button" role="tab" aria-selected="false" aria-controls="raw-health" tabindex="-1">Health</button>
           </div>
-          <section id="raw-k12b" class="raw-result raw-model-panel" role="tabpanel" aria-labelledby="raw-k12b-tab">
+          <section id="raw-g25" class="raw-result raw-model-panel raw-g25-result" role="tabpanel" aria-labelledby="raw-g25-tab">
+            <div class="section-head"><h2 id="raw-g25-title">Simulated G25 <span class="badge">Scaled</span></h2></div>
+            <div class="raw-g25-method">
+              <div class="section-head"><h3>K36 regression G25 coordinates</h3>
+                <button id="raw-g25-copy" class="text-button" type="button" disabled>Copy</button></div>
+              <p id="raw-g25-regression-status" class="method-note" role="status">Calculate raw DNA to see coordinates.</p>
+              <textarea id="raw-g25-line" rows="4" readonly spellcheck="false" aria-label="K36 regression scaled G25 coordinates" hidden></textarea>
+            </div>
+            <div class="raw-g25-method">
+              <div class="section-head"><h3>G25 kgocmen algorithm</h3>
+                <button id="raw-g25-blend-copy" class="text-button" type="button" disabled>Copy</button></div>
+              <p id="raw-g25-blend-status" class="method-note" role="status">Calculate raw DNA to see coordinates.</p>
+              <textarea id="raw-g25-blend-line" rows="4" readonly spellcheck="false" aria-label="G25 kgocmen algorithm scaled coordinates" hidden></textarea>
+            </div>
+            <div class="raw-g25-footer">
+              <label for="raw-g25-source">Use for Analyse and PDF
+                <select id="raw-g25-source" disabled>
+                  <option id="raw-g25-source-regression" value="regression" selected>K36 regression</option>
+                  <option id="raw-g25-source-blend" value="blend" disabled>G25 kgocmen algorithm</option>
+                  <option value="none">None</option>
+                </select>
+              </label>
+              <button id="raw-analyse" class="primary-button" type="button" disabled>Use in Analyse</button>
+            </div>
+          </section>
+          <section id="raw-k12b" class="raw-result raw-model-panel" role="tabpanel" aria-labelledby="raw-k12b-tab" hidden>
             <div class="section-head"><h2 id="raw-k12b-title">Dodecad K12b</h2>
               <div class="raw-actions"><button id="raw-k12b-copy-row" class="text-button" type="button" disabled hidden>Copy row</button>
                 <button id="raw-k12b-copy-table" class="text-button" type="button" disabled hidden>Copy table</button></div>

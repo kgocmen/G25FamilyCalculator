@@ -78,5 +78,17 @@
     "file": "k36_g25_vbknethio.json",
     "id": "vbknethio-k36-scaled-05339d34",
     "sha256": "4274a52dc1a94f00acfd255166e3944f124a5cf3382efb7df5060ed8d4c1b924"
+  },
+  "directBlend": {
+    "file": "g25_blend.bin.gz",
+    "snps": 52992,
+    "bytes": 35340413,
+    "sha256": "24b68efafc5b3e895b2515ae6fa50ff4c32183de8bc1e6bf85c704c35a433b1c",
+    "minCoverage": 0.99,
+    "axes": [
+      50,
+      100
+    ],
+    "method": "G25 kgocmen algorithm (AADR per-file least-squares PCA + G25 neighbor blend)"
   }
 }

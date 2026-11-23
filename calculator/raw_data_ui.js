@@ -4,14 +4,27 @@
 
   function init(onAnalyse, getReportReferences = () => ({ rows: window.G25_REFERENCES || [], label: "Global references" })) {
     const $ = (id) => document.getElementById(id);
-    let worker = null, results = {}, g25 = null, healthResult = null;
+    let worker = null, results = {}, g25 = null, regressionG25 = null, blendG25 = null, healthResult = null;
+    let preferredG25Source = "regression";
     let reportWorker = null, reportReject = null, reportRequest = 0;
     const modelIds = ["k12b", "k36"], settledModels = new Set(), copyTimers = new WeakMap();
-    const tabIds = [...modelIds, "health"];
-    let selectedModel = "k12b";
+    const tabIds = ["g25", ...modelIds, "health"];
+    let selectedModel = "g25";
     const cleanName = () => ($("raw-sample-name").value.trim() || "Sample").replace(/[\r\n,\t]/g, "_").slice(0, 120);
-    const line = () => `${cleanName()}_simulated_scaled,${g25.map((v) => v.toFixed(6)).join(",")}`;
+    const line = (values, suffix = "simulated_scaled") => `${cleanName()}_${suffix},${values.map((v) => v.toFixed(6)).join(",")}`;
     const message = (text) => { $("raw-status").textContent = text; $("raw-status").hidden = !text; };
+    const g25Suffix = () => g25 === blendG25 ? "kgocmen_scaled" : "simulated_scaled";
+
+    function updateG25Selection() {
+      const useBlend = preferredG25Source === "blend" ? Boolean(blendG25) : !regressionG25 && Boolean(blendG25);
+      const useNone = preferredG25Source === "none";
+      g25 = useNone ? null : useBlend ? blendG25 : regressionG25 || blendG25;
+      $("raw-g25-source").value = useNone ? "none" : useBlend ? "blend" : "regression";
+      $("raw-g25-source").disabled = !regressionG25 && !blendG25;
+      $("raw-g25-source-regression").disabled = !regressionG25;
+      $("raw-g25-source-blend").disabled = !blendG25;
+      $("raw-analyse").disabled = !g25;
+    }
 
     function selectModel(id) {
       selectedModel = id;
@@ -40,11 +53,12 @@
     }
     function clearResults() {
       cancelReport();
-      results = {}; g25 = null; healthResult = null;
+      results = {}; g25 = null; regressionG25 = null; blendG25 = null; healthResult = null;
+      preferredG25Source = "regression";
       settledModels.clear();
       $("raw-model-results").hidden = false;
-      for (const id of ["raw-g25", "raw-summary"]) $(id).hidden = true;
-      selectModel("k12b");
+      $("raw-summary").hidden = true;
+      selectModel("g25");
       for (const id of ["k36", "k12b"]) {
         $("raw-" + id + "-status").textContent = "";
         if (id === "k36") {
@@ -60,6 +74,14 @@
       window.G25K12BUI?.reset();
       window.G25HealthUI?.reset();
       $("raw-g25-line").value = "";
+      $("raw-g25-line").hidden = true;
+      $("raw-g25-copy").disabled = true;
+      $("raw-g25-regression-status").textContent = "Calculate raw DNA to see coordinates.";
+      $("raw-g25-blend-line").value = "";
+      $("raw-g25-blend-line").hidden = true;
+      $("raw-g25-blend-copy").disabled = true;
+      $("raw-g25-blend-status").textContent = "Calculate raw DNA to see coordinates.";
+      updateG25Selection();
       $("raw-export").disabled = true;
     }
     function cancel() {
@@ -138,11 +160,17 @@
         if (data.id === "k12b") button.hidden = false;
       }
       if (data.g25) {
-        g25 = data.g25;
-        $("raw-g25").hidden = false;
-        $("raw-g25-line").value = line();
+        regressionG25 = data.g25;
+        $("raw-g25-line").value = line(regressionG25);
+        $("raw-g25-line").hidden = false;
+        $("raw-g25-copy").disabled = false;
+        $("raw-g25-regression-status").textContent = "Estimated from K36 proportions.";
+        updateG25Selection();
       } else if (data.id === "k36" && data.regressionError) {
         $(prefix + "-status").textContent += ` G25 regression unavailable: ${data.regressionError}`;
+        $("raw-g25-regression-status").textContent = `G25 regression unavailable: ${data.regressionError}`;
+      } else if (data.id === "k36") {
+        $("raw-g25-regression-status").textContent = "K36 did not converge; regression G25 is unavailable.";
       }
     }
     $("raw-file").addEventListener("change", () => {
@@ -153,7 +181,10 @@
       busy(false);
       message(file ? `${file.name} selected. Ready to calculate.` : "");
     });
-    $("raw-sample-name").addEventListener("input", () => { if (g25) $("raw-g25-line").value = line(); });
+    $("raw-sample-name").addEventListener("input", () => {
+      if (regressionG25) $("raw-g25-line").value = line(regressionG25);
+      if (blendG25) $("raw-g25-blend-line").value = line(blendG25, "kgocmen_scaled");
+    });
     $("raw-run").addEventListener("click", () => {
       cancel(); clearResults();
       const file = $("raw-file").files[0];
@@ -164,10 +195,12 @@
         message("Open this calculator through its hosted site or a local web server to process raw DNA."); return;
       }
       try {
-        worker = new Worker(new URL("raw_dna_worker.js?v=20261115-1", document.baseURI));
+        worker = new Worker(new URL("raw_dna_worker.js?v=20261123-4", document.baseURI));
         const current = worker;
         busy(true); message("Starting local DNA analysis…");
         for (const id of modelIds) $("raw-" + id + "-status").textContent = `Calculating ${id === "k36" ? "K36" : "K12b"}…`;
+        $("raw-g25-regression-status").textContent = "Calculating K36 regression…";
+        $("raw-g25-blend-status").textContent = "Waiting for G25 kgocmen algorithm…";
         worker.onmessage = ({ data }) => {
           if (current !== worker) return;
           if (data.type === "status") message(data.message);
@@ -178,6 +211,16 @@
               `${data.stats.invalid.toLocaleString()} invalid rows · ${data.stats.duplicates.toLocaleString()} duplicates (${data.stats.conflicts.toLocaleString()} conflicting SNPs excluded).`;
           }
           if (data.type === "result") showResult(data);
+          if (data.type === "g25-blend") {
+            blendG25 = data.g25;
+            showModels();
+            $("raw-g25-blend-line").value = line(blendG25, "kgocmen_scaled");
+            $("raw-g25-blend-line").hidden = false;
+            $("raw-g25-blend-copy").disabled = false;
+            $("raw-g25-blend-status").textContent = `${data.matched.toLocaleString()} / ${data.total.toLocaleString()} SNPs used.`;
+            updateG25Selection();
+          }
+          if (data.type === "g25-blend-error") $("raw-g25-blend-status").textContent = data.message;
           if (data.type === "health") {
             healthResult = { matches: data.matches, bloodType: data.bloodType };
             window.G25HealthUI?.setMatches(data.matches, data.bloodType);
@@ -186,12 +229,18 @@
             settledModels.add(data.id);
             showModels();
             $("raw-" + data.id + "-status").textContent = data.message;
+            if (data.id === "k36") $("raw-g25-regression-status").textContent = `G25 regression unavailable: ${data.message}`;
           }
-          if (data.type === "error") { cancel(); stopPendingModels("Calculation stopped."); message(data.message); }
+          if (data.type === "error") {
+            cancel(); stopPendingModels("Calculation stopped.");
+            if (!regressionG25) $("raw-g25-regression-status").textContent = "Calculation stopped.";
+            if (!blendG25) $("raw-g25-blend-status").textContent = "Calculation stopped.";
+            message(data.message);
+          }
           if (data.type === "done") {
             cancel();
             $("raw-export").disabled = !results.k12b && !results.k36 && !healthResult;
-            const complete = results.k36?.fit.converged && results.k12b?.fit.converged && g25;
+            const complete = results.k36?.fit.converged && results.k12b?.fit.converged && (regressionG25 || blendG25);
             message(complete ? "Analysis complete. Your DNA stayed in this browser." : "Processing finished. Review the result notes below.");
           }
         };
@@ -199,7 +248,12 @@
         worker.postMessage({ file });
       } catch (error) { cancel(); message(error.message); }
     });
-    $("raw-cancel").addEventListener("click", () => { cancel(); stopPendingModels("Calculation cancelled."); message("Calculation cancelled. Completed results remain below."); });
+    $("raw-cancel").addEventListener("click", () => {
+      cancel(); stopPendingModels("Calculation cancelled.");
+      if (!regressionG25) $("raw-g25-regression-status").textContent = "Calculation cancelled.";
+      if (!blendG25) $("raw-g25-blend-status").textContent = "Calculation cancelled.";
+      message("Calculation cancelled. Completed results remain below.");
+    });
     $("raw-reset").addEventListener("click", reset);
     for (const id of tabIds) $("raw-" + id + "-tab").addEventListener("click", () => selectModel(id));
     for (const id of modelIds) {
@@ -215,8 +269,16 @@
       selectModel(tabIds[index]);
       $("raw-" + selectedModel + "-tab").focus();
     });
-    $("raw-g25-copy").addEventListener("click", (event) => copy(line(), event.currentTarget));
-    $("raw-analyse").addEventListener("click", () => onAnalyse({ label: `${cleanName()}_simulated_scaled`, values: g25.slice(), source: "raw-regression" }));
+    $("raw-g25-copy").addEventListener("click", (event) => { if (regressionG25) copy(line(regressionG25), event.currentTarget); });
+    $("raw-g25-blend-copy").addEventListener("click", (event) => { if (blendG25) copy(line(blendG25, "kgocmen_scaled"), event.currentTarget); });
+    $("raw-g25-source").addEventListener("change", (event) => {
+      preferredG25Source = event.currentTarget.value;
+      updateG25Selection();
+    });
+    $("raw-analyse").addEventListener("click", () => {
+      if (!g25) return;
+      onAnalyse({ label: `${cleanName()}_${g25Suffix()}`, values: g25.slice(), source: g25 === blendG25 ? "raw-blend" : "raw-regression" });
+    });
     function calculateReportFits(target, references) {
       return new Promise((resolve, reject) => {
         try {
@@ -253,11 +315,13 @@
         const sample = cleanName();
         const source = getReportReferences();
         const references = source.rows || [];
-        const target = g25 ? { label: `${sample}_simulated_scaled`, values: g25.slice() } : null;
+        const target = g25 ? { label: `${sample}_${g25Suffix()}`, values: g25.slice() } : null;
+        const includeG25 = preferredG25Source !== "none";
         message("Preparing PDF report…");
         const analysisFits = target ? await calculateReportFits(target, references) : null;
         if (request !== reportRequest) return;
-        const report = window.G25ReportPdf.buildReport({ sample, results, g25,
+        const report = window.G25ReportPdf.buildReport({ sample, results, g25: target?.values, g25Label: target?.label,
+          includeG25,
           health: healthResult, references, analysisFits, referenceLabel: source.label });
         const pdf = window.G25ReportPdf.createPdf(report);
         const url = URL.createObjectURL(pdf);

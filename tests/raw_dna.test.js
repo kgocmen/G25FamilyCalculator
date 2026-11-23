@@ -53,6 +53,16 @@ test("MyHeritage quoted CSV handles comments, no-calls, sex chromosomes and conf
   assert.equal(stats.invalid, 1);
 });
 
+test("position fallback finds a model marker reported under another rsID on the same build", () => {
+  const text = "RSID,CHROMOSOME,POSITION,RESULT\nrs1,1,100,AA\nrs999,1,200,CT\n";
+  const model = { n: 2, ids: Uint32Array.from([1, 2]), chrom: Uint8Array.from([1, 1]),
+    pos: Uint32Array.from([100, 200]) };
+  const calls = raw.parse(text).calls;
+  assert.deepEqual([...raw.matchPositionCalls(text, model, calls)], [[2, 7]]);
+  const differentBuild = text.replace("rs1,1,100", "rs1,1,101");
+  assert.equal(raw.matchPositionCalls(differentBuild, model, raw.parse(differentBuild).calls).size, 0);
+});
+
 test("MyHeritage split alleles, tab-separated columns and reordered CSV headers", () => {
   const a = raw.parse("rsID\tChromosome\tPosition\tAllele 1\tAllele 2\nrs25\tchr1\t123\tA\tG\nrs26\t2\t4\t0\t0");
   const b = raw.parse('RESULT,POSITION,RSID,CHROMOSOME\nAG,123,rs25,1');

@@ -49,7 +49,8 @@ function workspace() {
     location: { protocol: 'http:' } });
   for (const file of ['core.js', 'admixture_charts.js', 'k12b.js', 'report_pdf.js', 'raw_data_ui.js'])
     vm.runInContext(fs.readFileSync(path.join(__dirname, '../calculator', file), 'utf8'), context);
-  window.G25RawDataUI.init(() => {});
+  const analyses = [];
+  window.G25RawDataUI.init((profile) => analyses.push(profile));
   const $ = (id) => elements.get(id);
   const click = (id) => $(id).listeners.click();
   const key = (id, name) => $(id).listeners.keydown({ key: name, preventDefault() {} });
@@ -58,7 +59,7 @@ function workspace() {
     $('raw-file').listeners.change(); click('raw-run');
     return worker;
   };
-  return { $, click, key, start, window, document, downloads, lastWorker: () => worker };
+  return { $, click, key, start, window, document, downloads, analyses, lastWorker: () => worker };
 }
 
 test('browser PDF module can calculate K12b Oracle from the exposed K12b API', () => {
@@ -115,14 +116,14 @@ test('K12b summary shows Medieval Turkic as a rounded integer percentage', () =>
   assert.equal(card.children[1].textContent, '24%');
 });
 
-test('Health is independent of ancestry results; tabs wrap and reset to K12b Chart', () => {
+test('Health is independent of ancestry results; tabs wrap and reset to G25', () => {
   const { $, click, key, start, document } = workspace();
   const worker = start();
   key('raw-model-tabs', 'End');
   assert.equal($('raw-health').hidden, false);
   assert.equal(document.activeElement, $('raw-health-tab'));
   key('raw-model-tabs', 'ArrowRight');
-  assert.equal($('raw-k12b').hidden, false);
+  assert.equal($('raw-g25').hidden, false);
   key('raw-model-tabs', 'ArrowLeft');
   assert.equal($('raw-health').hidden, false);
   worker.onmessage({ data: { type: 'result', id: 'k12b',
@@ -138,7 +139,7 @@ test('Health is independent of ancestry results; tabs wrap and reset to K12b Cha
   assert.equal($('raw-k12b-chart').hidden, false);
   click('raw-k12b-oracle-tab');
   click('raw-reset');
-  assert.equal($('raw-k12b').hidden, false);
+  assert.equal($('raw-g25').hidden, false);
   assert.equal($('raw-k12b-chart').hidden, false);
   assert.equal($('raw-health').hidden, true);
   assert.equal($('k12b-chart').children.length, 0);
@@ -176,6 +177,64 @@ test('K36 sorts the pie and legend descending while retaining component colors a
   assert.equal($('raw-k36-chart').children.length, 0);
   assert.equal($('raw-k36-table').children.length, 0);
   assert.equal($('raw-k36-copy-row').disabled, true);
+});
+
+test('G25 tab keeps K36 regression as the default and allows choosing blend', async () => {
+  const { $, click, start, window, analyses, lastWorker } = workspace();
+  const payloads = [];
+  window.G25ReportPdf = { buildReport(input) { payloads.push(input); return { sections: [] }; },
+    createPdf() { return new Blob(['%PDF-1.4'], { type: 'application/pdf' }); } };
+  const rawWorker = start();
+  assert.equal($('raw-g25').hidden, false);
+  assert.equal($('raw-k12b').hidden, true);
+  rawWorker.onmessage({ data: { type: 'result', id: 'k36',
+    components: Array.from({ length: 36 }, (_, i) => `Component_${i}`),
+    fit: { proportions: Array(36).fill(1 / 36), converged: true, iterations: 5 },
+    g25: Array(25).fill(0.01),
+    stats: { matched: 50000, total: 160000, coverage: .3125, flipped: 0, incompatible: 0 } } });
+  assert.match($('raw-g25-line').value, /^synthetic_simulated_scaled,0\.010000/);
+  rawWorker.onmessage({ data: { type: 'g25-blend', g25: Array(25).fill(0.02),
+    matched: 52900, total: 52961 } });
+  assert.match($('raw-g25-blend-line').value, /^synthetic_kgocmen_scaled,0\.020000/);
+  assert.equal($('raw-g25-source').value, 'regression');
+  click('raw-analyse');
+  assert.equal(analyses[0].source, 'raw-regression');
+  assert.equal(analyses[0].values[0], 0.01);
+  rawWorker.onmessage({ data: { type: 'done' } });
+  click('raw-export');
+  let reportWorker = lastWorker();
+  assert.equal(reportWorker.sent.target.label, 'synthetic_simulated_scaled');
+  reportWorker.onmessage({ data: { type: 'result', fits: {
+    relaxedModern: [], relaxedAncient: [], strictModern: [],
+  } } });
+  await new Promise(setImmediate);
+  assert.equal(payloads[0].g25Label, 'synthetic_simulated_scaled');
+  assert.equal(payloads[0].g25[0], 0.01);
+  $('raw-g25-source').value = 'blend';
+  $('raw-g25-source').listeners.change({ currentTarget: $('raw-g25-source') });
+  click('raw-analyse');
+  assert.equal(analyses[1].source, 'raw-blend');
+  assert.equal(analyses[1].values[0], 0.02);
+  click('raw-export');
+  reportWorker = lastWorker();
+  assert.equal(reportWorker.sent.target.label, 'synthetic_kgocmen_scaled');
+  reportWorker.onmessage({ data: { type: 'result', fits: {
+    relaxedModern: [], relaxedAncient: [], strictModern: [],
+  } } });
+  await new Promise(setImmediate);
+  assert.equal(payloads[1].g25Label, 'synthetic_kgocmen_scaled');
+  assert.equal(payloads[1].g25[0], 0.02);
+  $('raw-g25-source').value = 'none';
+  $('raw-g25-source').listeners.change({ currentTarget: $('raw-g25-source') });
+  assert.equal($('raw-analyse').disabled, true);
+  assert.equal($('raw-g25-line').hidden, false);
+  assert.equal($('raw-g25-blend-line').hidden, false);
+  click('raw-analyse');
+  assert.equal(analyses.length, 2);
+  click('raw-export');
+  await new Promise(setImmediate);
+  assert.equal(payloads[2].includeG25, false);
+  assert.equal(payloads[2].g25, undefined);
 });
 
 test('raw DNA worker forwards the blood group estimate to Health', () => {

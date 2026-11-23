@@ -42,12 +42,18 @@ p { margin: 0; }
 .raw-model-tabs.analysis-tabs { margin: 24px 0 0; flex-wrap: wrap; }
 .raw-result.raw-model-panel { margin-top: 14px; }
 .raw-model-panel .section-head { flex-wrap: wrap; }
-.raw-g25-footer { display: flex; justify-content: flex-end; margin-top: 14px; }
+.raw-g25-footer { display: flex; align-items: end; justify-content: space-between; flex-wrap: wrap; gap: 14px; margin-top: 18px; }
+.raw-g25-footer label { display: grid; gap: 6px; color: #365a72; font-size: 13px; font-weight: 700; }
+.raw-g25-footer select { padding: 9px 12px; border: 1px solid #cbd8e2; border-radius: 9px; background: #f8fafc; color: #14243b; }
 .raw-result { min-width: 0; border-top: 1px solid #dce4eb; margin-top: 25px; padding-top: 24px; }
 .raw-result h2 { font-size: 18px; }
 .raw-g25-result .section-head { flex-wrap: wrap; }
-.raw-g25-result .section-head p { font-size: 13px; max-width: 600px; }
-#raw-g25-line { display: block; width: 100%; margin-top: 16px; padding: 14px; border: 1px solid #cbd8e2; border-radius: 10px; color: #173c50; background: #f3faf8; font: 13px/1.6 ui-monospace, SFMono-Regular, Consolas, monospace; resize: vertical; }
+.raw-g25-method { margin-top: 20px; }
+.raw-g25-method + .raw-g25-method { border-top: 1px solid #e8eef3; padding-top: 20px; }
+.raw-g25-method h3 { margin: 0; color: #264d65; font-size: 15px; }
+.raw-g25-method .method-note { margin-top: 6px; }
+#raw-g25-line, #raw-g25-blend-line { display: block; width: 100%; margin-top: 12px; padding: 14px; border: 1px solid #cbd8e2; border-radius: 10px; color: #173c50; background: #f3faf8; font: 13px/1.6 ui-monospace, SFMono-Regular, Consolas, monospace; resize: vertical; }
+#raw-g25-line[hidden], #raw-g25-blend-line[hidden] { display: none; }
 .raw-components { display: grid; gap: 6px; margin-top: 18px; }
 .raw-component { position: relative; isolation: isolate; display: flex; justify-content: space-between; gap: 12px; overflow: hidden; padding: 8px 10px; border-radius: 5px; background: #f3f6f9; font-size: 12px; }
 .raw-component strong { color: #176e8d; font-variant-numeric: tabular-nums; }

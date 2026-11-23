@@ -1,8 +1,9 @@
 # Raw Data models
 
-The calculator reads MyHeritage CSV/TSV locally, estimates K36 and K12b independently
-from fixed reference allele frequencies, then applies a K36 → **simulated scaled G25**
-regression. No DNA is uploaded, persisted, or included in application assets.
+The calculator reads MyHeritage CSV/TSV locally and estimates K36 and K12b
+independently from fixed reference allele frequencies. The G25 tab shows both
+K36 regression and a direct raw SNP blend as simulated scaled coordinates.
+No DNA is uploaded, persisted, or included in application assets.
 
 ## Sources
 
@@ -45,6 +46,37 @@ compressed browser models, and identifies the active regression file and its has
 The published regression records its source hash; the legacy fit records training hashes.
 The K36 mirror does not supply a separate calculator-data license; the mirror is
 provenance, not a claim that these data are MIT licensed. Preserve author attribution.
+
+## G25 kgocmen algorithm
+
+The G25 tab also shows a raw SNP projection trained from AADR genotypes and paired
+scaled G25 references. It averages two independently selected 50-axis and 100-axis
+local PCA neighbor models. The browser asset is `g25_blend.bin.gz`; it contains
+52,992 supported chip markers, PCA loadings and reference residuals. The browser
+recomputes the least-squares projection for the markers present in each file and
+can match a missing rsID by chromosome position when the genome build agrees.
+The user’s genotypes remain in the browser worker. This is an estimated G25 coordinate row,
+not the official Davidski calculation.
+
+The blend is shown only when at least 99% of these markers match the raw file.
+Below that threshold the existing K36 regression remains available. The strict
+threshold reflects validation on the current chip panel; other chip types have
+not been calibrated. A chip containing markers outside this bundled panel can
+still differ from the local Python blend. The 31 extra rsIDs in
+`build/g25_blend_extra_markers.txt` cover the second tested chip. On both tested
+raw files, all 25 displayed coordinates match the Python blend to six decimals.
+`python build/export_g25_blend.py` regenerates the browser
+asset and adds `directBlend` to the manifest from the locally trained model files
+in the ignored local `data/blend` directory. It contains only the two PCA models,
+two neighbor maps, marker indices, and projector source. Raw DNA is not stored
+there. Run this after `build_raw_models.py`, which rewrites the
+manifest. The exporter uses a deterministic gzip timestamp.
+
+The model selection used population-held-out validation; the final blend had
+a mean scaled G25 distance of 3.573 on that validation set and 3.580 on five
+separately held-out ancient genomes after excluding alternate versions of the
+same individuals from training. These are estimates on the available reference
+panels, not an accuracy guarantee for other populations or chip types.
 
 ## Rebuild
 

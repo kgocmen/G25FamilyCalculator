@@ -1,5 +1,5 @@
 "use strict";
-importScripts("raw_dna.js?v=20261115-1", "k12b_engine.js?v=20261115-1");
+importScripts("raw_dna.js?v=20261123-2", "k12b_engine.js?v=20261115-1", "g25_direct.js?v=20261123-4");
 importScripts("health_data.js?v=20261111-9", "health.js?v=20261111-5");
 
 self.onmessage = async ({ data }) => {
@@ -7,7 +7,8 @@ self.onmessage = async ({ data }) => {
   try {
     if (!data.file || !data.file.size || data.file.size > 100 * 1024 * 1024) throw new Error("Choose a nonempty DNA file smaller than 100 MB.");
     send("status", { message: "Reading DNA SNP calls…" });
-    const { calls, reportedCalls, special, stats } = G25RawDNA.parse(await G25RawDNA.readRawText(data.file));
+    const rawText = await G25RawDNA.readRawText(data.file);
+    const { calls, reportedCalls, special, stats } = G25RawDNA.parse(rawText);
     send("parsed", { stats });
     send("health", { matches: G25Health.matchCalls(calls, special),
       bloodType: G25Health.inferBloodType(calls, special) });
@@ -58,6 +59,30 @@ self.onmessage = async ({ data }) => {
             method: regression.method, validation: regression.validation } : null, regressionError });
       } catch (error) { send("model-error", { id, message: error.message }); }
     }
+    try {
+      const info = manifest.directBlend;
+      if (!info?.file) throw new Error("The G25 kgocmen algorithm model is unavailable.");
+      if (typeof DecompressionStream === "undefined") throw new Error("This browser cannot decompress the G25 kgocmen algorithm model.");
+      send("status", { message: `Loading G25 kgocmen algorithm model (${(info.bytes / 1048576).toFixed(1)} MB)…` });
+      const response = await fetch(new URL(`raw_data/${info.file}`, self.location.href));
+      if (!response.ok) throw new Error("Could not load the G25 kgocmen algorithm model.");
+      const compressed = await response.arrayBuffer();
+      if (self.crypto?.subtle) {
+        const hash = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", compressed)),
+          (v) => v.toString(16).padStart(2, "0")).join("");
+        if (hash !== info.sha256) throw new Error("The G25 kgocmen algorithm model failed its integrity check.");
+      }
+      const buffer = await new Response(new Blob([compressed]).stream().pipeThrough(new DecompressionStream("gzip"))).arrayBuffer();
+      const model = G25Direct.decode(buffer);
+      if (model.n !== info.snps) throw new Error("G25 kgocmen algorithm model metadata does not match.");
+      send("status", { message: "Projecting G25 kgocmen algorithm coordinates…" });
+      const positionCalls = G25RawDNA.matchPositionCalls(rawText, model, calls);
+      const blend = G25Direct.predict(calls, model, positionCalls);
+      if (blend.coverage < info.minCoverage) {
+        throw new Error(`G25 kgocmen algorithm requires ${Math.round(info.minCoverage * 100)}% of its SNP markers; this file matched ${(blend.coverage * 100).toFixed(1)}%.`);
+      }
+      send("g25-blend", { g25: blend.values, matched: blend.matched, total: model.n });
+    } catch (error) { send("g25-blend-error", { message: error.message }); }
     calls.clear();
     reportedCalls.clear();
     special.clear();

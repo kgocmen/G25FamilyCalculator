@@ -44,6 +44,19 @@ test("PDF report includes requested sections in order and no four-way section", 
   assert.equal(health.find((entry) => entry.title?.includes("rs505922")).flag, "plain");
 });
 
+test("PDF G25 row preserves the selected calculation method", () => {
+  const report = buildReport({ sample: "Sample", results: {}, g25: Array(25).fill(0.02),
+    g25Label: "Sample_kgocmen_scaled", health: null });
+  assert.match(report.sections[2].entries[0].text, /^Sample_kgocmen_scaled,0\.020000/);
+});
+
+test("PDF omits G25 and Analysis sections when the source is None", () => {
+  const report = buildReport({ sample: "Sample", results: {}, g25: Array(25).fill(0.02),
+    health: null, includeG25: false });
+  assert.ok(report.sections.every(({ title }) => title !== "G25 row" && !title.startsWith("Analysis")));
+  assert.ok(report.sections.some(({ title }) => title === "Health"));
+});
+
 test("PDF Health colors use the same neutral rules as the Health tab", () => {
   const report = buildReport({ sample: "Sample", results: {}, g25: null, references: [],
     health: { matches: [
