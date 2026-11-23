@@ -59,32 +59,34 @@ self.onmessage = async ({ data }) => {
             method: regression.method, validation: regression.validation } : null, regressionError });
       } catch (error) { send("model-error", { id, message: error.message }); }
     }
-    try {
-      const info = manifest.directBlend;
-      if (!info?.file) throw new Error("The G25 kgocmen algorithm model is unavailable.");
-      if (typeof DecompressionStream === "undefined") throw new Error("This browser cannot decompress the G25 kgocmen algorithm model.");
-      send("status", { message: `Loading G25 kgocmen algorithm model (${(info.bytes / 1048576).toFixed(1)} MB)…` });
-      const modelUrl = new URL(`raw_data/${info.file}`, self.location.href);
-      if (info.sha256) modelUrl.searchParams.set("v", info.sha256.slice(0, 16));
-      const response = await fetch(modelUrl);
-      if (!response.ok) throw new Error("Could not load the G25 kgocmen algorithm model.");
-      const compressed = await response.arrayBuffer();
-      if (self.crypto?.subtle) {
-        const hash = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", compressed)),
-          (v) => v.toString(16).padStart(2, "0")).join("");
-        if (hash !== info.sha256) throw new Error("The G25 kgocmen algorithm model failed its integrity check.");
-      }
-      const buffer = await new Response(new Blob([compressed]).stream().pipeThrough(new DecompressionStream("gzip"))).arrayBuffer();
-      const model = G25Direct.decode(buffer);
-      if (model.n !== info.snps) throw new Error("G25 kgocmen algorithm model metadata does not match.");
-      send("status", { message: "Projecting G25 kgocmen algorithm coordinates…" });
-      const positionCalls = G25RawDNA.matchPositionCalls(rawText, model, calls);
-      const blend = G25Direct.predict(calls, model, positionCalls);
-      if (blend.coverage < info.minCoverage) {
-        throw new Error(`G25 kgocmen algorithm requires ${Math.round(info.minCoverage * 100)}% of its SNP markers; this file matched ${(blend.coverage * 100).toFixed(1)}%.`);
-      }
-      send("g25-blend", { g25: blend.values, matched: blend.matched, total: model.n });
-    } catch (error) { send("g25-blend-error", { message: error.message }); }
+    if (manifest.directBlend?.enabled === true) {
+      try {
+        const info = manifest.directBlend;
+        if (!info?.file) throw new Error("The G25 kgocmen algorithm model is unavailable.");
+        if (typeof DecompressionStream === "undefined") throw new Error("This browser cannot decompress the G25 kgocmen algorithm model.");
+        send("status", { message: `Loading G25 kgocmen algorithm model (${(info.bytes / 1048576).toFixed(1)} MB)…` });
+        const modelUrl = new URL(`raw_data/${info.file}`, self.location.href);
+        if (info.sha256) modelUrl.searchParams.set("v", info.sha256.slice(0, 16));
+        const response = await fetch(modelUrl);
+        if (!response.ok) throw new Error("Could not load the G25 kgocmen algorithm model.");
+        const compressed = await response.arrayBuffer();
+        if (self.crypto?.subtle) {
+          const hash = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", compressed)),
+            (v) => v.toString(16).padStart(2, "0")).join("");
+          if (hash !== info.sha256) throw new Error("The G25 kgocmen algorithm model failed its integrity check.");
+        }
+        const buffer = await new Response(new Blob([compressed]).stream().pipeThrough(new DecompressionStream("gzip"))).arrayBuffer();
+        const model = G25Direct.decode(buffer);
+        if (model.n !== info.snps) throw new Error("G25 kgocmen algorithm model metadata does not match.");
+        send("status", { message: "Projecting G25 kgocmen algorithm coordinates…" });
+        const positionCalls = G25RawDNA.matchPositionCalls(rawText, model, calls);
+        const blend = G25Direct.predict(calls, model, positionCalls);
+        if (blend.coverage < info.minCoverage) {
+          throw new Error(`G25 kgocmen algorithm requires ${Math.round(info.minCoverage * 100)}% of its SNP markers; this file matched ${(blend.coverage * 100).toFixed(1)}%.`);
+        }
+        send("g25-blend", { g25: blend.values, matched: blend.matched, total: model.n });
+      } catch (error) { send("g25-blend-error", { message: error.message }); }
+    }
     calls.clear();
     reportedCalls.clear();
     special.clear();

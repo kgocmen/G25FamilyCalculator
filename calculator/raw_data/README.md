@@ -49,7 +49,11 @@ provenance, not a claim that these data are MIT licensed. Preserve author attrib
 
 ## G25 kgocmen algorithm
 
-The G25 tab also shows a raw SNP projection trained from AADR genotypes and paired
+The calculation is temporarily disabled by `directBlend.enabled: false` in
+`manifest.json`. The Raw Data worker skips the model download and prediction
+while this flag is false. K36 regression remains available.
+
+When enabled, the G25 tab also shows a raw SNP projection trained from AADR genotypes and paired
 scaled G25 references. It averages two independently selected 50-axis and 100-axis
 local PCA neighbor models. The browser asset is `g25_blend.bin.gz`; it contains
 52,992 supported chip markers, PCA loadings and reference residuals. The browser

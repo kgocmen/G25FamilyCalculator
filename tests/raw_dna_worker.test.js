@@ -5,10 +5,10 @@ const path = require("node:path");
 const vm = require("node:vm");
 const zlib = require("node:zlib");
 
-test("raw worker calculates K12b, K36 and the direct G25 blend independently", async () => {
+async function runWorker(enabled) {
   const calls = new Map([[1, 2]]), reportedCalls = new Map([[1, "AG"]]), special = new Map();
   const events = [], selected = [], fetched = [];
-  const manifest = { directBlend: { file: "g25_blend.bin.gz", snps: 52961,
+  const manifest = { directBlend: { enabled, file: "g25_blend.bin.gz", snps: 52961,
     bytes: 100, minCoverage: .99, sha256: "abcdef1234567890test" }, models: {
     k12b: { snps: 10000, components: Array(12).fill("component"), bytes: 1 },
     k36: { snps: 10000, components: Array(36).fill("component"), bytes: 1 },
@@ -53,9 +53,22 @@ test("raw worker calculates K12b, K36 and the direct G25 blend independently", a
   await self.onmessage({ data: { file: { size: 100 } } });
   assert.deepEqual(selected, ["k12b", "k36"]);
   assert.equal(events.filter((event) => event.type === "result").length, 2);
-  assert.equal(events.find((event) => event.type === "g25-blend").matched, 52960);
-  assert.equal(fetched.find((url) => url.pathname.endsWith("g25_blend.bin.gz")).searchParams.get("v"), "abcdef1234567890");
+  if (enabled) {
+    assert.equal(events.find((event) => event.type === "g25-blend").matched, 52960);
+    assert.equal(fetched.find((url) => url.pathname.endsWith("g25_blend.bin.gz")).searchParams.get("v"), "abcdef1234567890");
+  } else {
+    assert.equal(events.some((event) => event.type === "g25-blend"), false);
+    assert.equal(fetched.some((url) => url.pathname.endsWith("g25_blend.bin.gz")), false);
+  }
   assert.equal(events.at(-1).type, "done");
   assert.equal(calls.size, 0);
   assert.equal(reportedCalls.size, 0);
+}
+
+test("raw worker calculates K12b, K36 and the direct G25 blend independently", async () => {
+  await runWorker(true);
+});
+
+test("raw worker skips the disabled kgocmen model", async () => {
+  await runWorker(false);
 });

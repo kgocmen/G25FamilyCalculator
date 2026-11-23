@@ -79,6 +79,7 @@ def main():
     manifest_path = PUBLIC / "manifest.json"
     manifest = json.loads(manifest_path.read_text())
     manifest["directBlend"] = {
+        "enabled": manifest.get("directBlend", {}).get("enabled", False),
         "file": path.name, "snps": len(chip_index), "bytes": len(compressed),
         "sha256": hashlib.sha256(compressed).hexdigest(), "minCoverage": 0.99,
         "axes": [50, 100], "method": "G25 kgocmen algorithm (AADR per-file least-squares PCA + G25 neighbor blend)",
