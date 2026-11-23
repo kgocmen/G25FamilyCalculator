@@ -179,7 +179,7 @@ test('K36 sorts the pie and legend descending while retaining component colors a
   assert.equal($('raw-k36-copy-row').disabled, true);
 });
 
-test('G25 tab keeps K36 regression as the default and allows choosing blend', async () => {
+test('G25 tab defaults to K36 and supports blend, None, and Both', async () => {
   const { $, click, start, window, analyses, lastWorker } = workspace();
   const payloads = [];
   window.G25ReportPdf = { buildReport(input) { payloads.push(input); return { sections: [] }; },
@@ -235,6 +235,30 @@ test('G25 tab keeps K36 regression as the default and allows choosing blend', as
   await new Promise(setImmediate);
   assert.equal(payloads[2].includeG25, false);
   assert.equal(payloads[2].g25, undefined);
+  $('raw-g25-source').value = 'both';
+  $('raw-g25-source').listeners.change({ currentTarget: $('raw-g25-source') });
+  assert.equal($('raw-g25-source-both').disabled, false);
+  assert.equal($('raw-analyse').textContent, 'Compare both');
+  click('raw-analyse');
+  assert.equal(analyses[2].length, 2);
+  assert.equal(analyses[2][0].values[0], 0.01);
+  assert.equal(analyses[2][1].values[0], 0.02);
+  click('raw-export');
+  reportWorker = lastWorker();
+  assert.equal(reportWorker.sent.target.label, 'synthetic_simulated_scaled');
+  reportWorker.onmessage({ data: { type: 'result', fits: {
+    relaxedModern: [{ distance: 1 }], relaxedAncient: [], strictModern: [],
+  } } });
+  await new Promise(setImmediate);
+  reportWorker = lastWorker();
+  assert.equal(reportWorker.sent.target.label, 'synthetic_kgocmen_scaled');
+  reportWorker.onmessage({ data: { type: 'result', fits: {
+    relaxedModern: [{ distance: 2 }], relaxedAncient: [], strictModern: [],
+  } } });
+  await new Promise(setImmediate);
+  assert.equal(payloads[3].g25Profiles.length, 2);
+  assert.equal(payloads[3].g25Profiles[0].analysisFits.relaxedModern[0].distance, 1);
+  assert.equal(payloads[3].g25Profiles[1].analysisFits.relaxedModern[0].distance, 2);
 });
 
 test('raw DNA worker forwards the blood group estimate to Health', () => {

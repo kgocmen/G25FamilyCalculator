@@ -16,14 +16,17 @@
     const g25Suffix = () => g25 === blendG25 ? "kgocmen_scaled" : "simulated_scaled";
 
     function updateG25Selection() {
+      const useBoth = preferredG25Source === "both" && Boolean(regressionG25 && blendG25);
       const useBlend = preferredG25Source === "blend" ? Boolean(blendG25) : !regressionG25 && Boolean(blendG25);
       const useNone = preferredG25Source === "none";
       g25 = useNone ? null : useBlend ? blendG25 : regressionG25 || blendG25;
-      $("raw-g25-source").value = useNone ? "none" : useBlend ? "blend" : "regression";
+      $("raw-g25-source").value = useNone ? "none" : useBoth ? "both" : useBlend ? "blend" : "regression";
       $("raw-g25-source").disabled = !regressionG25 && !blendG25;
       $("raw-g25-source-regression").disabled = !regressionG25;
       $("raw-g25-source-blend").disabled = !blendG25;
+      $("raw-g25-source-both").disabled = !regressionG25 || !blendG25;
       $("raw-analyse").disabled = !g25;
+      $("raw-analyse").textContent = useBoth ? "Compare both" : "Use in Analyse";
     }
 
     function selectModel(id) {
@@ -277,6 +280,13 @@
     });
     $("raw-analyse").addEventListener("click", () => {
       if (!g25) return;
+      if ($("raw-g25-source").value === "both") {
+        onAnalyse([
+          { label: `${cleanName()}_simulated_scaled`, values: regressionG25.slice(), source: "raw-regression" },
+          { label: `${cleanName()}_kgocmen_scaled`, values: blendG25.slice(), source: "raw-blend" },
+        ]);
+        return;
+      }
       onAnalyse({ label: `${cleanName()}_${g25Suffix()}`, values: g25.slice(), source: g25 === blendG25 ? "raw-blend" : "raw-regression" });
     });
     function calculateReportFits(target, references) {
@@ -315,14 +325,25 @@
         const sample = cleanName();
         const source = getReportReferences();
         const references = source.rows || [];
-        const target = g25 ? { label: `${sample}_${g25Suffix()}`, values: g25.slice() } : null;
-        const includeG25 = preferredG25Source !== "none";
+        const sourceChoice = $("raw-g25-source").value;
+        const includeG25 = sourceChoice !== "none";
+        const targets = sourceChoice === "both" ? [
+          { label: `${sample}_simulated_scaled`, values: regressionG25.slice(), method: "K36 regression" },
+          { label: `${sample}_kgocmen_scaled`, values: blendG25.slice(), method: "G25 kgocmen algorithm" },
+        ] : g25 ? [{ label: `${sample}_${g25Suffix()}`, values: g25.slice() }] : [];
         message("Preparing PDF report…");
-        const analysisFits = target ? await calculateReportFits(target, references) : null;
+        const profiles = [];
+        for (const target of targets) {
+          const fits = await calculateReportFits(target, references);
+          if (request !== reportRequest) return;
+          profiles.push({ ...target, analysisFits: fits });
+        }
         if (request !== reportRequest) return;
-        const report = window.G25ReportPdf.buildReport({ sample, results, g25: target?.values, g25Label: target?.label,
-          includeG25,
-          health: healthResult, references, analysisFits, referenceLabel: source.label });
+        const report = window.G25ReportPdf.buildReport({ sample, results,
+          g25: profiles[0]?.values, g25Label: profiles[0]?.label,
+          g25Profiles: profiles.length > 1 ? profiles : null,
+          includeG25, health: healthResult, references,
+          analysisFits: profiles[0]?.analysisFits, referenceLabel: source.label });
         const pdf = window.G25ReportPdf.createPdf(report);
         const url = URL.createObjectURL(pdf);
         const link = document.createElement("a");

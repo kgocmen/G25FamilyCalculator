@@ -351,7 +351,7 @@ test("Udi selects Caucasus over the closer West Turkistan PCA without selecting 
   const mixedBundle = fs.readFileSync(path.join(__dirname,
     "../calculator/mixed_pca_references.js"), "utf8");
   const mixed = JSON.parse(mixedBundle.slice(mixedBundle.indexOf("=") + 1).trim().replace(/;$/, ""));
-  const regular = ["global-anatolian-turks-and-azerbaijanis", "global-caucasus"]
+  const regular = ["global-turkey-and-azerbaijan", "global-caucasus"]
     .map((id) => allPcas.find((pca) => pca.id === id))
     .map((pca) => ({ ...pca,
       references: modern.selectFitReferences(target, pca.references, core.nearestMatches) }));
@@ -359,7 +359,7 @@ test("Udi selects Caucasus over the closer West Turkistan PCA without selecting 
     closestPcaId: regular[0].id, modernPcas: [...regular, mixed] });
   assert.equal(result.pca.id, "global-caucasus");
   const fits = Object.fromEntries(result.pcaFitDistances.map(({ id, distance }) => [id, distance]));
-  assert.ok(fits["global-caucasus"] < fits["global-anatolian-turks-and-azerbaijanis"] * 0.75);
+  assert.ok(fits["global-caucasus"] < fits["global-turkey-and-azerbaijan"] * 0.75);
   assert.ok(fits.mixed > fits["global-caucasus"]);
 });
 

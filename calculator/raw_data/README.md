@@ -57,6 +57,8 @@ recomputes the least-squares projection for the markers present in each file and
 can match a missing rsID by chromosome position when the genome build agrees.
 The user’s genotypes remain in the browser worker. This is an estimated G25 coordinate row,
 not the official Davidski calculation.
+In the Raw Data selector, "Both" opens the regression and kgocmen rows in Compare
+and includes separate analyses for both in the PDF.
 
 The blend is shown only when at least 99% of these markers match the raw file.
 Below that threshold the existing K36 regression remains available. The strict

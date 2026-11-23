@@ -50,6 +50,26 @@ test("PDF G25 row preserves the selected calculation method", () => {
   assert.match(report.sections[2].entries[0].text, /^Sample_kgocmen_scaled,0\.020000/);
 });
 
+test("PDF Both includes both coordinate rows and separate analysis results", () => {
+  const zero = Array(25).fill(0), second = Array(25).fill(0.02);
+  const report = buildReport({ sample: "Sample", results: {}, health: null,
+    g25Profiles: [
+      { method: "K36 regression", label: "Sample_simulated_scaled", values: zero,
+        analysisFits: { relaxedModern: [{ distance: 1, parts: [] }] } },
+      { method: "G25 kgocmen algorithm", label: "Sample_kgocmen_scaled", values: second,
+        analysisFits: { relaxedModern: [{ distance: 2, parts: [] }] } },
+    ] });
+  const rows = report.sections.find(({ title }) => title === "G25 rows");
+  assert.deepEqual(rows.entries.map(({ text }) => text.split(",")[0]),
+    ["Sample_simulated_scaled", "Sample_kgocmen_scaled"]);
+  const analyses = report.sections.filter(({ title }) => title.startsWith("Analysis ·"));
+  assert.equal(analyses.length, 10);
+  assert.ok(analyses.some(({ title }) => title === "Analysis · K36 regression · Closest 10 modern"));
+  assert.ok(analyses.some(({ title }) => title === "Analysis · G25 kgocmen algorithm · Closest 10 modern"));
+  assert.equal(analyses.find(({ title }) => title === "Analysis · K36 regression · Two-way fits · Modern").entries[0].g25Distance, 1);
+  assert.equal(analyses.find(({ title }) => title === "Analysis · G25 kgocmen algorithm · Two-way fits · Modern").entries[0].g25Distance, 2);
+});
+
 test("PDF omits G25 and Analysis sections when the source is None", () => {
   const report = buildReport({ sample: "Sample", results: {}, g25: Array(25).fill(0.02),
     health: null, includeG25: false });

@@ -3573,8 +3573,13 @@
   });
   rebuildGroupExclusions();
   const rawDataUI = window.G25RawDataUI?.init((sample) => {
-    state.single = sample;
-    state.mode = 1;
+    if (Array.isArray(sample)) {
+      state.compare = sample;
+      state.mode = 0;
+    } else {
+      state.single = sample;
+      state.mode = 1;
+    }
     state.deepAnalysis = false;
     modernMainFit = null;
     visualiseLocks.clear();

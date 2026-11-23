@@ -74,15 +74,19 @@
   }
 
   function buildReport({ sample, results, g25, g25Label = `${sample}_simulated_scaled`, health,
-    references = [], analysisFits = null, referenceLabel = "Global references", includeG25 = true }) {
+    references = [], analysisFits = null, referenceLabel = "Global references", includeG25 = true,
+    g25Profiles = null }) {
     const sections = [];
+    const profiles = Array.isArray(g25Profiles) && g25Profiles.length ? g25Profiles :
+      [{ label: g25Label, values: g25, analysisFits }];
     const k12Values = results.k12b?.fit?.proportions;
     const k36Values = results.k36?.fit?.proportions;
     sections.push({ title: "K12b row", entries: [{ type: "row", text: formatRow(sample, "K12b", k12Values) }] });
     sections.push({ title: "K36 row", entries: [{ type: "row", text: formatRow(sample, "K36", k36Values) }] });
-    if (includeG25) sections.push({ title: "G25 row", entries: [{ type: "row", text: g25
-      ? `${g25Label},${g25.map((value) => value.toFixed(6)).join(",")}` :
-        "Simulated G25 result unavailable." }] });
+    if (includeG25) sections.push({ title: profiles.length > 1 ? "G25 rows" : "G25 row",
+      entries: profiles.map((profile) => ({ type: "row", text: profile.values
+        ? `${profile.label},${profile.values.map((value) => value.toFixed(6)).join(",")}` :
+          "Simulated G25 result unavailable." })) });
     sections.push({ title: "K12b Chart", entries: k12Values
       ? [{ type: "bars", values: k12Values.map((value) => value * 100) }]
       : [{ type: "line", text: "K12b result unavailable." }] });
@@ -116,29 +120,32 @@
       }
     }
     if (includeG25) {
-      const target = g25 ? { label: g25Label, values: g25 } : null;
-      for (const period of ["modern", "ancient"]) {
-        const title = `Analysis · Closest 10 ${period}`;
-        const rows = references.filter((row) => row[0] === period);
-        const nearest = target ? core.nearestMatches(target, core.excludeTargetReferences(rows, [target]), 10) : [];
-        sections.push({ title, pageBreakBefore: period === "modern", entries: [
-          { type: "line", text: `Reference set: ${referenceLabel}` },
-          ...(nearest.length ? nearest.map((match, index) => ({ type: "line",
-            text: `${index + 1}. ${match.distance.toFixed(3)} · ${match.label.replaceAll("_", " ")}`,
-            g25Distance: match.distance, g25Rank: index + 1 })) :
-            [{ type: "line", text: target ? `No ${period} references available.` : "Simulated G25 result unavailable." }]),
-        ] });
-      }
-      for (const [title, key] of [
-        ["Analysis · Two-way fits · Modern", "relaxedModern"],
-        ["Analysis · Two-way fits · Ancient", "relaxedAncient"],
-        ["Analysis · Strict two-way fits · Modern", "strictModern"],
-      ]) {
-        const fits = analysisFits?.[key] || [];
-        sections.push({ title, pageBreakBefore: key === "relaxedAncient", entries: fits.length
-          ? fits.slice(0, 10).map((fit, index) => ({ type: "line", text: `${index + 1}. ${formatFit(fit)}`,
-            g25Distance: fit.distance, g25Rank: index + 1 }))
-          : [{ type: "line", text: target ? "No eligible two-way fit was found." : "Simulated G25 result unavailable." }] });
+      for (const profile of profiles) {
+        const target = profile.values ? { label: profile.label, values: profile.values } : null;
+        const prefix = profiles.length > 1 ? `Analysis · ${profile.method} · ` : "Analysis · ";
+        for (const period of ["modern", "ancient"]) {
+          const title = `${prefix}Closest 10 ${period}`;
+          const rows = references.filter((row) => row[0] === period);
+          const nearest = target ? core.nearestMatches(target, core.excludeTargetReferences(rows, [target]), 10) : [];
+          sections.push({ title, pageBreakBefore: period === "modern", entries: [
+            { type: "line", text: `Reference set: ${referenceLabel}` },
+            ...(nearest.length ? nearest.map((match, index) => ({ type: "line",
+              text: `${index + 1}. ${match.distance.toFixed(3)} · ${match.label.replaceAll("_", " ")}`,
+              g25Distance: match.distance, g25Rank: index + 1 })) :
+              [{ type: "line", text: target ? `No ${period} references available.` : "Simulated G25 result unavailable." }]),
+          ] });
+        }
+        for (const [title, key] of [
+          [`${prefix}Two-way fits · Modern`, "relaxedModern"],
+          [`${prefix}Two-way fits · Ancient`, "relaxedAncient"],
+          [`${prefix}Strict two-way fits · Modern`, "strictModern"],
+        ]) {
+          const fits = profile.analysisFits?.[key] || [];
+          sections.push({ title, pageBreakBefore: key === "relaxedAncient", entries: fits.length
+            ? fits.slice(0, 10).map((fit, index) => ({ type: "line", text: `${index + 1}. ${formatFit(fit)}`,
+              g25Distance: fit.distance, g25Rank: index + 1 }))
+            : [{ type: "line", text: target ? "No eligible two-way fit was found." : "Simulated G25 result unavailable." }] });
+        }
       }
     }
     sections.push({ title: "Health", pageBreakBefore: true, entries: healthEntries(health) });
