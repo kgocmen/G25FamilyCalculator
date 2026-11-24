@@ -7,12 +7,41 @@ To rebuild that browser model locally, place these files here:
 
 - `ho50_model.npz`
 - `ho100_model.npz`
+- `ho25_model.npz`
 - `direct_chip_all50_clean_neighbor.npz`
 - `direct_chip_all100_clean_neighbor.npz`
+- `direct_chip_all25_clean_neighbor.npz`
 - `chip_marker_indices.npz`
 
 The optional Python predictor also uses the MIT-licensed `g25_projector` source
 folder. All local model files are ignored by Git. Do not store raw DNA here.
+
+## Three-axis browser model
+
+`ho25_model.npz` and `direct_chip_all25_clean_neighbor.npz` are the additional
+mapper in the enabled 25/50/100 browser model. The 25-axis PCA model uses
+the same AADR SNP panel and chip marker mask as the 50/100 models.
+
+`build/project_g25_pca_variant.py` projects the same local paired individuals
+through the 25-axis basis. `build/evaluate_g25_axis_blends.py` compares models
+with identical population holdouts and deduplicated training people. On seeds
+25, 26, and 27, the 50/100 blend versus equal-weight 25/50/100 blend had:
+
+| Seed | 50/100 mean / p95 | 25/50/100 mean / p95 | High-coverage modern mean, old → new |
+| --- | --- | --- | --- |
+| 25 | 3.458 / 6.121 | 3.383 / 5.610 | 3.794 → 3.626 |
+| 26 | 3.418 / 5.988 | 3.350 / 5.557 | 3.517 → 3.366 |
+| 27 | 3.276 / 5.245 | 3.272 / 5.221 | 3.176 → 3.190 |
+
+The high-coverage modern 95th percentile improved in all three splits. The
+third split's modern mean worsened slightly, so the three-axis model does not
+improve every genome. Across the three test folds, 607–655 of 1,076 individual
+rows improved; 9–11 rows worsened by more than one G25 distance unit.
+
+To reproduce the three-axis browser calculation locally, run
+`python3 build/predict_g25_direct.py /path/to/raw.csv --experimental-25`.
+It writes `*.g25_triple_scaled.txt`. The script's default output still uses the
+earlier 50/100 model, so existing offline workflows retain their output path.
 
 ## Ancient-reference expansion
 
@@ -30,15 +59,11 @@ with the local v66.p1 panel; 982–1,014 were usable in each training fold after
 excluding held-out populations and people. These are preparation aliases, so
 their labels are noisier than exact genotype-to-G25 pairs.
 
-`build/compare_g25_ancient_expansion.py` evaluates the exact-only and expanded
-blends on the same population-held-out samples, keeping one preparation per
-person in both training sets. In seeds 25, 26, and 27, mean scaled G25 distance
-changed from 3.493 to 3.458, 3.440 to 3.418, and 3.297 to 3.276 respectively.
-The 95th percentile changed from 6.359 to 6.123, 6.000 to 5.988, and 5.452
-to 5.248. These are small improvements, not a guarantee
-that every individual improves.
+The expanded anchors lowered mean scaled G25 distance by 0.021–0.035 across
+three population-held-out splits compared with exact-only anchors. This is a
+small average improvement, not a guarantee for every individual.
 
 After validation, `build/train_g25_full_mapper.py` chooses one preparation per
 individual, preferring an exact G25 match and then greater SNP coverage. Run it
-for both axes to produce the two ignored local mapper files; then run
+for all three axes to produce the ignored local mapper files; then run
 `build/export_g25_blend.py` to rebuild the browser asset.

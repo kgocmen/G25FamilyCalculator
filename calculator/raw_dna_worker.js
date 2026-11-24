@@ -1,5 +1,5 @@
 "use strict";
-importScripts("raw_dna.js?v=20261123-2", "k12b_engine.js?v=20261115-1", "g25_direct.js?v=20261123-4");
+importScripts("raw_dna.js?v=20261123-2", "k12b_engine.js?v=20261115-1", "g25_direct.js?v=20261124-1");
 importScripts("health_data.js?v=20261111-9", "health.js?v=20261111-5");
 
 self.onmessage = async ({ data }) => {

@@ -10,7 +10,7 @@ from pathlib import Path
 
 import numpy as np
 
-from train_g25_mapper import ridge_map
+from g25_mapper_math import ridge_map
 
 
 def main():

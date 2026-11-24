@@ -80,13 +80,14 @@
     "sha256": "4274a52dc1a94f00acfd255166e3944f124a5cf3382efb7df5060ed8d4c1b924"
   },
   "directBlend": {
-    "enabled": false,
+    "enabled": true,
     "file": "g25_blend.bin.gz",
     "snps": 52992,
-    "bytes": 37179397,
-    "sha256": "27b3e1a8914e1539b3abf04875ebfa253b0a9362d2e9bf5e583d61d6dfd2f547",
+    "bytes": 45504506,
+    "sha256": "a57572a96411dd6e87f2a4164293cb5983bdd9e94fd5e62b2cbc32137a1b5cef",
     "minCoverage": 0.99,
     "axes": [
+      25,
       50,
       100
     ],

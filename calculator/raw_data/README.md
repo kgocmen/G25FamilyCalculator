@@ -49,18 +49,16 @@ provenance, not a claim that these data are MIT licensed. Preserve author attrib
 
 ## G25 kgocmen algorithm
 
-The calculation is temporarily disabled by `directBlend.enabled: false` in
-`manifest.json`. The Raw Data worker skips the model download and prediction
-while this flag is false. K36 regression remains available.
-
-When enabled, the G25 tab also shows a raw SNP projection trained from AADR genotypes and paired
-scaled G25 references. It averages two independently selected 50-axis and 100-axis
-local PCA neighbor models. The browser asset is `g25_blend.bin.gz`; it contains
+The G25 tab also shows a raw SNP projection trained from AADR genotypes and paired
+scaled G25 references. It averages 25-axis, 50-axis, and 100-axis local PCA
+neighbor models. The browser asset is `g25_blend.bin.gz`; it contains
 52,992 supported chip markers, PCA loadings and reference residuals. The browser
 recomputes the least-squares projection for the markers present in each file and
 can match a missing rsID by chromosome position when the genome build agrees.
 The user’s genotypes remain in the browser worker. This is an estimated G25 coordinate row,
 not the official Davidski calculation.
+K36 regression remains the selected default for Analyse and PDF; kgocmen can be
+selected when its marker coverage is sufficient.
 In the Raw Data selector, "Both" opens the regression and kgocmen rows in Compare
 and includes separate analyses for both in the PDF.
 
@@ -70,11 +68,13 @@ threshold reflects validation on the current chip panel; other chip types have
 not been calibrated. A chip containing markers outside this bundled panel can
 still differ from the local Python blend. The 31 extra rsIDs in
 `build/g25_blend_extra_markers.txt` cover the second tested chip. On both tested
-raw files, all 25 displayed coordinates match the Python blend to six decimals.
+raw files, the earlier 50/100 browser model matched the Python blend to six
+decimals. The new 25/50/100 browser model matched its Python predictor to six
+decimals on a public AADR individual with 52,987 of 52,992 bundled markers.
 `python build/export_g25_blend.py` regenerates the browser
 asset and adds `directBlend` to the manifest from the locally trained model files
-in the ignored local `data/blend` directory. It contains only the two PCA models,
-two neighbor maps, marker indices, and projector source. Raw DNA is not stored
+in the ignored local `data/blend` directory. It requires three PCA models,
+three neighbor maps, marker indices, and projector source. Raw DNA is not stored
 there. Run this after `build_raw_models.py`, which rewrites the
 manifest. The exporter uses a deterministic gzip timestamp.
 
@@ -86,6 +86,9 @@ by 0.021–0.035 and the 95th percentile by 0.012–0.236 compared with an
 exact-match-only model trained on the same splits. See `data/blend/README.md`
 for the data and evaluation procedure. These are estimates on the available
 reference panels, not an accuracy guarantee for other populations or chip types.
+The three-axis blend lowered mean held-out distance on all three tested splits
+relative to the two-axis blend; its high-coverage modern mean increased slightly
+on one split. See `data/blend/README.md` for those results.
 
 ## Rebuild
 

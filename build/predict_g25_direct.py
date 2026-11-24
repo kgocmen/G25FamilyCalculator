@@ -14,7 +14,7 @@ import tempfile
 
 import numpy as np
 
-from evaluate_direct_g25 import neighbor_residual
+from g25_mapper_math import neighbor_residual
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -45,7 +45,9 @@ def main():
     parser.add_argument("--out-dir", type=Path, default=None)
     parser.add_argument("--name", default=None)
     parser.add_argument("--components", action="store_true",
-                        help="also write separate 50-axis and 100-axis rows")
+                        help="also write separate rows for each PCA axis model")
+    parser.add_argument("--experimental-25", action="store_true",
+                        help="include the offline 25-axis candidate in an equal-weight blend")
     args = parser.parse_args()
     raw = args.raw.resolve()
     if not raw.is_file():
@@ -57,8 +59,9 @@ def main():
     if not projector.is_file():
         parser.error(f"missing projector: {projector}")
     predictions = {}
+    axes_to_use = (25, 50, 100) if args.experimental_25 else (50, 100)
     with tempfile.TemporaryDirectory(prefix="g25_direct_") as folder:
-        for axes in (50, 100):
+        for axes in axes_to_use:
             model = DATA / f"ho{axes}_model.npz"
             mapper = DATA / f"direct_chip_all{axes}_clean_neighbor.npz"
             if not model.is_file() or not mapper.is_file():
@@ -71,14 +74,14 @@ def main():
             ], check=True, capture_output=True, text=True, env=env)
             local = read_row(Path(str(prefix) + ".g25.unscaled.txt"), axes)
             predictions[str(axes)] = map_row(local, mapper)
-    predictions["blend"] = (predictions["50"] + predictions["100"]) / 2
-    primary = out_dir / f"{name}.g25_scaled.txt"
+    predictions["blend"] = sum(predictions[str(axis)] for axis in axes_to_use) / len(axes_to_use)
+    primary = out_dir / f"{name}.g25_{'triple_' if args.experimental_25 else ''}scaled.txt"
     primary.write_text(
         name + "," + ",".join(f"{v:.6f}" for v in predictions["blend"]) + "\n"
     )
     print(primary)
     if args.components:
-        for label in ("50", "100"):
+        for label in map(str, axes_to_use):
             dest = out_dir / f"{name}.g25_{label}_scaled.txt"
             dest.write_text(name + "," + ",".join(f"{v:.6f}" for v in predictions[label]) + "\n")
             print(dest)

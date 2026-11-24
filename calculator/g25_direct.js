@@ -3,7 +3,8 @@
 
   function decode(buffer) {
     const view = new DataView(buffer), bytes = new Uint8Array(buffer);
-    if (new TextDecoder().decode(bytes.subarray(0, 8)) !== "G25BLSQ2") throw new Error("Invalid G25 kgocmen algorithm model.");
+    const signature = new TextDecoder().decode(bytes.subarray(0, 8));
+    if (signature !== "G25BLSQ2" && signature !== "G25BLSQ3") throw new Error("Invalid G25 kgocmen algorithm model.");
     let offset = 8;
     const takeU32 = () => { const value = view.getUint32(offset, true); offset += 4; return value; };
     const takeF32 = (count) => {
@@ -18,6 +19,8 @@
     };
     const n = takeU32();
     if (n < 10000 || n > 200000) throw new Error("Invalid G25 kgocmen algorithm marker count.");
+    const count = signature === "G25BLSQ3" ? takeU32() : 2;
+    if (count < 1 || count > 3) throw new Error("Invalid G25 kgocmen algorithm axis count.");
     const ids = new Uint32Array(n);
     for (let i = 0; i < n; i++) ids[i] = takeU32();
     const a1 = bytes.subarray(offset, offset + n); offset += n;
@@ -25,9 +28,7 @@
     const chrom = bytes.subarray(offset, offset + n); offset += n;
     const pos = new Uint32Array(n);
     for (let i = 0; i < n; i++) pos[i] = takeU32();
-    const freq = takeF64(n), scale50 = takeF64(50), scale100 = takeF64(100);
-    const loadings50 = takeF32(n * 50), loadings100 = takeF32(n * 100);
-    const gram50 = takeF64(50 * 50), gram100 = takeF64(100 * 100);
+    const freq = takeF64(n);
     function mapper(axes) {
       const neighbors = takeU32();
       const power = view.getFloat64(offset, true); offset += 8;
@@ -38,10 +39,28 @@
         a: takeF64(axes * 25), c: takeF64(25), train: takeF64(rows * 25),
         residual: takeF64(rows * 25) };
     }
-    const map50 = mapper(50), map100 = mapper(100);
+    let bases;
+    if (signature === "G25BLSQ2") {
+      const scale50 = takeF64(50), scale100 = takeF64(100);
+      const loadings50 = takeF32(n * 50), loadings100 = takeF32(n * 100);
+      const gram50 = takeF64(50 * 50), gram100 = takeF64(100 * 100);
+      bases = [
+        { axes: 50, scale: scale50, loadings: loadings50, gram: gram50, mapper: mapper(50) },
+        { axes: 100, scale: scale100, loadings: loadings100, gram: gram100, mapper: mapper(100) },
+      ];
+    } else {
+      bases = [];
+      for (let i = 0; i < count; i++) {
+        const axes = takeU32();
+        if (![25, 50, 100].includes(axes) || bases.some((basis) => basis.axes === axes)) {
+          throw new Error("Invalid G25 kgocmen algorithm PCA axes.");
+        }
+        bases.push({ axes, scale: takeF64(axes), loadings: takeF32(n * axes),
+          gram: takeF64(axes * axes), mapper: mapper(axes) });
+      }
+    }
     if (offset !== buffer.byteLength) throw new Error("Invalid G25 kgocmen algorithm model length.");
-    return { n, ids, a1, a2, chrom, pos, freq, scale50, scale100, loadings50, loadings100,
-      gram50, gram100, map50, map100 };
+    return { n, ids, a1, a2, chrom, pos, freq, bases };
   }
 
   function solve(gram, rhs, scale) {
@@ -72,7 +91,8 @@
   }
 
   function project(calls, model, positionCalls = new Map()) {
-    const rhs50 = new Float64Array(50), rhs100 = new Float64Array(100);
+    const states = model.bases.map((basis) => ({ basis, rhs: new Float64Array(basis.axes),
+      gram: basis.gram.slice() }));
     const complement = [3, 2, 1, 0];
     const missing = [];
     let matched = 0;
@@ -92,27 +112,26 @@
       const invSd = variance > 1e-12 ? Math.fround(1 / Math.sqrt(variance)) : 0;
       const x = Math.fround(Math.fround((first === a) + (second === a) - Math.fround(2 * frequency)) * invSd);
       matched++;
-      let at = i * 50;
-      for (let j = 0; j < 50; j++) rhs50[j] += model.loadings50[at + j] * x;
-      at = i * 100;
-      for (let j = 0; j < 100; j++) rhs100[j] += model.loadings100[at + j] * x;
+      for (const state of states) {
+        const { axes, loadings } = state.basis, at = i * axes;
+        for (let j = 0; j < axes; j++) state.rhs[j] += loadings[at + j] * x;
+      }
     }
-    const gram50 = model.gram50.slice(), gram100 = model.gram100.slice();
     for (const i of missing) {
-      for (const [k, loadings, gram] of [[50, model.loadings50, gram50], [100, model.loadings100, gram100]]) {
-        const at = i * k;
-        for (let j = 0; j < k; j++) {
-          const left = loadings[at + j], row = j * k;
+      for (const state of states) {
+        const { axes, loadings } = state.basis, gram = state.gram, at = i * axes;
+        for (let j = 0; j < axes; j++) {
+          const left = loadings[at + j], row = j * axes;
           for (let m = 0; m <= j; m++) {
             const value = left * loadings[at + m];
             gram[row + m] -= value;
-            if (m !== j) gram[m * k + j] -= value;
+            if (m !== j) gram[m * axes + j] -= value;
           }
         }
       }
     }
-    return { local50: solve(gram50, rhs50, model.scale50),
-      local100: solve(gram100, rhs100, model.scale100), matched, coverage: matched / model.n };
+    return { local: states.map((state) => solve(state.gram, state.rhs, state.basis.scale)),
+      matched, coverage: matched / model.n };
   }
 
   function mapped(local, mapper) {
@@ -150,12 +169,11 @@
   function predict(calls, model, positionCalls) {
     const projected = project(calls, model, positionCalls);
     // The Python blend maps the six-decimal local rows written by convert.py.
-    const local50 = projected.local50.map((value) => Number(value.toFixed(6)));
-    const local100 = projected.local100.map((value) => Number(value.toFixed(6)));
-    const fifty = mapped(local50, model.map50);
-    const hundred = mapped(local100, model.map100);
-    return { values: fifty.map((value, i) => (value + hundred[i]) / 2),
-      fifty, hundred, matched: projected.matched, coverage: projected.coverage };
+    const components = projected.local.map((local, i) => mapped(
+      local.map((value) => Number(value.toFixed(6))), model.bases[i].mapper));
+    const values = components[0].map((_, i) =>
+      components.reduce((sum, row) => sum + row[i], 0) / components.length);
+    return { values, components, matched: projected.matched, coverage: projected.coverage };
   }
 
   const api = { decode, predict };

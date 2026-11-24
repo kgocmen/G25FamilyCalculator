@@ -83,7 +83,7 @@
       $("raw-g25-blend-line").value = "";
       $("raw-g25-blend-line").hidden = true;
       $("raw-g25-blend-copy").disabled = true;
-      $("raw-g25-blend-status").textContent = "Temporarily disabled.";
+      $("raw-g25-blend-status").textContent = "Calculate raw DNA to see coordinates.";
       updateG25Selection();
       $("raw-export").disabled = true;
     }
@@ -198,12 +198,12 @@
         message("Open this calculator through its hosted site or a local web server to process raw DNA."); return;
       }
       try {
-        worker = new Worker(new URL("raw_dna_worker.js?v=20261123-6", document.baseURI));
+        worker = new Worker(new URL("raw_dna_worker.js?v=20261124-1", document.baseURI));
         const current = worker;
         busy(true); message("Starting local DNA analysis…");
         for (const id of modelIds) $("raw-" + id + "-status").textContent = `Calculating ${id === "k36" ? "K36" : "K12b"}…`;
         $("raw-g25-regression-status").textContent = "Calculating K36 regression…";
-        $("raw-g25-blend-status").textContent = "Temporarily disabled.";
+        $("raw-g25-blend-status").textContent = "Calculating G25 kgocmen algorithm…";
         worker.onmessage = ({ data }) => {
           if (current !== worker) return;
           if (data.type === "status") message(data.message);
@@ -237,7 +237,7 @@
           if (data.type === "error") {
             cancel(); stopPendingModels("Calculation stopped.");
             if (!regressionG25) $("raw-g25-regression-status").textContent = "Calculation stopped.";
-            if (!blendG25) $("raw-g25-blend-status").textContent = "Temporarily disabled.";
+            if (!blendG25) $("raw-g25-blend-status").textContent = "Calculation stopped.";
             message(data.message);
           }
           if (data.type === "done") {
@@ -254,7 +254,7 @@
     $("raw-cancel").addEventListener("click", () => {
       cancel(); stopPendingModels("Calculation cancelled.");
       if (!regressionG25) $("raw-g25-regression-status").textContent = "Calculation cancelled.";
-      if (!blendG25) $("raw-g25-blend-status").textContent = "Temporarily disabled.";
+      if (!blendG25) $("raw-g25-blend-status").textContent = "Calculation cancelled.";
       message("Calculation cancelled. Completed results remain below.");
     });
     $("raw-reset").addEventListener("click", reset);

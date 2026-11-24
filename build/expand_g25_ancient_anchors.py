@@ -6,7 +6,7 @@ normalized individual ID identifies exactly one AADR genotype and that genotype
 is absent from the existing anchors. Output is a local training artifact; do not
 publish individual genotypes or the generated anchor file.
 
-Example (run separately for 50 and 100 axes):
+Example (run separately for 25, 50, and 100 axes):
   python3 build/expand_g25_ancient_anchors.py \
     --panel /tmp/g25_direct_trial/data/aadr/v66_HO \
     --official '/tmp/g25_individual_refs/Global25_PCA_scaled (Ancient Individuals).txt' \
