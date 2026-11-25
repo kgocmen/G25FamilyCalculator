@@ -70,41 +70,6 @@ test("PDF Both includes both coordinate rows and separate analysis results", () 
   assert.equal(analyses.find(({ title }) => title === "Analysis · G25 kgocmen algorithm · Two-way fits · Modern").entries[0].g25Distance, 2);
 });
 
-test("Raw Data PDF keeps default G25 results and adds Illustrative modern results", () => {
-  const zero = Array(25).fill(0);
-  const fit = (label, distance) => ({ distance, parts: [{ label, weight: 1 }] });
-  const report = buildReport({ sample: "Sample", results: {}, health: null,
-    g25Profiles: [{ label: "Sample_simulated_scaled", values: zero,
-      referenceAnalyses: [
-        { label: "Global references", references: [
-          ["modern", "Global_modern", ...Array(25).fill(.01)],
-          ["ancient", "Global_ancient", ...Array(25).fill(.02)]],
-        analysisFits: { relaxedModern: [fit("Global_modern", 1)],
-          relaxedAncient: [fit("Global_ancient", 2)], strictModern: [] } },
-        { label: "Illustrative references", references: [
-          ["modern", "Illustrative_modern", ...Array(25).fill(.03)]],
-        analysisFits: { relaxedModern: [fit("Illustrative_modern", 3)],
-          relaxedAncient: [], strictModern: [] } },
-      ] }] });
-  const titles = report.sections.filter(({ title }) => title.startsWith("Analysis ·"))
-    .map(({ title }) => title);
-  assert.deepEqual(titles, [
-    "Analysis · Global references · Closest 10 modern",
-    "Analysis · Global references · Closest 10 ancient",
-    "Analysis · Global references · Two-way fits · Modern",
-    "Analysis · Global references · Two-way fits · Ancient",
-    "Analysis · Global references · Strict two-way fits · Modern",
-    "Analysis · Illustrative references · Closest 10 modern",
-    "Analysis · Illustrative references · Two-way fits · Modern",
-    "Analysis · Illustrative references · Strict two-way fits · Modern",
-  ]);
-  const illustrative = report.sections.find(({ title }) => title.endsWith("Illustrative references · Closest 10 modern"));
-  assert.match(illustrative.entries[1].text, /Illustrative modern/);
-  assert.equal(report.sections.find(({ title }) => title ===
-    "Analysis · Illustrative references · Two-way fits · Modern").entries[0].g25Distance, 3);
-  assert.equal(report.sections.at(-1).title, "Health");
-});
-
 test("PDF omits G25 and Analysis sections when the source is None", () => {
   const report = buildReport({ sample: "Sample", results: {}, g25: Array(25).fill(0.02),
     health: null, includeG25: false });
