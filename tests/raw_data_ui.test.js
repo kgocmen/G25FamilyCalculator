@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const path = require('node:path');
 
-function workspace() {
+function workspace(getReportReferences) {
   const elements = new Map();
   class Element {
     constructor(tag = 'div') {
@@ -50,7 +50,7 @@ function workspace() {
   for (const file of ['core.js', 'admixture_charts.js', 'k12b.js', 'report_pdf.js', 'raw_data_ui.js'])
     vm.runInContext(fs.readFileSync(path.join(__dirname, '../calculator', file), 'utf8'), context);
   const analyses = [];
-  window.G25RawDataUI.init((profile) => analyses.push(profile));
+  window.G25RawDataUI.init((profile) => analyses.push(profile), getReportReferences);
   const $ = (id) => elements.get(id);
   const click = (id) => $(id).listeners.click();
   const key = (id, name) => $(id).listeners.keydown({ key: name, preventDefault() {} });
@@ -306,4 +306,31 @@ test('Download results creates a PDF after fitting without requesting four-way f
   assert.equal(downloads[0].download, 'synthetic_ancestry.pdf');
   assert.equal(downloads[0].clicked, true);
   assert.equal($('raw-export').disabled, false);
+});
+
+test('Raw Data PDF fits native Illustrative references with converted analysis coordinates', async () => {
+  const nativeRows = [['modern', 'Native', ...Array(25).fill(1.02)]];
+  const { click, start, window, lastWorker } = workspace(() => ({ rows: nativeRows,
+    label: 'Illustrative references · Illustrative space', space: 'illustrative' }));
+  window.G25Illustrative = { toIllustrative(values) { return values.map((value) => value + 1); } };
+  let payload;
+  window.G25ReportPdf = { buildReport(input) { payload = input; return { sections: [] }; },
+    createPdf() { return new Blob(['%PDF-1.4'], { type: 'application/pdf' }); } };
+  const rawWorker = start();
+  rawWorker.onmessage({ data: { type: 'result', id: 'k36',
+    components: Array.from({ length: 36 }, (_, i) => `Component_${i}`),
+    fit: { proportions: Array(36).fill(1 / 36), converged: true, iterations: 5 },
+    g25: Array(25).fill(.02),
+    stats: { matched: 50000, total: 160000, coverage: .3125, flipped: 0, incompatible: 0 } } });
+  rawWorker.onmessage({ data: { type: 'done' } });
+  click('raw-export');
+  const reportWorker = lastWorker();
+  assert.deepEqual(Array.from(reportWorker.sent.target.values), Array(25).fill(1.02));
+  assert.equal(reportWorker.sent.references, nativeRows);
+  reportWorker.onmessage({ data: { type: 'result', fits: {
+    relaxedModern: [], relaxedAncient: [], strictModern: [],
+  } } });
+  await new Promise(setImmediate);
+  assert.deepEqual(Array.from(payload.g25), Array(25).fill(.02));
+  assert.deepEqual(Array.from(payload.analysisValues), Array(25).fill(1.02));
 });

@@ -388,6 +388,8 @@ body:has(#population-panel[open]) { overflow: hidden; }
 .switch-input:checked + .switch-track::after { transform: translateX(16px); }
 .switch-input:focus-visible + .switch-track { outline: 3px solid #8dbbff; outline-offset: 3px; }
 .reference-switch-option { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 22px; padding: 14px 16px; border: 1px solid #e1e9ef; border-radius: 12px; background: #fafcfd; }
+.reference-switch-option[hidden] { display: none; }
+.reference-switch-option select { min-width: 130px; padding: 8px 10px; border: 1px solid #cbd8e2; border-radius: 8px; background: #fff; color: #203f57; }
 .reference-switch-option:has(.switch-input:disabled) { opacity: .55; cursor: default; }
 .reference-switch-label { color: #344e65; font-size: 13px; font-weight: 650; }
 .male-option.switch-label { padding: 4px 0; border: 0; gap: 9px; }

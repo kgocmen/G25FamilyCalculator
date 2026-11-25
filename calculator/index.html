@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#14243b">
   <link rel="icon" href="../favicon.ico?v=20261106-1" type="image/x-icon">
   <title>G25 Family Calculator</title>
-  <link rel="stylesheet" href="style.css?v=20261125-3">
+  <link rel="stylesheet" href="style.css?v=20261125-4">
   <link rel="stylesheet" href="k12b.css?v=20261120-1">
   <link rel="stylesheet" href="health.css?v=20261111-1">
   <script defer src="references.js?v=20261026-2"></script>
@@ -31,13 +31,14 @@
   <script defer src="admixture_charts.js?v=20261115-5"></script>
   <script defer src="k12b.js?v=20261116-1"></script>
   <script defer src="health.js?v=20261111-5"></script>
-  <script defer src="illustrative_data.js?v=20261125-2"></script>
-  <script defer src="illustrative.js?v=20261125-1"></script>
+  <script defer src="illustrative_data.js?v=20261125-3"></script>
+  <script defer src="illustrative.js?v=20261125-2"></script>
   <script defer src="illustrative_references.js?v=20261125-2"></script>
-  <script defer src="report_pdf.js?v=20261125-1"></script>
+  <script defer src="illustrative_native_references.js?v=20261125-1"></script>
+  <script defer src="report_pdf.js?v=20261125-2"></script>
   <script defer src="analyse_pdf.js?v=20261125-1"></script>
-  <script defer src="raw_data_ui.js?v=20261124-1"></script>
-  <script defer src="app.js?v=20261125-3"></script>
+  <script defer src="raw_data_ui.js?v=20261125-1"></script>
+  <script defer src="app.js?v=20261125-4"></script>
 </head>
 <body>
   <main class="shell">
@@ -620,6 +621,13 @@
         <span class="reference-switch-label">Illustrative references</span>
         <input id="illustrative-toggle" class="switch-input" type="checkbox" role="switch" aria-label="Illustrative references">
         <span class="switch-track" aria-hidden="true"></span>
+      </label>
+      <label id="illustrative-space-control" class="reference-switch-option" hidden>
+        <span class="reference-switch-label">Coordinate space</span>
+        <select id="illustrative-space" aria-label="Illustrative reference coordinate space">
+          <option value="g25">G25</option>
+          <option value="illustrative">Illustrative</option>
+        </select>
       </label>
       <label class="reference-switch-option switch-label">
         <span class="reference-switch-label">Use custom references</span>

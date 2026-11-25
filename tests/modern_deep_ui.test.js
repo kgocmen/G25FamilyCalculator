@@ -67,7 +67,7 @@ test("deep mode keeps the main selection and shows one level of clusters", () =>
   let source = fs.readFileSync(path.join(__dirname, "../calculator/app.js"), "utf8");
   source = source.replace("  function renderMedievalPca(", "  function unusedRenderMedievalPca(");
   source = source.replace("  render();\n})();",
-    "  function renderMedievalPca(rows, period, isModern, closestModern, clusterFit, options) { window.lastPcaRows = rows; window.lastPcaOptions = options; window.plotCount = (window.plotCount || 0) + 1; }\n  window.testApi = { state, render, renderMedievalBreakdown, renderMedievalFit, renderDeepFit, blacklist, allowedPcaReferences, allowedDeepPcaReferences };\n  render();\n})();");
+    "  function renderMedievalPca(rows, period, isModern, closestModern, clusterFit, options) { window.lastPcaRows = rows; window.lastPcaOptions = options; window.plotCount = (window.plotCount || 0) + 1; }\n  window.testApi = { state, render, renderMedievalBreakdown, renderMedievalFit, renderDeepFit, changeBlacklist, blacklist, allowedPcaReferences, allowedDeepPcaReferences };\n  render();\n})();");
   vm.runInNewContext(source, { window, document, Worker, URL, Blob, sessionStorage });
   const { state, render } = window.testApi;
   state.mode = 10;
@@ -120,6 +120,22 @@ test("deep mode keeps the main selection and shows one level of clusters", () =>
   assert.deepEqual(lastWorker.data.deepPcas.map((pca) => pca.id), ["regional"]);
   assert.equal(document.querySelector("#modern-pca-current-fit").textContent,
     "Main fit · max 2 groups");
+
+  const { changeBlacklist } = window.testApi;
+  changeBlacklist({ category: "modern", label: "GroupA: First" }, true);
+  assert.equal(state.deepAnalysis, true);
+  assert.equal(window.testApi.blacklist.size, 1);
+  assert.deepEqual(window.testApi.allowedDeepPcaReferences(window.G25_MODERN_PCAS[1]).map((reference) => reference[1]),
+    ["GroupA: Second", "GroupB: First"]);
+  assert.equal(lastWorker.data.deepOnly, true);
+  assert.equal(lastWorker.data.mainFit, mainFit);
+  assert.equal(lastWorker.data.modernPcas, null);
+  assert.deepEqual(lastWorker.data.deepPcas[0].references.map((reference) => reference[1]),
+    ["GroupA: Second", "GroupB: First"]);
+  changeBlacklist({ category: "modern", label: "GroupA: First" }, false);
+  assert.equal(state.deepAnalysis, true);
+  assert.equal(lastWorker.data.deepOnly, true);
+  assert.equal(lastWorker.data.mainFit, mainFit);
 
   const { renderMedievalFit, renderDeepFit } = window.testApi;
   const mainGroups = [

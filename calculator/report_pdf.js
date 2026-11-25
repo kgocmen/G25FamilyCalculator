@@ -73,12 +73,12 @@
     return entries.length ? entries : [{ type: "line", text: "No matching Health markers were found." }];
   }
 
-  function buildReport({ sample, results, g25, g25Label = `${sample}_simulated_scaled`, health,
+  function buildReport({ sample, results, g25, analysisValues, g25Label = `${sample}_simulated_scaled`, health,
     references = [], analysisFits = null, referenceLabel = "Global references", includeG25 = true,
     g25Profiles = null }) {
     const sections = [];
     const profiles = Array.isArray(g25Profiles) && g25Profiles.length ? g25Profiles :
-      [{ label: g25Label, values: g25, analysisFits }];
+      [{ label: g25Label, values: g25, analysisValues, analysisFits }];
     const k12Values = results.k12b?.fit?.proportions;
     const k36Values = results.k36?.fit?.proportions;
     sections.push({ title: "K12b row", entries: [{ type: "row", text: formatRow(sample, "K12b", k12Values) }] });
@@ -121,7 +121,8 @@
     }
     if (includeG25) {
       for (const profile of profiles) {
-        const target = profile.values ? { label: profile.label, values: profile.values } : null;
+        const target = profile.values ? { label: profile.label,
+          values: profile.analysisValues || profile.values } : null;
         const prefix = profiles.length > 1 ? `Analysis · ${profile.method} · ` : "Analysis · ";
         for (const period of ["modern", "ancient"]) {
           const title = `${prefix}Closest 10 ${period}`;

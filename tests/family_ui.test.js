@@ -38,7 +38,9 @@ let workerCount = 0;
 class Worker { constructor(url){this.url=url; lastWorker=this; workerCount++;} postMessage(data){this.data=data;} terminate(){this.terminated=true;} }
 const window={G25Core:core,G25_REFERENCES:refs,
   G25Pca:pca,G25PcaLayout:pcaLayout,
-  G25_ILLUSTRATIVE_REFERENCES:require('../calculator/illustrative_references.js')};
+  G25Illustrative:require('../calculator/illustrative.js'),
+  G25_ILLUSTRATIVE_REFERENCES:require('../calculator/illustrative_references.js'),
+  G25_ILLUSTRATIVE_NATIVE_REFERENCES:require('../calculator/illustrative_native_references.js')};
 const pcaRow = (label, value, category = 'modern') => [category, label, ...Array(25).fill(value)];
 window.G25_TURKISH_MODERN_PCAS = [
   { id: 'first', references: [pcaRow('Group_A:Fitted', 2), pcaRow('Group_A:Unused', 3), pcaRow('Group_B:Other', 4)], referenceAnchors: [] },
@@ -495,6 +497,33 @@ assert.deepEqual(Array.from(api.allowedReferences(api.activeReferenceRows()), (e
 document.querySelector('#whitelist-clear').listeners.click();
 assert.equal(document.querySelector('#turkish-toggle').checked, false);
 assert.equal(document.querySelector('#custom-toggle').disabled, false);
+const g25Target = [0.08, ...Array(24).fill(0)];
+api.state.mode = 1;
+api.state.single = { label: 'Space sample', values: g25Target, source: 'pasted' };
+const spaceSelect = document.querySelector('#illustrative-space');
+spaceSelect.listeners.change({ currentTarget: { value: 'illustrative' } });
+assert.equal(api.state.illustrativeSpace, 'illustrative');
+assert.deepEqual(Array.from(api.state.single.values), window.G25Illustrative.toIllustrative(g25Target));
+assert.equal(api.activeReferenceRows()[0][2], window.G25_ILLUSTRATIVE_NATIVE_REFERENCES[0][2]);
+assert.equal(document.querySelector('#custom-convert').textContent, 'Convert from G25');
+assert.deepEqual(Array.from(lastWorker.data.target.values), window.G25Illustrative.toIllustrative(g25Target));
+assert.equal(lastWorker.data.modernReferences[0][2], window.G25_ILLUSTRATIVE_NATIVE_REFERENCES[0][2]);
+customPaste.value = ['G25_to_native', ...g25Target].join(',');
+document.querySelector('#custom-convert').listeners.click();
+core.parseLine(customPaste.value).values.forEach((value, index) =>
+  assert.ok(Math.abs(value - window.G25Illustrative.toIllustrative(g25Target)[index]) < 1e-11));
+const nativeCustom = Array(25).fill(.025);
+customPaste.value = ['Native_Custom', ...nativeCustom].join(',');
+document.querySelector('#custom-add').listeners.click();
+assert.deepEqual(Array.from(api.activeReferenceRows().at(-1).slice(2)), nativeCustom);
+spaceSelect.listeners.change({ currentTarget: { value: 'g25' } });
+assert.deepEqual(Array.from(api.state.single.values), g25Target);
+assert.deepEqual(Array.from(api.activeReferenceRows().at(-1).slice(2)),
+  window.G25Illustrative.convert(nativeCustom));
+assert.equal(document.querySelector('#custom-convert').textContent, 'Convert from IllustrativeDNA');
+document.querySelector('#custom-list').children.at(-1).children.at(-1).listeners.click();
+api.state.mode = 11;
+api.render();
 customPaste.value = ['Illu_Custom', ...Array(25).fill(.25)].join(',');
 document.querySelector('#custom-add').listeners.click();
 assert.equal(api.activeReferenceRows().length, 644);

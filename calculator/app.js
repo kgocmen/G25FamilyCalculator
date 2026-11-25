@@ -4,6 +4,7 @@
   const globalReferences = window.G25_REFERENCES || [];
   const turkishReferences = window.G25_TURKISH_REFERENCES || [];
   const illustrativeReferences = window.G25_ILLUSTRATIVE_REFERENCES || [];
+  const illustrativeNativeReferences = window.G25_ILLUSTRATIVE_NATIVE_REFERENCES || [];
   const modernPcas = window.G25_TURKISH_MODERN_PCAS || [];
   const globalModernPcas = window.G25_MODERN_PCAS || [];
   const turkishMixedPca = window.G25_TURKISH_MODERN_MIXED_PCA || null;
@@ -45,6 +46,7 @@
     familyMode: 2,
     turkish: false,
     illustrative: false,
+    illustrativeSpace: "g25",
     analysisView: "modern",
     medievalGroupLimit: 5,
     modernGroupLimit: "auto",
@@ -116,8 +118,10 @@
   const whitelist = new Map();
   const whitelistStorageKey = "g25-temporary-whitelist";
   const customStorageKey = "g25-temporary-custom-references";
+  const customNativeStorageKey = "g25-temporary-custom-illustrative-values";
   const customToggleStorageKey = "g25-custom-references-enabled";
   const customReferences = new Map();
+  const customNativeValues = new Map();
   const illustrativeReferenceKeys = new Set(illustrativeReferences.map(populationKey));
   let customEnabled = true;
   let populationListMode = "exclude";
@@ -149,14 +153,52 @@
         customReferences.set(populationKey(row), row);
       }
     }
+    const nativeSaved = JSON.parse(sessionStorage.getItem(customNativeStorageKey) || "[]");
+    if (Array.isArray(nativeSaved)) for (const entry of nativeSaved) {
+      if (Array.isArray(entry) && entry.length === 2 && customReferences.has(entry[0]) &&
+          Array.isArray(entry[1]) && entry[1].length === 25 &&
+          entry[1].every(Number.isFinite)) customNativeValues.set(entry[0], entry[1]);
+    }
   } catch (_) {}
 
   function usesIllustrativeReferences() {
     return state.illustrative && state.mode !== 10;
   }
 
+  function usesNativeIllustrativeSpace() {
+    return usesIllustrativeReferences() && state.illustrativeSpace === "illustrative";
+  }
+
+  let currentCoordinateSpace = "g25";
+
+  function syncCoordinateSpace() {
+    const nextSpace = usesNativeIllustrativeSpace() ? "illustrative" : "g25";
+    if (nextSpace === currentCoordinateSpace) return;
+    const convert = nextSpace === "illustrative"
+      ? window.G25Illustrative.toIllustrative : window.G25Illustrative.convert;
+    const nextReferences = new Map(activeReferenceRows().map((row) =>
+      [populationKey(row), row]));
+    const change = (item) => {
+      if (!item) return item;
+      if (item.source === "reference") {
+        const row = nextReferences.get(populationKey(item));
+        if (row) return { ...item, values: row.slice(2) };
+      }
+      const spaces = item.spaces || { [currentCoordinateSpace]: item.values };
+      if (!spaces[nextSpace]) spaces[nextSpace] = convert(spaces[currentCoordinateSpace]);
+      return { ...item, values: spaces[nextSpace], spaces,
+        source: item.source === "reference" ? "converted" : item.source };
+    };
+    state.single = change(state.single);
+    state.compare = state.compare.map(change);
+    state.offspring = change(state.offspring);
+    for (const mode of [2, 4, 8]) state.slots[mode] = state.slots[mode].map(change);
+    currentCoordinateSpace = nextSpace;
+  }
+
   function baseReferenceRows() {
-    return usesIllustrativeReferences() ? illustrativeReferences
+    return usesNativeIllustrativeSpace() ? illustrativeNativeReferences
+      : usesIllustrativeReferences() ? illustrativeReferences
       : state.turkish ? turkishReferences : globalReferences;
   }
 
@@ -165,13 +207,19 @@
   }
 
   function activeReferenceLabel() {
-    return usesIllustrativeReferences() ? "Illustrative references"
+    return usesNativeIllustrativeSpace() ? "Illustrative references · Illustrative space"
+      : usesIllustrativeReferences() ? "Illustrative references"
       : state.turkish ? "Turkish references" : "Global references";
   }
 
   function activeReferenceRows() {
     return [...baseReferenceRows(),
-      ...(customEnabled ? customReferences.values() : [])];
+      ...(customEnabled ? [...customReferences.values()].map((row) => {
+        if (!usesNativeIllustrativeSpace()) return row;
+        const key = populationKey(row);
+        return [row[0], row[1], ...(customNativeValues.get(key) ||
+          window.G25Illustrative.toIllustrative(row.slice(2)))];
+      }) : [])];
   }
 
   function activeModernPcas() {
@@ -204,6 +252,7 @@
   function persistCustomReferences() {
     try {
       sessionStorage.setItem(customStorageKey, JSON.stringify([...customReferences.values()]));
+      sessionStorage.setItem(customNativeStorageKey, JSON.stringify([...customNativeValues]));
       sessionStorage.setItem(customToggleStorageKey, String(customEnabled));
     } catch (_) { /* The current page can still use the references. */ }
   }
@@ -229,7 +278,7 @@
     excludedGroupCoordinates = new Set();
     if (!excludedGroupKeys.size) return;
     const rows = [...globalReferences, ...turkishReferences, ...illustrativeReferences,
-      ...customReferences.values(),
+      ...illustrativeNativeReferences, ...customReferences.values(), ...activeReferenceRows(),
       ...modernPcas.flatMap((pca) => pca.references),
       ...globalModernPcas.flatMap((pca) => pca.references),
       ...(turkishMixedPca?.references || []),
@@ -311,11 +360,15 @@
 
   function refreshBlacklist() {
     rebuildGroupExclusions();
+    const keepDeepFit = state.mode === 10 && state.analysisView === "modern" &&
+      state.deepAnalysis && modernMainFit?.ready;
     modernMixedPca = null;
     modernMixedDirty = true;
-    modernPcaFitDistances.clear();
-    modernMainFit = null;
-    state.deepAnalysis = false;
+    if (!keepDeepFit) {
+      modernPcaFitDistances.clear();
+      modernMainFit = null;
+      state.deepAnalysis = false;
+    }
     try { sessionStorage.setItem(blacklistStorageKey, JSON.stringify([...blacklist.values()])); } catch (_) {}
     try { sessionStorage.setItem(whitelistStorageKey, JSON.stringify([...whitelist.values()])); } catch (_) {}
     familyMessage = "";
@@ -416,6 +469,7 @@
       const remove = makeButton("−", () => {
         const key = populationKey(row);
         customReferences.delete(key);
+        customNativeValues.delete(key);
         blacklist.delete(key);
         whitelist.delete(key);
         persistCustomReferences();
@@ -434,26 +488,31 @@
     const lines = $("#custom-paste").value.split(/\r?\n/).filter((line) => line.trim());
     const status = $("#custom-status");
     if (!lines.length) {
-      status.textContent = "Paste at least one named G25 row.";
+      status.textContent = `Paste at least one named ${usesNativeIllustrativeSpace() ? "Illustrative" : "G25"} row.`;
       return;
     }
     const existing = new Set([...globalReferences, ...turkishReferences, ...illustrativeReferences,
       ...customReferences.values()].map(populationKey));
     const added = [];
+    const nativeValues = [];
     try {
       for (const line of lines) {
         const parsed = core.parseLine(line);
         if (parsed.label === "Pasted_sample") throw new Error("Give every custom reference a name.");
-        const row = [category, parsed.label, ...parsed.values];
+        const native = usesNativeIllustrativeSpace();
+        const row = [category, parsed.label, ...(native
+          ? window.G25Illustrative.convert(parsed.values) : parsed.values)];
         const key = populationKey(row);
         if (existing.has(key)) throw new Error(`${parsed.label} already exists in ${category}.`);
         existing.add(key);
         added.push(row);
+        if (native) nativeValues.push([key, parsed.values]);
       }
     } catch (error) {
       status.textContent = `No references added: ${error.message}`;
       return;
     }
+    for (const [key, values] of nativeValues) customNativeValues.set(key, values);
     for (const row of added) customReferences.set(populationKey(row), row);
     persistCustomReferences();
     $("#custom-paste").value = "";
@@ -466,11 +525,14 @@
     const field = $("#custom-paste");
     const status = $("#custom-status");
     try {
-      const converted = window.G25Illustrative.convertRows(field.value);
+      const native = usesNativeIllustrativeSpace();
+      const converted = native
+        ? window.G25Illustrative.convertRowsToIllustrative(field.value)
+        : window.G25Illustrative.convertRows(field.value);
       field.value = converted;
       $("#custom-convert").disabled = true;
       const count = converted.split("\n").length;
-      status.textContent = `Converted ${count} ${count === 1 ? "row" : "rows"} to G25. Review, then add references.`;
+      status.textContent = `Converted ${count} ${count === 1 ? "row" : "rows"} to ${native ? "Illustrative" : "G25"}. Review, then add references.`;
     } catch (error) {
       status.textContent = `No rows converted: ${error.message}`;
     }
@@ -899,6 +961,9 @@
   }
 
   function setTarget(item) {
+    if (item && item.source !== "reference") {
+      item = { ...item, spaces: { [currentCoordinateSpace]: item.values } };
+    }
     if (state.pickerTarget.type === "single") {
       state.single = item;
       visualiseLocks.clear();
@@ -918,12 +983,13 @@
     render();
   }
 
-  function updateSelectedReferences(nextReferences) {
+  function updateSelectedReferences(nextReferences, preserveMissing = false) {
     const byName = new Map(nextReferences.map((row) => [`${row[0]}\u0000${row[1]}`, row]));
     const update = (item) => {
       if (!item || item.source !== "reference") return item;
       const row = byName.get(`${item.category}\u0000${item.label}`);
-      return row ? { category: row[0], label: row[1], values: row.slice(2), source: "reference" } : null;
+      return row ? { category: row[0], label: row[1], values: row.slice(2), source: "reference" }
+        : preserveMissing ? { ...item, source: "converted" } : null;
     };
     state.single = update(state.single);
     state.compare = state.compare.map(update);
@@ -1037,6 +1103,7 @@
 
   function render() {
     const mode = state.mode;
+    syncCoordinateSpace();
     const familyMode = [2, 4, 8].includes(mode);
     if (familyMode) state.familyMode = mode;
     if (mode !== 9) {
@@ -1053,6 +1120,10 @@
     $("#turkish-toggle").checked = state.turkish;
     $("#illustrative-toggle").checked = usesIllustrativeReferences();
     $("#illustrative-toggle").disabled = mode === 10;
+    $("#illustrative-space-control").hidden = !usesIllustrativeReferences();
+    $("#illustrative-space").value = state.illustrativeSpace;
+    $("#custom-convert").textContent = usesNativeIllustrativeSpace()
+      ? "Convert from G25" : "Convert from IllustrativeDNA";
     const hasCustomAncient = customEnabled && [...customReferences.values()]
       .some((row) => row[0] === "ancient");
     if (usesIllustrativeReferences() && !hasCustomAncient && state.visualiseCategory === "ancient") {
@@ -1496,7 +1567,7 @@
       neighborMode: state.visualisePcView ? "hide" : neighborMode,
       nearestCount: state.visualiseNearestCount,
       neighborGlobalRows: !state.visualisePcView && globalMode
-        ? (state.illustrative ? illustrativeReferences : globalReferences)
+        ? (state.illustrative ? baseReferenceRows() : globalReferences)
           .filter((row) => neighborCategories.has(row[0])) : [] });
     visualiseNeighborRankContext = !state.visualisePcView && neighborMode !== "hide" &&
       Array.isArray(neighborPairs) ? { rows, pairs: neighborPairs } : null;
@@ -1535,7 +1606,7 @@
       neighborMode: state.visualisePcView ? "hide" : neighborMode,
       nearestCount: state.visualiseNearestCount,
       neighborGlobalRows: !state.visualisePcView && globalMode
-        ? (state.illustrative ? illustrativeReferences : globalReferences)
+        ? (state.illustrative ? baseReferenceRows() : globalReferences)
           .filter((row) => neighborCategories.has(row[0])) : [] });
     visualiseNeighborRankContext = !state.visualisePcView && neighborMode !== "hide" &&
       Array.isArray(neighborPairs) ? { rows, pairs: neighborPairs } : null;
@@ -2002,10 +2073,11 @@
       (state.modernPcaId !== "mixed" || Boolean(activeMixedPca()));
     const availableDeep = modernMainFit?.ready
       ? canExpandMainFit(modernMainFit.fit, modernMainFit.pcaId) : possibleDeep;
-    if (isModern && state.deepAnalysis && !availableDeep) state.deepAnalysis = false;
+    if (isModern && state.deepAnalysis && !availableDeep && !modernMainFit?.ready) state.deepAnalysis = false;
     $("#modern-deep-toggle").checked = state.deepAnalysis;
-    $("#modern-deep-toggle").disabled = !modernMainFit?.ready || !availableDeep;
-    deepFilter.hidden = !isModern || !availableDeep;
+    $("#modern-deep-toggle").disabled = !modernMainFit?.ready ||
+      (!availableDeep && !state.deepAnalysis);
+    deepFilter.hidden = !isModern || (!availableDeep && !state.deepAnalysis);
     $("#medieval-group-filter").hidden = isModern;
     $("#modern-group-filter").hidden = !isModern || state.deepAnalysis;
     $("#modern-pca-filter").hidden = !isModern;
@@ -2063,6 +2135,7 @@
       periodReferences = displayedPcaId === "mixed" ? modernMixedPca?.references || []
         : displayedPca ? regularPcaReferences(displayedPca) : [];
       const hasPlot = periodReferences.length >= 3;
+      const canRunDeep = state.deepAnalysis && modernMainFit?.ready;
       period = displayedPcaId === "mixed" ? "Mixed" : displayedPca?.title || "Modern";
       $("#medieval-breakdown-title").textContent = displayedPcaId ? `Modern · ${period}` : "Modern";
       $("#pca-heading-title").textContent = displayedPcaId === "mixed" ? "Mixed"
@@ -2071,13 +2144,13 @@
       const closestNote = $("#modern-closest-population");
       closestNote.textContent = closest ? `Closest population: ${label} · Distance ${closest.distance.toFixed(3)}` : "";
       toneG25Distance(closestNote, closest?.distance);
-      if (displayedPcaId && !hasPlot) status.textContent = "At least three included references are needed for ancestry composition and PCA.";
+      if (displayedPcaId && !hasPlot && !canRunDeep) status.textContent = "At least three included references are needed for ancestry composition and PCA.";
       else if (displayedPcaId) status.textContent = state.deepAnalysis
         ? "Calculating deep analysis…" : "Calculating ancestry composition…";
       else if (label) status.textContent = "No custom analysis is available for this population yet.";
       else status.textContent = "No modern references are available.";
-      $("#pca-section").hidden = !hasPlot;
-      $("#ancestry-composition-title").hidden = !hasPlot;
+      $("#pca-section").hidden = !hasPlot && !canRunDeep;
+      $("#ancestry-composition-title").hidden = !hasPlot && !canRunDeep;
       if (hasPlot && displayedPcaId === "mixed" && state.deepAnalysis) showPendingMixedPca();
       else if (hasPlot) renderMedievalPca(periodReferences, period, true, closest,
         false, { groupStyle: displayedPcaId === "mixed" ? "mixed" : "modern" });
@@ -2086,7 +2159,7 @@
         $("#medieval-pca-legend").replaceChildren();
         for (const selector of ["#pca-zoom-in", "#pca-zoom-out", "#pca-zoom-reset"]) $(selector).disabled = true;
         $("#pca-zoom-level").textContent = "100%";
-        return;
+        if (!canRunDeep) return;
       }
     } else {
       periodReferences = allowedReferences(medievalReferences[state.analysisView] || []);
@@ -3511,6 +3584,7 @@
       whitelist.delete(key);
     }
     customReferences.clear();
+    customNativeValues.clear();
     persistCustomReferences();
     updateSelectedReferences(activeReferenceRows());
     $("#custom-status").textContent = `Deleted ${count} custom ${count === 1 ? "reference" : "references"}.`;
@@ -3646,7 +3720,7 @@
     if (!state.turkish && (state.analysisView === "early" || state.analysisView === "late")) {
       state.analysisView = "modern";
     }
-    updateSelectedReferences(activeReferenceRows());
+    updateSelectedReferences(activeReferenceRows(), true);
     render();
   }
   $("#turkish-toggle").addEventListener("change", (event) => {
@@ -3654,6 +3728,15 @@
   });
   $("#illustrative-toggle").addEventListener("change", (event) => {
     setReferenceScope(event.currentTarget.checked ? "illustrative" : "global");
+  });
+  $("#illustrative-space").addEventListener("change", (event) => {
+    state.illustrativeSpace = event.currentTarget.value;
+    modernMixedPca = null;
+    modernMixedDirty = true;
+    modernPcaFitDistances.clear();
+    modernMainFit = null;
+    state.deepAnalysis = false;
+    render();
   });
   const analysisTabViews = ["neolithic", "early", "late", "modern"];
   const analysisTabSelectors = ["#neolithic-tab", "#early-medieval-tab", "#late-medieval-tab", "#modern-analysis-tab"];
@@ -3748,6 +3831,7 @@
     modernPcaFitDistances.clear();
     render();
   }, () => ({ rows: allowedReferences(activeReferenceRows()),
-    label: activeReferenceLabel() }));
+    label: activeReferenceLabel(),
+    space: usesNativeIllustrativeSpace() ? "illustrative" : "g25" }));
   render();
 })();

@@ -27,6 +27,7 @@ NEOLITHIC_OUTPUT = ROOT / "calculator" / "neolithic_references.js"
 ILLUSTRATIVE_DIRECTORY = ROOT / "data" / "illu"
 ILLUSTRATIVE_OUTPUT = ROOT / "calculator" / "illustrative_data.js"
 ILLUSTRATIVE_REFERENCES_OUTPUT = ROOT / "calculator" / "illustrative_references.js"
+ILLUSTRATIVE_NATIVE_OUTPUT = ROOT / "calculator" / "illustrative_native_references.js"
 GLOBAL_ANCIENT_MIN_ROWS = 4365
 GLOBAL_ANCIENT_TAIL_LABEL = "Zambia_LSA_(low_res)_(n=1)"
 K12B_COMPONENTS = ["Gedrosia", "Siberian", "Northwest_African", "Southeast_Asian",
@@ -161,16 +162,20 @@ def read_illustrative_data(directory: Path = ILLUSTRATIVE_DIRECTORY) -> dict:
         return values
 
     return {"matrix": numbers("conversion_matrix.csv", 25),
-            "offset": numbers("conversion_offset.csv", 1)[0]}
+            "offset": numbers("conversion_offset.csv", 1)[0],
+            "inverseMatrix": numbers("inverse_matrix.csv", 25),
+            "inverseOffset": numbers("inverse_offset.csv", 1)[0]}
 
 
 def build_illustrative_data(directory: Path = ILLUSTRATIVE_DIRECTORY,
                             output: Path = ILLUSTRATIVE_OUTPUT,
-                            references_output: Path = ILLUSTRATIVE_REFERENCES_OUTPUT) -> None:
+                            references_output: Path = ILLUSTRATIVE_REFERENCES_OUTPUT,
+                            native_output: Path = ILLUSTRATIVE_NATIVE_OUTPUT) -> None:
     conversion = read_illustrative_data(directory)
     write_data_bundle(conversion, output, "G25_ILLUSTRATIVE_CONVERSION")
     matrix, offset = conversion["matrix"], conversion["offset"]
     references = []
+    native_references = []
     labels = set()
     path = directory / "IllustrativeDNA.csv"
     with path.open(encoding="utf-8-sig", newline="") as handle:
@@ -184,14 +189,17 @@ def build_illustrative_data(directory: Path = ILLUSTRATIVE_DIRECTORY,
             if not all(math.isfinite(value) for value in values):
                 raise ValueError(f"{path}:{line_number}: coordinates must be finite")
             labels.add(label)
+            native_references.append(["modern", label, *values])
             converted = [offset[j] + sum(values[i] * matrix[i][j] for i in range(25))
                          for j in range(25)]
             references.append(["modern", label, *converted])
     if len(references) != 643:
         raise ValueError(f"{path}: expected 643 references, found {len(references)}")
     write_data_bundle(references, references_output, "G25_ILLUSTRATIVE_REFERENCES")
+    write_data_bundle(native_references, native_output, "G25_ILLUSTRATIVE_NATIVE_REFERENCES")
     print(f"Bundled IllustrativeDNA conversion into {output}")
     print(f"Bundled {len(references)} IllustrativeDNA references into {references_output}")
+    print(f"Bundled {len(native_references)} native IllustrativeDNA references into {native_output}")
 
 
 def read_row_sections(path: Path, category: str) -> dict[str, list[list]]:

@@ -50,6 +50,17 @@ test("PDF G25 row preserves the selected calculation method", () => {
   assert.match(report.sections[2].entries[0].text, /^Sample_kgocmen_scaled,0\.020000/);
 });
 
+test("PDF displays the G25 row while fitting in Illustrative space", () => {
+  const g25 = Array(25).fill(0);
+  const analysisValues = [0.04, ...Array(24).fill(0)];
+  const references = [["modern", "Native_near", 0.05, ...Array(24).fill(0)]];
+  const report = buildReport({ sample: "Sample", results: {}, g25, analysisValues,
+    references, referenceLabel: "Illustrative references · Illustrative space" });
+  assert.match(report.sections[2].entries[0].text, /^Sample_simulated_scaled,0\.000000/);
+  const closest = report.sections.find(({ title }) => title === "Analysis · Closest 10 modern");
+  assert.ok(Math.abs(closest.entries[1].g25Distance - 1) < 1e-12);
+});
+
 test("PDF Both includes both coordinate rows and separate analysis results", () => {
   const zero = Array(25).fill(0), second = Array(25).fill(0.02);
   const report = buildReport({ sample: "Sample", results: {}, health: null,

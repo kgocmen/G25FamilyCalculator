@@ -11,6 +11,10 @@ const matrix = fs.readFileSync(path.join(directory, 'conversion_matrix.csv'), 'u
   .split(/\r?\n/).map((row) => row.split(',').map(Number));
 const offset = fs.readFileSync(path.join(directory, 'conversion_offset.csv'), 'utf8').trim()
   .split(',').map(Number);
+const inverseMatrix = fs.readFileSync(path.join(directory, 'inverse_matrix.csv'), 'utf8').trim()
+  .split(/\r?\n/).map((row) => row.split(',').map(Number));
+const inverseOffset = fs.readFileSync(path.join(directory, 'inverse_offset.csv'), 'utf8').trim()
+  .split(',').map(Number);
 
 test('IllustrativeDNA bundle preserves the editable matrix and offset', () => {
   assert.equal(matrix.length, 25);
@@ -18,6 +22,20 @@ test('IllustrativeDNA bundle preserves the editable matrix and offset', () => {
   assert.equal(offset.length, 25);
   assert.deepEqual(bundled.matrix, matrix);
   assert.deepEqual(bundled.offset, offset);
+  assert.deepEqual(bundled.inverseMatrix, inverseMatrix);
+  assert.deepEqual(bundled.inverseOffset, inverseOffset);
+});
+
+test('G25 conversion into native Illustrative space uses the inverse matrix', () => {
+  assert.deepEqual(converter.toIllustrative(Array(25).fill(0)), inverseOffset);
+  const first = [1, ...Array(24).fill(0)];
+  converter.toIllustrative(first).forEach((value, index) =>
+    assert.ok(Math.abs(value - (inverseOffset[index] + inverseMatrix[0][index])) < 1e-12));
+  const input = `G25_sample,${first.join(',')}`;
+  const parsed = core.parseLine(converter.convertRowsToIllustrative(input));
+  assert.equal(parsed.label, 'G25_sample');
+  parsed.values.forEach((value, index) =>
+    assert.ok(Math.abs(value - converter.toIllustrative(first)[index]) < 1e-10));
 });
 
 test('IllustrativeDNA conversion applies coordinates × matrix + offset', () => {

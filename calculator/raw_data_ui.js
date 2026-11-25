@@ -334,13 +334,16 @@
         message("Preparing PDF report…");
         const profiles = [];
         for (const target of targets) {
-          const fits = await calculateReportFits(target, references);
+          const analysisValues = source.space === "illustrative"
+            ? window.G25Illustrative.toIllustrative(target.values) : target.values;
+          const fits = await calculateReportFits({ ...target, values: analysisValues }, references);
           if (request !== reportRequest) return;
-          profiles.push({ ...target, analysisFits: fits });
+          profiles.push({ ...target, analysisValues, analysisFits: fits });
         }
         if (request !== reportRequest) return;
         const report = window.G25ReportPdf.buildReport({ sample, results,
           g25: profiles[0]?.values, g25Label: profiles[0]?.label,
+          analysisValues: profiles[0]?.analysisValues,
           g25Profiles: profiles.length > 1 ? profiles : null,
           includeG25, health: healthResult, references,
           analysisFits: profiles[0]?.analysisFits, referenceLabel: source.label });
