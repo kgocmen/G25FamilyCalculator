@@ -324,7 +324,14 @@
       try {
         const sample = cleanName();
         const source = getReportReferences();
-        const references = source.rows || [];
+        const illustrativeRows = window.G25_ILLUSTRATIVE_REFERENCES || [];
+        const defaultSource = source.label === "Illustrative references" &&
+          window.G25_REFERENCES?.length
+          ? { rows: window.G25_REFERENCES, label: "Global references" } : source;
+        const referenceSets = [{ label: defaultSource.label, rows: defaultSource.rows || [] }];
+        if (illustrativeRows.length && defaultSource.label !== "Illustrative references") {
+          referenceSets.push({ label: "Illustrative references", rows: illustrativeRows });
+        }
         const sourceChoice = $("raw-g25-source").value;
         const includeG25 = sourceChoice !== "none";
         const targets = sourceChoice === "both" ? [
@@ -334,16 +341,22 @@
         message("Preparing PDF report…");
         const profiles = [];
         for (const target of targets) {
-          const fits = await calculateReportFits(target, references);
-          if (request !== reportRequest) return;
-          profiles.push({ ...target, analysisFits: fits });
+          const referenceAnalyses = [];
+          for (const referenceSet of referenceSets) {
+            const fits = await calculateReportFits(target, referenceSet.rows);
+            if (request !== reportRequest) return;
+            referenceAnalyses.push({ label: referenceSet.label,
+              references: referenceSet.rows, analysisFits: fits });
+          }
+          profiles.push({ ...target, analysisFits: referenceAnalyses[0]?.analysisFits,
+            referenceAnalyses });
         }
         if (request !== reportRequest) return;
         const report = window.G25ReportPdf.buildReport({ sample, results,
           g25: profiles[0]?.values, g25Label: profiles[0]?.label,
-          g25Profiles: profiles.length > 1 ? profiles : null,
-          includeG25, health: healthResult, references,
-          analysisFits: profiles[0]?.analysisFits, referenceLabel: source.label });
+          g25Profiles: profiles.length ? profiles : null,
+          includeG25, health: healthResult, references: defaultSource.rows || [],
+          analysisFits: profiles[0]?.analysisFits, referenceLabel: defaultSource.label });
         const pdf = window.G25ReportPdf.createPdf(report);
         const url = URL.createObjectURL(pdf);
         const link = document.createElement("a");

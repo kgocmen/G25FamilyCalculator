@@ -122,29 +122,40 @@
     if (includeG25) {
       for (const profile of profiles) {
         const target = profile.values ? { label: profile.label, values: profile.values } : null;
-        const prefix = profiles.length > 1 ? `Analysis · ${profile.method} · ` : "Analysis · ";
-        for (const period of ["modern", "ancient"]) {
-          const title = `${prefix}Closest 10 ${period}`;
-          const rows = references.filter((row) => row[0] === period);
-          const nearest = target ? core.nearestMatches(target, core.excludeTargetReferences(rows, [target]), 10) : [];
-          sections.push({ title, pageBreakBefore: period === "modern", entries: [
-            { type: "line", text: `Reference set: ${referenceLabel}` },
-            ...(nearest.length ? nearest.map((match, index) => ({ type: "line",
-              text: `${index + 1}. ${match.distance.toFixed(3)} · ${match.label.replaceAll("_", " ")}`,
-              g25Distance: match.distance, g25Rank: index + 1 })) :
-              [{ type: "line", text: target ? `No ${period} references available.` : "Simulated G25 result unavailable." }]),
-          ] });
-        }
-        for (const [title, key] of [
-          [`${prefix}Two-way fits · Modern`, "relaxedModern"],
-          [`${prefix}Two-way fits · Ancient`, "relaxedAncient"],
-          [`${prefix}Strict two-way fits · Modern`, "strictModern"],
-        ]) {
-          const fits = profile.analysisFits?.[key] || [];
-          sections.push({ title, pageBreakBefore: key === "relaxedAncient", entries: fits.length
-            ? fits.slice(0, 10).map((fit, index) => ({ type: "line", text: `${index + 1}. ${formatFit(fit)}`,
-              g25Distance: fit.distance, g25Rank: index + 1 }))
-            : [{ type: "line", text: target ? "No eligible two-way fit was found." : "Simulated G25 result unavailable." }] });
+        const analyses = profile.referenceAnalyses?.length ? profile.referenceAnalyses
+          : [{ label: referenceLabel, references, analysisFits: profile.analysisFits }];
+        for (const analysis of analyses) {
+          const rows = analysis.references || [];
+          const available = new Set(rows.map((row) => row[0]));
+          const includePeriod = (period) => analyses.length === 1 || available.has(period);
+          const prefix = "Analysis · " +
+            (profiles.length > 1 ? `${profile.method} · ` : "") +
+            (analyses.length > 1 ? `${analysis.label} · ` : "");
+          for (const period of ["modern", "ancient"]) {
+            if (!includePeriod(period)) continue;
+            const title = `${prefix}Closest 10 ${period}`;
+            const candidates = rows.filter((row) => row[0] === period);
+            const nearest = target ? core.nearestMatches(target, core.excludeTargetReferences(candidates, [target]), 10) : [];
+            sections.push({ title, pageBreakBefore: period === "modern", entries: [
+              { type: "line", text: `Reference set: ${analysis.label || referenceLabel}` },
+              ...(nearest.length ? nearest.map((match, index) => ({ type: "line",
+                text: `${index + 1}. ${match.distance.toFixed(3)} · ${match.label.replaceAll("_", " ")}`,
+                g25Distance: match.distance, g25Rank: index + 1 })) :
+                [{ type: "line", text: target ? `No ${period} references available.` : "Simulated G25 result unavailable." }]),
+            ] });
+          }
+          for (const [title, key, period] of [
+            [`${prefix}Two-way fits · Modern`, "relaxedModern", "modern"],
+            [`${prefix}Two-way fits · Ancient`, "relaxedAncient", "ancient"],
+            [`${prefix}Strict two-way fits · Modern`, "strictModern", "modern"],
+          ]) {
+            if (!includePeriod(period)) continue;
+            const fits = analysis.analysisFits?.[key] || [];
+            sections.push({ title, pageBreakBefore: key === "relaxedAncient", entries: fits.length
+              ? fits.slice(0, 10).map((fit, index) => ({ type: "line", text: `${index + 1}. ${formatFit(fit)}`,
+                g25Distance: fit.distance, g25Rank: index + 1 }))
+              : [{ type: "line", text: target ? "No eligible two-way fit was found." : "Simulated G25 result unavailable." }] });
+          }
         }
       }
     }
