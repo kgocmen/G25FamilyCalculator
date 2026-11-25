@@ -2,6 +2,8 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const assert = require('node:assert/strict');
 const core = require('../calculator/core.js');
+const pca = require('../calculator/pca.js');
+const pcaLayout = require('../calculator/pca_layout.js');
 const test = require('node:test');
 
 test('family controls enforce locks, restore inputs and discard stale optimisation', async () => {
@@ -11,6 +13,8 @@ class Element {
   replaceChildren(...items) { this.children=items; }
   addEventListener(name, fn) { this.listeners[name]=fn; }
   setAttribute(name,value) { this[name]=value; }
+  remove() {}
+  getBoundingClientRect() { return { left: 0, top: 0, width: 1000, height: 600 }; }
   focus() { this.focused=true; }
   close() { this.listeners.close?.(); }
   createTHead() { const e = new Element(); this.append(e); return e; }
@@ -24,12 +28,17 @@ const familyTabs=['2','4','8'].map((mode) => Object.assign(new Element(),
   {dataset:{familyMode:mode},id:`family-tab-${mode}`}));
 const document={ querySelector(s) { if(!elements.has(s)) elements.set(s,new Element()); return elements.get(s); },
   querySelectorAll(s){return s==='.mode-button'?modeButtons:s==='.family-tab'?familyTabs:[];},
-  createElement(){return new Element();}, createTextNode(text){return {textContent:text};} };
+  createElement(){return new Element();}, createElementNS(){return new Element();},
+  createDocumentFragment(){return new Element();},
+  createTextNode(text){return {textContent:text};}, body: new Element() };
 const row = (label, value, source='reference') => ({label,values:Array(25).fill(value),category:'modern',source});
 const refs=[['modern','Low',...Array(25).fill(0)],['modern','High',...Array(25).fill(1)]];
 let lastWorker;
-class Worker { constructor(url){this.url=url; lastWorker=this;} postMessage(data){this.data=data;} terminate(){this.terminated=true;} }
-const window={G25Core:core,G25_REFERENCES:refs};
+let workerCount = 0;
+class Worker { constructor(url){this.url=url; lastWorker=this; workerCount++;} postMessage(data){this.data=data;} terminate(){this.terminated=true;} }
+const window={G25Core:core,G25_REFERENCES:refs,
+  G25Pca:pca,G25PcaLayout:pcaLayout,
+  G25_ILLUSTRATIVE_REFERENCES:require('../calculator/illustrative_references.js')};
 const pcaRow = (label, value, category = 'modern') => [category, label, ...Array(25).fill(value)];
 window.G25_TURKISH_MODERN_PCAS = [
   { id: 'first', references: [pcaRow('Group_A:Fitted', 2), pcaRow('Group_A:Unused', 3), pcaRow('Group_B:Other', 4)], referenceAnchors: [] },
@@ -47,10 +56,11 @@ const workerURLs = { createObjectURL(blob) { workerBlob = blob; return 'blob:nul
 const storage = new Map();
 const sessionStorage = { getItem(key) { return storage.get(key) || null; }, setItem(key, value) { storage.set(key, value); } };
 vm.runInNewContext(fs.readFileSync(require('node:path').join(__dirname, '../calculator/mixture.js'), 'utf8'), { window });
+vm.runInNewContext(fs.readFileSync(require('node:path').join(__dirname, '../calculator/clusters.js'), 'utf8'), { window });
 const context={window,document,Worker,URL:workerURLs,Blob,console,sessionStorage};
 document.querySelector('#remaining-step').value = '5';
 let source=fs.readFileSync(require('node:path').join(__dirname, '../calculator/app.js'),'utf8');
-source=source.replace('  render();\n})();','  window.testApi = {state, familyLocks, familyReverts, render, optimiseFamily, setTarget, changeBlacklist, changeWhitelist, allowedReferences, allowedPcaReferences, onlyUseReferenceRows, renderMedievalFit};\n  render();\n})();');
+source=source.replace('  render();\n})();','  window.testApi = {state, familyLocks, familyReverts, render, optimiseFamily, setTarget, changeBlacklist, changeWhitelist, allowedReferences, allowedPcaReferences, onlyUseReferenceRows, activeReferenceRows, renderMedievalFit};\n  render();\n})();');
 vm.runInNewContext(source,context);
 const api=window.testApi;
 const button=()=>document.querySelector('#family-optimise');
@@ -472,4 +482,87 @@ api.state.turkish = true;
 api.changeWhitelist({ label: 'Group_A:Unused', category: 'modern' }, true);
 api.changeWhitelist({ label: 'Other_Group:Alias', category: 'modern' }, true);
 assert.deepEqual(Array.from(api.onlyUseReferenceRows(), (entry) => entry[1]), ['Group_A:Unused']);
+document.querySelector('#blacklist-clear').listeners.click();
+api.state.mode = 11;
+document.querySelector('#illustrative-toggle').listeners.change({ currentTarget: { checked: true } });
+assert.equal(api.state.illustrative, true);
+assert.equal(api.state.turkish, false);
+assert.equal(api.activeReferenceRows().length, 643);
+assert.equal(api.allowedReferences(api.activeReferenceRows()).length, 643);
+document.querySelector('#whitelist-clear').listeners.click();
+api.changeWhitelist({ category: 'modern', label: 'Abazin' }, true);
+assert.deepEqual(Array.from(api.allowedReferences(api.activeReferenceRows()), (entry) => entry[1]), ['Abazin']);
+document.querySelector('#whitelist-clear').listeners.click();
+assert.equal(document.querySelector('#turkish-toggle').checked, false);
+assert.equal(document.querySelector('#custom-toggle').disabled, false);
+customPaste.value = ['Illu_Custom', ...Array(25).fill(.25)].join(',');
+document.querySelector('#custom-add').listeners.click();
+assert.equal(api.activeReferenceRows().length, 644);
+document.querySelector('#custom-toggle').listeners.change({ currentTarget: { checked: false } });
+assert.equal(api.activeReferenceRows().length, 643);
+document.querySelector('#custom-toggle').listeners.change({ currentTarget: { checked: true } });
+assert.equal(api.activeReferenceRows().length, 644);
+document.querySelector('#custom-category').value = 'ancient';
+customPaste.value = ['Illu_Ancient', ...Array(25).fill(.15)].join(',');
+document.querySelector('#custom-add').listeners.click();
+assert.equal(api.activeReferenceRows().length, 645);
+assert.equal(document.querySelector('#visualise-category option[value="ancient"]').disabled, false);
+document.querySelector('#custom-category').value = 'modern';
+api.changeWhitelist({ category: 'modern', label: 'Illu_Custom' }, true);
+assert.deepEqual(Array.from(api.allowedReferences(api.activeReferenceRows()), (entry) => entry[1]), ['Illu_Custom']);
+document.querySelector('#whitelist-clear').listeners.click();
+document.querySelector('#custom-clear').listeners.click();
+assert.equal(api.activeReferenceRows().length, 643);
+assert.equal(document.querySelector('#period-tabs').hidden, true);
+api.state.mode = 10;
+api.state.single = null;
+api.render();
+assert.equal(document.querySelector('#period-tabs').hidden, false);
+assert.equal(document.querySelector('#medieval-breakdown-panel').hidden, true);
+assert.equal(document.querySelector('#illustrative-toggle').checked, false);
+assert.equal(document.querySelector('#illustrative-toggle').disabled, true);
+assert.equal(api.activeReferenceRows().length, refs.length);
+api.state.mode = 11;
+api.render();
+assert.equal(document.querySelector('#illustrative-toggle').checked, true);
+document.querySelector('#turkish-toggle').listeners.change({ currentTarget: { checked: true } });
+assert.equal(api.state.illustrative, false);
+assert.equal(api.state.turkish, true);
+assert.equal(document.querySelector('#illustrative-toggle').checked, false);
+document.querySelector('#turkish-toggle').listeners.change({ currentTarget: { checked: false } });
+document.querySelector('#visualise-limit').options = [];
+api.state.mode = 9;
+api.state.single = null;
+const workersBeforePca = workerCount;
+api.changeWhitelist({ category: 'modern', label: 'Low' }, true);
+api.changeWhitelist({ category: 'modern', label: 'High' }, true);
+assert.ok(workerCount > workersBeforePca);
+assert.equal(document.querySelector('#visualise-cluster-toggle').checked, true);
+assert.equal(document.querySelector('#visualise-cluster-toggle-control').hidden, false);
+const clusterWorker = lastWorker;
+clusterWorker.onmessage({ data: { requestId: clusterWorker.data.requestId,
+  result: window.G25Clusters.clusterSeries(clusterWorker.data.rows) } });
+assert.equal(document.querySelector('#visualise-cluster-control').hidden, false);
+assert.match(document.querySelector('#medieval-breakdown-status').textContent, /cluster/);
+const workersWithClusters = workerCount;
+document.querySelector('#visualise-cluster-toggle').listeners.change({ currentTarget: { checked: false } });
+assert.equal(workerCount, workersWithClusters);
+assert.equal(document.querySelector('#visualise-cluster-control').hidden, true);
+assert.equal(document.querySelector('#medieval-breakdown-status').textContent, '2 selected populations');
+assert.equal(document.querySelector('#pca-section').hidden, false);
+const plot = document.querySelector('#medieval-pca-plot');
+assert.match(plot.children[0]['aria-label'], /PCA of 2 Only use references/);
+const descendants = (node) => [node, ...node.children.flatMap(descendants)];
+assert.equal(descendants(plot).some((node) => /^pca-cluster|^pca-centroid/.test(node.class || '')), false);
+document.querySelector('#visualise-pc-toggle').listeners.change({ currentTarget: { checked: true } });
+assert.match(plot.children[0]['aria-label'], /PC1 versus PC2 of 2 Only use references/);
+assert.equal(document.querySelector('#visualise-pc-extremes').hidden, false);
+assert.equal(descendants(plot).some((node) => /^pca-cluster|^pca-centroid/.test(node.class || '')), false);
+const workersBeforeReenable = workerCount;
+document.querySelector('#visualise-cluster-toggle').listeners.change({ currentTarget: { checked: true } });
+assert.ok(workerCount > workersBeforeReenable);
+lastWorker.onmessage({ data: { requestId: lastWorker.data.requestId,
+  result: window.G25Clusters.clusterSeries(lastWorker.data.rows) } });
+assert.equal(document.querySelector('#visualise-cluster-control').hidden, false);
+assert.match(plot.children[0]['aria-label'], /Only use references in \d+ clusters?/);
 });

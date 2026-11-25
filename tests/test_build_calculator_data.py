@@ -1,3 +1,4 @@
+import csv
 import tempfile
 import unittest
 import json
@@ -6,10 +7,40 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from build.build_calculator_data import (ROOT, build_neolithic_data, build_ydnatr, read_global_ancient_rows,
+from build.build_calculator_data import (ROOT, build_illustrative_data, build_neolithic_data, build_ydnatr,
+                                         read_illustrative_data, read_global_ancient_rows,
                                          read_global_modern_pcas,
                                          read_modern_pcas, read_neolithic_data, read_row_sections, read_rows, read_ydnatr_data,
                                          rebuild_mixed_pca)
+
+
+class IllustrativeDataTests(unittest.TestCase):
+    def test_conversion_bundle_matches_source_csv_files(self):
+        data = read_illustrative_data()
+        self.assertEqual(len(data["matrix"]), 25)
+        self.assertTrue(all(len(row) == 25 for row in data["matrix"]))
+        self.assertEqual(len(data["offset"]), 25)
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "illustrative_data.js"
+            references_output = Path(directory) / "illustrative_references.js"
+            build_illustrative_data(output=output, references_output=references_output)
+            self.assertEqual(output.read_bytes(),
+                             (ROOT / "calculator" / "illustrative_data.js").read_bytes())
+            self.assertEqual(references_output.read_bytes(),
+                             (ROOT / "calculator" / "illustrative_references.js").read_bytes())
+            bundle = references_output.read_text(encoding="utf-8")
+            rows = json.loads(bundle.partition("const data = ")[2].partition(";\n")[0])
+            self.assertEqual(len(rows), 643)
+            self.assertEqual(len({row[1] for row in rows}), 643)
+            self.assertTrue(all(row[0] == "modern" and len(row) == 27 for row in rows))
+            with (ROOT / "data" / "illu" / "IllustrativeDNA.csv").open() as handle:
+                first = next(csv.reader(handle))
+            coordinates = list(map(float, first[1:]))
+            expected = [data["offset"][j] + sum(coordinates[i] * data["matrix"][i][j]
+                                                   for i in range(25)) for j in range(25)]
+            self.assertEqual(rows[0][1], first[0])
+            for actual, wanted in zip(rows[0][2:], expected):
+                self.assertAlmostEqual(actual, wanted, places=12)
 
 
 class ydnatrDataTests(unittest.TestCase):

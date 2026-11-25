@@ -3,6 +3,7 @@
 
   const globalReferences = window.G25_REFERENCES || [];
   const turkishReferences = window.G25_TURKISH_REFERENCES || [];
+  const illustrativeReferences = window.G25_ILLUSTRATIVE_REFERENCES || [];
   const modernPcas = window.G25_TURKISH_MODERN_PCAS || [];
   const globalModernPcas = window.G25_MODERN_PCAS || [];
   const turkishMixedPca = window.G25_TURKISH_MODERN_MIXED_PCA || null;
@@ -43,6 +44,7 @@
     mode: 11,
     familyMode: 2,
     turkish: false,
+    illustrative: false,
     analysisView: "modern",
     medievalGroupLimit: 5,
     modernGroupLimit: "auto",
@@ -55,6 +57,7 @@
     visualiseNeighborScope: "hide",
     visualiseNearestCount: 1,
     visualiseNeighborRankCount: 10,
+    visualiseClustersEnabled: true,
     visualiseClusterK: null,
     visualisePcView: false,
     visualisePcX: 1,
@@ -93,6 +96,7 @@
   let modernMainFit = null;
   const visualiseLocks = new Set();
   let visualisePcaContext = null;
+  let visualiseOnlyUseContext = null;
   let visualiseClusterContext = null;
   let visualiseNeighborRankContext = null;
   let clusterWorker = null;
@@ -114,6 +118,7 @@
   const customStorageKey = "g25-temporary-custom-references";
   const customToggleStorageKey = "g25-custom-references-enabled";
   const customReferences = new Map();
+  const illustrativeReferenceKeys = new Set(illustrativeReferences.map(populationKey));
   let customEnabled = true;
   let populationListMode = "exclude";
   try {
@@ -146,8 +151,26 @@
     }
   } catch (_) {}
 
+  function usesIllustrativeReferences() {
+    return state.illustrative && state.mode !== 10;
+  }
+
+  function baseReferenceRows() {
+    return usesIllustrativeReferences() ? illustrativeReferences
+      : state.turkish ? turkishReferences : globalReferences;
+  }
+
+  function breakdownReferenceRows() {
+    return state.turkish ? turkishReferences : globalReferences;
+  }
+
+  function activeReferenceLabel() {
+    return usesIllustrativeReferences() ? "Illustrative references"
+      : state.turkish ? "Turkish references" : "Global references";
+  }
+
   function activeReferenceRows() {
-    return [...(state.turkish ? turkishReferences : globalReferences),
+    return [...baseReferenceRows(),
       ...(customEnabled ? customReferences.values() : [])];
   }
 
@@ -162,9 +185,10 @@
   function onlyUseReferenceRows() {
     if (!whitelist.size) return [];
     const pool = [...activeReferenceRows(),
-      ...activeModernPcas().flatMap((pca) => pca.references),
-      ...(activeMixedPca()?.references || []),
-      ...(medievalReferences.early || []), ...(medievalReferences.late || [])];
+      ...(!usesIllustrativeReferences() ? activeModernPcas().flatMap((pca) => pca.references) : []),
+      ...(!usesIllustrativeReferences() ? activeMixedPca()?.references || [] : []),
+      ...(!usesIllustrativeReferences() ? [...(medievalReferences.early || []),
+        ...(medievalReferences.late || [])] : [])];
     const seenLabels = new Set();
     const seenCoordinates = new Set();
     return allowedReferences(pool).filter((row) => {
@@ -204,7 +228,8 @@
     excludedGroupKeys = new Set([...blacklist.values()].filter((item) => item.group).map(populationKey));
     excludedGroupCoordinates = new Set();
     if (!excludedGroupKeys.size) return;
-    const rows = [...globalReferences, ...turkishReferences, ...customReferences.values(),
+    const rows = [...globalReferences, ...turkishReferences, ...illustrativeReferences,
+      ...customReferences.values(),
       ...modernPcas.flatMap((pca) => pca.references),
       ...globalModernPcas.flatMap((pca) => pca.references),
       ...(turkishMixedPca?.references || []),
@@ -221,8 +246,14 @@
   }
 
   function allowedReferences(rows) {
+    const useWhitelist = whitelist.size > 0 && (!usesIllustrativeReferences() ||
+      [...whitelist.keys()].some(isIllustrativeScopeKey));
     return rows.filter((row) => !blacklist.has(populationKey(row)) && !isGroupExcluded(row) &&
-      (!whitelist.size || whitelist.has(populationKey(row))));
+      (!useWhitelist || whitelist.has(populationKey(row))));
+  }
+
+  function isIllustrativeScopeKey(key) {
+    return illustrativeReferenceKeys.has(key) || (customEnabled && customReferences.has(key));
   }
 
   function allowedPcaReferences(pca) {
@@ -316,6 +347,7 @@
     $("#whitelist-count").textContent = String(whitelist.size);
     $("#custom-count").textContent = String(customReferences.size);
     $("#custom-toggle").checked = customEnabled;
+    $("#custom-toggle").disabled = false;
     const total = blacklist.size + whitelist.size;
     $("#blacklist-clear").disabled = !blacklist.size;
     $("#whitelist-clear").disabled = !whitelist.size;
@@ -333,8 +365,11 @@
     $("#population-custom-panel").hidden = populationListMode !== "custom";
     $("#blacklist-search").placeholder = populationListMode === "only"
       ? "Search populations to use exclusively…" : "Search populations to exclude…";
-    $("#population-filter-status").textContent = whitelist.size
-      ? `Only use active · ${whitelist.size} selected · ${blacklist.size} excluded`
+    const activeWhitelistCount = usesIllustrativeReferences()
+      ? [...whitelist.keys()].filter(isIllustrativeScopeKey).length
+      : whitelist.size;
+    $("#population-filter-status").textContent = activeWhitelistCount
+      ? `Only use active · ${activeWhitelistCount} selected · ${blacklist.size} excluded`
       : blacklist.size ? `All populations except ${blacklist.size} excluded` : "All populations available";
     const list = $("#blacklist-list");
     list.replaceChildren();
@@ -402,7 +437,7 @@
       status.textContent = "Paste at least one named G25 row.";
       return;
     }
-    const existing = new Set([...globalReferences, ...turkishReferences,
+    const existing = new Set([...globalReferences, ...turkishReferences, ...illustrativeReferences,
       ...customReferences.values()].map(populationKey));
     const added = [];
     try {
@@ -422,8 +457,23 @@
     for (const row of added) customReferences.set(populationKey(row), row);
     persistCustomReferences();
     $("#custom-paste").value = "";
+    $("#custom-convert").disabled = false;
     status.textContent = `Added ${added.length} custom ${added.length === 1 ? "reference" : "references"}.`;
     refreshBlacklist();
+  }
+
+  function convertCustomReferences() {
+    const field = $("#custom-paste");
+    const status = $("#custom-status");
+    try {
+      const converted = window.G25Illustrative.convertRows(field.value);
+      field.value = converted;
+      $("#custom-convert").disabled = true;
+      const count = converted.split("\n").length;
+      status.textContent = `Converted ${count} ${count === 1 ? "row" : "rows"} to G25. Review, then add references.`;
+    } catch (error) {
+      status.textContent = `No rows converted: ${error.message}`;
+    }
   }
 
   function setAllCustomReferences(only) {
@@ -448,9 +498,10 @@
     if (!query) return [];
     const words = query.split(/\s+/);
     const pool = [...activeReferenceRows(),
-      ...activeModernPcas().flatMap((pca) => pca.references),
-      ...(activeMixedPca()?.references || []),
-      ...(medievalReferences.early || []), ...(medievalReferences.late || [])];
+      ...(!usesIllustrativeReferences() ? activeModernPcas().flatMap((pca) => pca.references) : []),
+      ...(!usesIllustrativeReferences() ? activeMixedPca()?.references || [] : []),
+      ...(!usesIllustrativeReferences() ? [...(medievalReferences.early || []),
+        ...(medievalReferences.late || [])] : [])];
     const seen = new Set();
     const matches = [];
     for (const row of pool) {
@@ -537,7 +588,8 @@
 
   function familyFingerprint(mode) {
     return JSON.stringify([state.offspring, state.slots[mode], familyLocks[mode],
-      mode !== 8 && state.male, state.turkish, customEnabled, [...customReferences.values()],
+      mode !== 8 && state.male, state.turkish, state.illustrative,
+      customEnabled, [...customReferences.values()],
       [...blacklist.keys()].sort(), [...whitelist.keys()].sort()]);
   }
 
@@ -987,13 +1039,28 @@
     const mode = state.mode;
     const familyMode = [2, 4, 8].includes(mode);
     if (familyMode) state.familyMode = mode;
-    if (mode !== 9) cancelVisualiseClusters();
+    if (mode !== 9) {
+      cancelVisualiseClusters();
+      visualiseOnlyUseContext = null;
+      visualiseClusterContext = null;
+    }
     renderFamilyOptimise();
     renderComparisonAccordions();
     if (mode !== 10) cancelMedieval();
     references = allowedReferences(activeReferenceRows());
+    analysePdfUI?.update(mode === 1);
     renderBlacklist();
     $("#turkish-toggle").checked = state.turkish;
+    $("#illustrative-toggle").checked = usesIllustrativeReferences();
+    $("#illustrative-toggle").disabled = mode === 10;
+    const hasCustomAncient = customEnabled && [...customReferences.values()]
+      .some((row) => row[0] === "ancient");
+    if (usesIllustrativeReferences() && !hasCustomAncient && state.visualiseCategory === "ancient") {
+      state.visualiseCategory = "modern";
+    }
+    for (const selector of ["#visualise-category", "#reference-category", "#suggestion-category"]) {
+      $(`${selector} option[value="ancient"]`).disabled = usesIllustrativeReferences() && !hasCustomAncient;
+    }
     $("#period-tabs").hidden = mode !== 10;
     $("#early-medieval-tab").hidden = !state.turkish;
     $("#late-medieval-tab").hidden = !state.turkish;
@@ -1003,6 +1070,7 @@
     $("#visualise-neighbor-scope-control").hidden = true;
     $("#visualise-nearest-control").hidden = true;
     $("#visualise-neighbor-ranks").hidden = true;
+    $("#visualise-cluster-toggle-control").hidden = true;
     $("#visualise-cluster-control").hidden = true;
     $("#visualise-pc-toggle-control").hidden = true;
     $("#visualise-pc-controls").hidden = true;
@@ -1383,7 +1451,8 @@
   }
 
   function renderVisualiseClusters() {
-    if (!visualiseClusterContext || state.mode !== 9 || state.single) return;
+    if (!visualiseClusterContext || state.mode !== 9 || state.single ||
+        !state.visualiseClustersEnabled) return;
     const { rows, fits, defaultK } = visualiseClusterContext;
     const k = Math.min(rows.length, state.visualiseClusterK || defaultK);
     const fit = fits[k - 1];
@@ -1427,7 +1496,47 @@
       neighborMode: state.visualisePcView ? "hide" : neighborMode,
       nearestCount: state.visualiseNearestCount,
       neighborGlobalRows: !state.visualisePcView && globalMode
-        ? globalReferences.filter((row) => neighborCategories.has(row[0])) : [] });
+        ? (state.illustrative ? illustrativeReferences : globalReferences)
+          .filter((row) => neighborCategories.has(row[0])) : [] });
+    visualiseNeighborRankContext = !state.visualisePcView && neighborMode !== "hide" &&
+      Array.isArray(neighborPairs) ? { rows, pairs: neighborPairs } : null;
+    renderVisualiseNeighborRanks();
+    renderVisualisePcExtremes();
+  }
+
+  function redrawVisualiseOnlyUsePca() {
+    if (state.visualiseClustersEnabled) renderVisualiseClusters();
+    else renderVisualiseOnlyUsePca();
+  }
+
+  function renderVisualiseOnlyUsePca() {
+    if (!visualiseOnlyUseContext || state.mode !== 9 || state.single) return;
+    const { rows } = visualiseOnlyUseContext;
+    $("#medieval-breakdown-status").textContent = `${rows.length} selected ${rows.length === 1 ? "population" : "populations"}`;
+    $("#visualise-cluster-control").hidden = true;
+    const list = $("#medieval-breakdown-list");
+    list.replaceChildren();
+    $("#pca-section").hidden = false;
+    $("#visualise-neighbor-scope-control").hidden = state.visualisePcView;
+    $("#visualise-neighbor-scope").value = state.visualiseNeighborScope;
+    $("#visualise-nearest-control").hidden = state.visualisePcView ||
+      !state.visualiseNeighborScope.startsWith("nearest-");
+    $("#visualise-nearest-count").value = String(state.visualiseNearestCount);
+    $("#visualise-nearest-value").textContent = String(state.visualiseNearestCount);
+    $("#visualise-pc-controls").hidden = !state.visualisePcView;
+    $("#visualise-pc-x").value = String(state.visualisePcX);
+    $("#visualise-pc-y").value = String(state.visualisePcY);
+    $("#pca-heading-title").textContent = state.visualisePcView ? "Only use PC view" : "Only use PCA";
+    const neighborMode = state.visualiseNeighborScope;
+    const globalMode = neighborMode === "child-global" || neighborMode === "nearest-global";
+    const neighborCategories = new Set(rows.map((row) => row[0] === "modern" ? "modern" : "ancient"));
+    const neighborPairs = renderMedievalPca(rows, "Only use", false, null, true, { ungrouped: true,
+      pcAxes: state.visualisePcView ? [state.visualisePcX, state.visualisePcY] : null,
+      neighborMode: state.visualisePcView ? "hide" : neighborMode,
+      nearestCount: state.visualiseNearestCount,
+      neighborGlobalRows: !state.visualisePcView && globalMode
+        ? (state.illustrative ? illustrativeReferences : globalReferences)
+          .filter((row) => neighborCategories.has(row[0])) : [] });
     visualiseNeighborRankContext = !state.visualisePcView && neighborMode !== "hide" &&
       Array.isArray(neighborPairs) ? { rows, pairs: neighborPairs } : null;
     renderVisualiseNeighborRanks();
@@ -1459,10 +1568,12 @@
   }
 
   function renderVisualisePcExtremes() {
-    const visible = state.mode === 9 && !state.single && state.visualisePcView && visualiseClusterContext;
+    const rows = state.visualiseClustersEnabled
+      ? visualiseClusterContext?.rows : visualiseOnlyUseContext?.rows;
+    const visible = state.mode === 9 && !state.single && state.visualisePcView && rows;
     $("#visualise-pc-extremes").hidden = !visible;
     if (!visible) return;
-    const { points } = window.G25Pca.projectCoordinates(visualiseClusterContext.rows,
+    const { points } = window.G25Pca.projectCoordinates(rows,
       state.visualisePcX, state.visualisePcY);
     const extremes = window.G25Pca.coordinateExtremes(points, state.visualisePcCount);
     $("#visualise-pc-count").value = String(state.visualisePcCount);
@@ -1510,7 +1621,8 @@
         }
       };
       worker.onmessage = ({ data }) => {
-        if (data.requestId !== clusterRequest || state.mode !== 9 || state.single) return;
+        if (data.requestId !== clusterRequest || state.mode !== 9 || state.single ||
+            !state.visualiseClustersEnabled) return;
         finish();
         if (data.error) {
           status.textContent = data.error;
@@ -1536,6 +1648,7 @@
     cancelMedieval();
     cancelVisualiseClusters();
     visualisePcaContext = null;
+    visualiseOnlyUseContext = null;
     visualiseClusterContext = null;
     visualiseNeighborRankContext = null;
     suggestionTarget = null;
@@ -1549,6 +1662,7 @@
     $("#medieval-breakdown-title").textContent = "Ancestry analysis";
     $("#ancestry-composition-title").hidden = true;
     $("#pca-heading-title").textContent = "PCA";
+    $("#visualise-cluster-toggle-control").hidden = true;
     $("#visualise-cluster-control").hidden = true;
     $("#visualise-neighbor-scope-control").hidden = true;
     $("#visualise-nearest-control").hidden = true;
@@ -1579,15 +1693,23 @@
     if (!state.single) {
       for (const selector of ["#visualise-category-filter", "#visualise-limit-filter",
         "#visualise-lock-controls"]) $(selector).hidden = true;
-      $("#medieval-breakdown-title").textContent = "Only use clusters";
+      $("#medieval-breakdown-title").textContent = "Only use populations";
       $("#pca-heading-title").textContent = "Only use PCA";
       const selected = onlyUseReferenceRows();
       $("#visualise-pc-toggle-control").hidden = !selected.length;
       $("#visualise-pc-toggle").checked = state.visualisePcView;
-      if (selected.length) startVisualiseClusters(selected);
+      $("#visualise-cluster-toggle-control").hidden = !selected.length;
+      $("#visualise-cluster-toggle").checked = state.visualiseClustersEnabled;
+      if (selected.length) {
+        if (state.visualiseClustersEnabled) startVisualiseClusters(selected);
+        else {
+          visualiseOnlyUseContext = { rows: selected };
+          renderVisualiseOnlyUsePca();
+        }
+      }
       else status.textContent = whitelist.size
         ? "No Only use populations are available with the current reference switches."
-        : "Add populations to Only use to explore their PCA clusters.";
+        : "Add populations to Only use to explore their PCA.";
       return;
     }
     if (!candidates.length) {
@@ -1730,7 +1852,7 @@
   }
 
   function closestModernPopulationDistance() {
-    const references = allowedReferences((state.turkish ? turkishReferences : globalReferences)
+    const references = allowedReferences(breakdownReferenceRows()
       .filter((row) => row[0] === "modern"))
       .filter((row) => !window.G25ModernPca.isIstanbulReference(row));
     return core.nearestMatches(state.single, references, 1)[0]?.distance ?? Infinity;
@@ -1911,7 +2033,7 @@
       closestPcaId = closestPcaIds[0] || null;
       const selectedPcaId = state.deepAnalysis ? state.deepPcaId : state.modernPcaId;
       const { closest, pca } = window.G25ModernPca.selectModernPca(state.single,
-        allowedReferences((state.turkish ? turkishReferences : globalReferences)
+        allowedReferences(breakdownReferenceRows()
           .filter((row) => row[0] === "modern")),
         rankedPcas.map(({ pca }) => pca), core.nearestMatches, selectedPcaId,
         allowedPcaReferences, rankedPcas);
@@ -2101,10 +2223,10 @@
     let projection;
     const clusterFit = options.clusterFit || null;
     const modernReferences = options.references || (isModern
-      ? allowedReferences((state.turkish ? turkishReferences : globalReferences)
+      ? allowedReferences(breakdownReferenceRows()
         .filter((row) => row[0] === "modern"))
       : references.filter((row) => row[0] === "modern"));
-    const closestModern = clusterFit ? [] : isModern ? (closest ? [closest] : [])
+    const closestModern = clusterFit || options.ungrouped ? [] : isModern ? (closest ? [closest] : [])
       : core.nearestMatches(state.single, modernReferences, 3);
     const closestRows = closestModern.map((match) => modernReferences[match.id]);
     const highlightedIndex = isModern && closestRows.length
@@ -2115,12 +2237,13 @@
     const visualise = options.groupStyle === "population";
     const distanceToInput = (row) => core.distance(state.single.values,
       Array.isArray(row) ? row.slice(2) : row.values);
-    const populationTooltip = (label, row) => `${label} · Distance to input ${distanceToInput(row).toFixed(3)}`;
+    const populationTooltip = (label, row) => state.single
+      ? `${label} · Distance to input ${distanceToInput(row).toFixed(3)}` : label;
     const closestOverlayRows = isModern && highlightedIndex >= 0 ? [] : closestRows;
     const customKeys = new Set(customReferences.keys());
     const alreadyPlotted = new Set([...periodReferences, ...closestOverlayRows,
       ...neighborRows.map(({ row }) => row)].map(populationKey));
-    const customRows = clusterFit || options.groupStyle === "deep" || !customEnabled ? []
+    const customRows = clusterFit || options.ungrouped || options.groupStyle === "deep" || !customEnabled ? []
       : allowedReferences([...customReferences.values()]).filter((row) => !alreadyPlotted.has(populationKey(row)));
     let baseOverlayCount = 0;
     try {
@@ -2130,7 +2253,7 @@
       baseOverlayCount = overlays.length;
       projection = options.pcAxes
         ? window.G25Pca.projectCoordinates(periodReferences, ...options.pcAxes, overlays)
-        : window.G25Pca.projectPca(clusterFit ? null : state.single, periodReferences,
+        : window.G25Pca.projectPca(clusterFit || options.ungrouped ? null : state.single, periodReferences,
           overlays, options.groupStyle || (isModern ? "modern" : "colon"), sparse, customRows);
       if (clusterFit) projection.points.forEach((point, index) => {
         point.ethnicity = `Cluster ${clusterFit.assignments[index] + 1}`;
@@ -2158,7 +2281,9 @@
     const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
     svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
     svg.setAttribute("role", "group");
-    svg.setAttribute("aria-label", clusterFit
+    svg.setAttribute("aria-label", options.ungrouped
+      ? `${options.pcAxes ? `PC${options.pcAxes[0]} versus PC${options.pcAxes[1]}` : "PCA"} of ${projection.points.length} Only use references`
+      : clusterFit
       ? `${options.pcAxes ? `PC${options.pcAxes[0]} versus PC${options.pcAxes[1]}` : "PCA"} of ${projection.points.length} Only use references in ${clusterFit.k} clusters`
       : `${period} PCA of ${projection.points.length} references and ${projection.target.label}`);
     const tooltip = document.createElement("div");
@@ -2249,9 +2374,11 @@
       "Osmanlı Türk": "#087c8c", "Kuzey Kafkasya": "#9c6caa",
       "Kafkas": "#956d3a", "Balkan": "#8256ad", "Levant ve Mezopotamya": "#4f70bc",
     };
-    const groups = [...new Set(projection.points.map((point) => point.ethnicity))].sort((a, b) => a.localeCompare(b));
+    const groups = options.ungrouped ? [] :
+      [...new Set(projection.points.map((point) => point.ethnicity))].sort((a, b) => a.localeCompare(b));
     const fallback = ["#228e71", "#a75d83", "#aa7731", "#657bc0"];
-    const groupColor = (group) => clusterFit ? clusterColor(Number(group.slice(8)) - 1)
+    const groupColor = (group) => options.ungrouped ? "#2b7a94"
+      : clusterFit ? clusterColor(Number(group.slice(8)) - 1)
       : colors[group] || (isModern
       ? `hsl(${Math.round(groups.indexOf(group) * 137.5) % 360} 52% 42%)`
       : fallback[groups.indexOf(group) % fallback.length]);
@@ -2713,6 +2840,15 @@
       item.append(swatch, document.createTextNode(group.replaceAll("_", " ")));
       legend.append(item);
     }
+    if (options.ungrouped) {
+      const item = document.createElement("span");
+      item.className = "pca-legend-item";
+      const swatch = document.createElement("span");
+      swatch.className = "pca-legend-swatch";
+      swatch.style.backgroundColor = groupColor();
+      item.append(swatch, document.createTextNode("Selected populations"));
+      legend.append(item);
+    }
     if (closestModern.length) {
       const modern = document.createElement("span");
       modern.className = "pca-legend-item";
@@ -2741,7 +2877,7 @@
       representative.className = "pca-legend-item";
       representative.textContent = "▲ Closest to centroid";
       legend.append(centroid, representative);
-    } else {
+    } else if (!options.ungrouped) {
       const input = document.createElement("span");
       input.className = "pca-legend-item";
       input.textContent = `● ${inputName}`;
@@ -3308,6 +3444,7 @@
     state.visualiseNeighborScope = "hide";
     state.visualiseNearestCount = 1;
     state.visualiseNeighborRankCount = 10;
+    state.visualiseClustersEnabled = true;
     state.visualiseClusterK = null;
     state.visualisePcView = false;
     state.visualisePcX = 1;
@@ -3344,6 +3481,8 @@
     $(selector).addEventListener("click", () => addMatchingPopulations(category));
   }
   $("#custom-add").addEventListener("click", addCustomReferences);
+  $("#custom-convert").addEventListener("click", convertCustomReferences);
+  $("#custom-paste").addEventListener("input", () => { $("#custom-convert").disabled = false; });
   $("#custom-blacklist-all").addEventListener("click", () => setAllCustomReferences(false));
   $("#custom-only-all").addEventListener("click", () => setAllCustomReferences(true));
   $("#custom-toggle").addEventListener("change", (event) => {
@@ -3411,15 +3550,19 @@
   });
   $("#visualise-neighbor-scope").addEventListener("change", (event) => {
     state.visualiseNeighborScope = event.currentTarget.value;
-    renderVisualiseClusters();
+    redrawVisualiseOnlyUsePca();
   });
   $("#visualise-nearest-count").addEventListener("input", (event) => {
     state.visualiseNearestCount = Math.max(1, Math.min(10, Number(event.currentTarget.value)));
-    renderVisualiseClusters();
+    redrawVisualiseOnlyUsePca();
   });
   $("#visualise-neighbor-rank-count").addEventListener("input", (event) => {
     state.visualiseNeighborRankCount = Math.max(5, Math.min(100, Number(event.currentTarget.value)));
     renderVisualiseNeighborRanks();
+  });
+  $("#visualise-cluster-toggle").addEventListener("change", (event) => {
+    state.visualiseClustersEnabled = event.currentTarget.checked;
+    renderVisualise();
   });
   $("#visualise-cluster-count").addEventListener("input", (event) => {
     state.visualiseClusterK = Number(event.currentTarget.value);
@@ -3427,7 +3570,7 @@
   });
   $("#visualise-pc-toggle").addEventListener("change", (event) => {
     state.visualisePcView = event.currentTarget.checked;
-    renderVisualiseClusters();
+    redrawVisualiseOnlyUsePca();
   });
   for (const axis of ["x", "y"]) {
     const select = $("#visualise-pc-" + axis);
@@ -3439,7 +3582,7 @@
     }
     select.addEventListener("change", (event) => {
       state[axis === "x" ? "visualisePcX" : "visualisePcY"] = Number(event.currentTarget.value);
-      renderVisualiseClusters();
+      redrawVisualiseOnlyUsePca();
     });
   }
   $("#visualise-pc-count").addEventListener("input", (event) => {
@@ -3486,8 +3629,13 @@
       if (!modernPcaChooser.contains(event.target)) modernPcaChooser.open = false;
     });
   }
-  $("#turkish-toggle").addEventListener("change", (event) => {
-    state.turkish = event.currentTarget.checked;
+  function setReferenceScope(scope) {
+    state.turkish = scope === "turkish";
+    state.illustrative = scope === "illustrative";
+    if (state.illustrative) {
+      state.visualiseCategory = "modern";
+      $("#suggestion-category").value = "all";
+    }
     state.deepAnalysis = false;
     modernMainFit = null;
     visualiseLocks.clear();
@@ -3500,6 +3648,12 @@
     }
     updateSelectedReferences(activeReferenceRows());
     render();
+  }
+  $("#turkish-toggle").addEventListener("change", (event) => {
+    setReferenceScope(event.currentTarget.checked ? "turkish" : "global");
+  });
+  $("#illustrative-toggle").addEventListener("change", (event) => {
+    setReferenceScope(event.currentTarget.checked ? "illustrative" : "global");
   });
   const analysisTabViews = ["neolithic", "early", "late", "modern"];
   const analysisTabSelectors = ["#neolithic-tab", "#early-medieval-tab", "#late-medieval-tab", "#modern-analysis-tab"];
@@ -3572,6 +3726,11 @@
     if (admixedOutput) copyText(admixedOutput, event.currentTarget);
   });
   rebuildGroupExclusions();
+  const analysePdfUI = window.G25AnalysePdfUI?.init(() => ({
+    target: state.single,
+    references,
+    referenceLabel: activeReferenceLabel(),
+  }));
   const rawDataUI = window.G25RawDataUI?.init((sample) => {
     if (Array.isArray(sample)) {
       state.compare = sample;
@@ -3589,6 +3748,6 @@
     modernPcaFitDistances.clear();
     render();
   }, () => ({ rows: allowedReferences(activeReferenceRows()),
-    label: state.turkish ? "Turkish references" : "Global references" }));
+    label: activeReferenceLabel() }));
   render();
 })();

@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#14243b">
   <link rel="icon" href="../favicon.ico?v=20261106-1" type="image/x-icon">
   <title>G25 Family Calculator</title>
-  <link rel="stylesheet" href="style.css?v=20261123-1">
+  <link rel="stylesheet" href="style.css?v=20261125-3">
   <link rel="stylesheet" href="k12b.css?v=20261120-1">
   <link rel="stylesheet" href="health.css?v=20261111-1">
   <script defer src="references.js?v=20261026-2"></script>
@@ -31,9 +31,13 @@
   <script defer src="admixture_charts.js?v=20261115-5"></script>
   <script defer src="k12b.js?v=20261116-1"></script>
   <script defer src="health.js?v=20261111-5"></script>
-  <script defer src="report_pdf.js?v=20261123-3"></script>
+  <script defer src="illustrative_data.js?v=20261125-1"></script>
+  <script defer src="illustrative.js?v=20261125-1"></script>
+  <script defer src="illustrative_references.js?v=20261125-1"></script>
+  <script defer src="report_pdf.js?v=20261125-1"></script>
+  <script defer src="analyse_pdf.js?v=20261125-1"></script>
   <script defer src="raw_data_ui.js?v=20261124-1"></script>
-  <script defer src="app.js?v=20261123-1"></script>
+  <script defer src="app.js?v=20261125-3"></script>
 </head>
 <body>
   <main class="shell">
@@ -184,6 +188,10 @@
       </div>
       <div id="single-input" hidden>
         <div id="single-row"></div>
+        <div id="analyse-export-actions" class="analyse-export-actions" hidden>
+          <button id="analyse-export" class="text-button" type="button" disabled>Download results</button>
+          <p id="analyse-export-status" class="method-note" role="status"></p>
+        </div>
       </div>
       <div id="compare-inputs" hidden>
         <div id="compare-rows" class="ancestor-rows"></div>
@@ -378,16 +386,21 @@
             <output id="pca-zoom-level" aria-live="off">100%</output>
           </div>
         </div>
-        <div id="visualise-neighbor-control" class="visualise-neighbor-control" hidden>
-          <label for="visualise-neighbor-count">Closest per contributor</label>
-          <input id="visualise-neighbor-count" type="range" min="5" max="100" step="1" value="10">
-          <output id="visualise-neighbor-value" for="visualise-neighbor-count">10</output>
-        </div>
+        <label id="visualise-cluster-toggle-control" class="visualise-cluster-switch switch-label" hidden>
+          <span>Clusters</span>
+          <input id="visualise-cluster-toggle" class="switch-input" type="checkbox" role="switch" aria-label="Show PCA clusters" checked>
+          <span class="switch-track" aria-hidden="true"></span>
+        </label>
         <div id="visualise-cluster-control" class="visualise-neighbor-control" hidden>
           <label for="visualise-cluster-count">Clusters</label>
           <input id="visualise-cluster-count" type="range" min="1" max="10" step="1" value="1">
           <output id="visualise-cluster-value" for="visualise-cluster-count">1</output>
           <span id="visualise-cluster-auto" class="cluster-auto-note"></span>
+        </div>
+        <div id="visualise-neighbor-control" class="visualise-neighbor-control" hidden>
+          <label for="visualise-neighbor-count">Closest per contributor</label>
+          <input id="visualise-neighbor-count" type="range" min="5" max="100" step="1" value="10">
+          <output id="visualise-neighbor-value" for="visualise-neighbor-count">10</output>
         </div>
         <label id="visualise-neighbor-scope-control" class="match-filter" hidden>Neighbours
           <select id="visualise-neighbor-scope" aria-label="Neighbour display mode">
@@ -604,6 +617,11 @@
         <span class="switch-track" aria-hidden="true"></span>
       </label>
       <label class="reference-switch-option switch-label">
+        <span class="reference-switch-label">Illustrative references</span>
+        <input id="illustrative-toggle" class="switch-input" type="checkbox" role="switch" aria-label="Illustrative references">
+        <span class="switch-track" aria-hidden="true"></span>
+      </label>
+      <label class="reference-switch-option switch-label">
         <span class="reference-switch-label">Use custom references</span>
         <input id="custom-toggle" class="switch-input" type="checkbox" role="switch" aria-label="Use custom references" checked>
         <span class="switch-track" aria-hidden="true"></span>
@@ -643,9 +661,12 @@
           <option value="modern">Modern</option>
           <option value="ancient">Ancient</option>
         </select>
-        <label for="custom-paste">Paste one or more G25 rows</label>
+        <label for="custom-paste">Paste one or more coordinate rows</label>
         <textarea id="custom-paste" rows="5" placeholder="Name,0.123456,0.234567,…" spellcheck="false"></textarea>
-        <button id="custom-add" type="button" class="primary-button">Add references</button>
+        <div class="custom-paste-actions">
+          <button id="custom-add" type="button" class="primary-button">Add references</button>
+          <button id="custom-convert" type="button" class="text-button">Convert from IllustrativeDNA</button>
+        </div>
         <p id="custom-status" class="method-note" role="status"></p>
         <div class="population-managed-heading">
           <h3>Custom populations</h3>

@@ -24,6 +24,9 @@ ydnatr_DIRECTORY = ROOT / "data" / "ydnatr"
 K12B_OUTPUT = ROOT / "calculator" / "k12b_data.js"
 HEALTH_OUTPUT = ROOT / "calculator" / "health_data.js"
 NEOLITHIC_OUTPUT = ROOT / "calculator" / "neolithic_references.js"
+ILLUSTRATIVE_DIRECTORY = ROOT / "data" / "illu"
+ILLUSTRATIVE_OUTPUT = ROOT / "calculator" / "illustrative_data.js"
+ILLUSTRATIVE_REFERENCES_OUTPUT = ROOT / "calculator" / "illustrative_references.js"
 GLOBAL_ANCIENT_MIN_ROWS = 4365
 GLOBAL_ANCIENT_TAIL_LABEL = "Zambia_LSA_(low_res)_(n=1)"
 K12B_COMPONENTS = ["Gedrosia", "Siberian", "Northwest_African", "Southeast_Asian",
@@ -144,6 +147,51 @@ def build_ydnatr(directory: Path = ydnatr_DIRECTORY, k12b_output: Path = K12B_OU
     total = sum(len(rows) for periods in k12b["sets"].values() for rows in periods.values())
     print(f"Bundled {total} K12b comparison rows into {k12b_output}")
     print(f"Bundled {len(health['variants'])} Health markers into {health_output}")
+
+
+def read_illustrative_data(directory: Path = ILLUSTRATIVE_DIRECTORY) -> dict:
+    def numbers(filename: str, rows: int) -> list[list[float]]:
+        path = directory / filename
+        with path.open(encoding="utf-8-sig", newline="") as handle:
+            values = [[float(cell) for cell in row] for row in csv.reader(handle)]
+        if len(values) != rows or any(len(row) != 25 or
+                                     not all(math.isfinite(value) for value in row)
+                                     for row in values):
+            raise ValueError(f"{path}: expected {rows} rows of 25 finite numbers")
+        return values
+
+    return {"matrix": numbers("conversion_matrix.csv", 25),
+            "offset": numbers("conversion_offset.csv", 1)[0]}
+
+
+def build_illustrative_data(directory: Path = ILLUSTRATIVE_DIRECTORY,
+                            output: Path = ILLUSTRATIVE_OUTPUT,
+                            references_output: Path = ILLUSTRATIVE_REFERENCES_OUTPUT) -> None:
+    conversion = read_illustrative_data(directory)
+    write_data_bundle(conversion, output, "G25_ILLUSTRATIVE_CONVERSION")
+    matrix, offset = conversion["matrix"], conversion["offset"]
+    references = []
+    labels = set()
+    path = directory / "IllustrativeDNA.csv"
+    with path.open(encoding="utf-8-sig", newline="") as handle:
+        for line_number, row in enumerate(csv.reader(handle), 1):
+            if len(row) != 26 or not row[0].strip():
+                raise ValueError(f"{path}:{line_number}: expected a label and 25 coordinates")
+            label = row[0].strip()
+            if label in labels:
+                raise ValueError(f"{path}:{line_number}: duplicate label {label}")
+            values = [float(value) for value in row[1:]]
+            if not all(math.isfinite(value) for value in values):
+                raise ValueError(f"{path}:{line_number}: coordinates must be finite")
+            labels.add(label)
+            converted = [offset[j] + sum(values[i] * matrix[i][j] for i in range(25))
+                         for j in range(25)]
+            references.append(["modern", label, *converted])
+    if len(references) != 643:
+        raise ValueError(f"{path}: expected 643 references, found {len(references)}")
+    write_data_bundle(references, references_output, "G25_ILLUSTRATIVE_REFERENCES")
+    print(f"Bundled IllustrativeDNA conversion into {output}")
+    print(f"Bundled {len(references)} IllustrativeDNA references into {references_output}")
 
 
 def read_row_sections(path: Path, category: str) -> dict[str, list[list]]:
@@ -397,12 +445,16 @@ def main() -> None:
     selection.add_argument("--turkish", action="store_true", help="Rebuild only the Turkish modern, ancient, medieval and PCA bundles")
     selection.add_argument("--ydnatr", action="store_true", help="Rebuild only the K12b Oracle and Health bundles")
     selection.add_argument("--neolithic", action="store_true", help="Rebuild only the Neolithic reference bundle")
+    selection.add_argument("--illustrative", action="store_true", help="Rebuild only the IllustrativeDNA conversion bundle")
     args = parser.parse_args()
     if args.ydnatr:
         build_ydnatr()
         return
     if args.neolithic:
         build_neolithic_data()
+        return
+    if args.illustrative:
+        build_illustrative_data()
         return
     if not args.turkish:
         global_modern_rows = read_rows(ROOT / "data" / "modern_g25.txt", "modern")
@@ -451,6 +503,7 @@ def main() -> None:
     print(f"Bundled {len(medieval_rows['early'])} early and {len(medieval_rows['late'])} late Turkish medieval references into {MEDIEVAL_OUTPUT}")
     if not args.turkish:
         build_ydnatr()
+        build_illustrative_data()
     build_neolithic_data()
 
 

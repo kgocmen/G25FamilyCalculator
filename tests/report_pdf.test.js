@@ -1,6 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { buildReport, createPdf } = require("../calculator/report_pdf.js");
+const { buildReport, buildAnalyseReport, createPdf } = require("../calculator/report_pdf.js");
 const k12b = require("../calculator/k12b.js");
 
 test("PDF report includes requested sections in order and no four-way section", () => {
@@ -75,6 +75,25 @@ test("PDF omits G25 and Analysis sections when the source is None", () => {
     health: null, includeG25: false });
   assert.ok(report.sections.every(({ title }) => title !== "G25 row" && !title.startsWith("Analysis")));
   assert.ok(report.sections.some(({ title }) => title === "Health"));
+});
+
+test("Analyse PDF contains only Analyse results and starts on its first page", () => {
+  const zero = Array(25).fill(0);
+  const fit = { distance: 0.5, parts: [
+    { label: "First", weight: 0.6 }, { label: "Second", weight: 0.4 },
+  ] };
+  const report = buildAnalyseReport({ target: { label: "My_sample", values: zero },
+    references: [["modern", "M", ...zero], ["ancient", "A", ...zero]],
+    analysisFits: { relaxedModern: [fit], relaxedAncient: [fit], strictModern: [fit] } });
+  assert.equal(report.title, "Analyse report");
+  assert.deepEqual(report.sections.map(({ title }) => title), [
+    "Analysis · Closest 10 modern", "Analysis · Closest 10 ancient",
+    "Analysis · Two-way fits · Modern", "Analysis · Two-way fits · Ancient",
+    "Analysis · Strict two-way fits · Modern",
+  ]);
+  assert.equal(report.sections[0].pageBreakBefore, false);
+  assert.ok(report.sections.every(({ title }) => title.startsWith("Analysis ·")));
+  assert.ok(!JSON.stringify(report).includes("four-way"));
 });
 
 test("PDF Health colors use the same neutral rules as the Health tab", () => {

@@ -152,6 +152,15 @@
     return { sample, sections };
   }
 
+  function buildAnalyseReport({ target, references = [], analysisFits = null,
+    referenceLabel = "Global references" }) {
+    const full = buildReport({ sample: target.label, results: {}, g25: target.values,
+      g25Label: target.label, health: null, references, analysisFits, referenceLabel });
+    const sections = full.sections.filter((section) => section.title.startsWith("Analysis ·"))
+      .map((section, index) => index === 0 ? { ...section, pageBreakBefore: false } : section);
+    return { sample: target.label, title: "Analyse report", sections };
+  }
+
   function createPdf(report, document = root.document) {
     if (!document?.createElement) throw new Error("PDF export needs a browser canvas.");
     const images = [], selectableRows = [];
@@ -177,7 +186,7 @@
       ctx.fillRect(0, 0, PAGE.width, PAGE.height);
       ctx.fillStyle = "#14243b";
       ctx.font = "bold 13px Arial, sans-serif";
-      ctx.fillText("G25 Family Calculator · Raw DNA report", PAGE.margin, 39);
+      ctx.fillText(`G25 Family Calculator · ${report.title || "Raw DNA report"}`, PAGE.margin, 39);
       ctx.fillStyle = "#526c7e";
       ctx.font = "10px Arial, sans-serif";
       ctx.fillText(report.sample, PAGE.margin, 56, PAGE.width - 2 * PAGE.margin);
@@ -378,7 +387,7 @@
     return new Blob(chunks, { type: "application/pdf" });
   }
 
-  const api = { buildReport, createPdf };
+  const api = { buildReport, buildAnalyseReport, createPdf };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   root.G25ReportPdf = api;
 })(typeof window === "undefined" ? globalThis : window);
