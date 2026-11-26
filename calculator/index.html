@@ -20,7 +20,7 @@
   <script defer src="core.js?v=20261111-2"></script>
   <script defer src="mixture.js?v=20261111-1"></script>
   <script defer src="medieval.js?v=20261027-4"></script>
-  <script defer src="neolithic.js?v=20261116-1"></script>
+  <script defer src="neolithic.js?v=20261126-1"></script>
   <script defer src="visualise.js?v=20261020-9"></script>
   <script defer src="clusters.js?v=20261020-1"></script>
   <script defer src="pca.js?v=20261104-1"></script>
@@ -31,14 +31,14 @@
   <script defer src="admixture_charts.js?v=20261115-5"></script>
   <script defer src="k12b.js?v=20261116-1"></script>
   <script defer src="health.js?v=20261111-5"></script>
-  <script defer src="illustrative_data.js?v=20261125-3"></script>
+  <script defer src="illustrative_data.js?v=20261126-1"></script>
   <script defer src="illustrative.js?v=20261125-2"></script>
-  <script defer src="illustrative_references.js?v=20261125-2"></script>
-  <script defer src="illustrative_native_references.js?v=20261125-1"></script>
+  <script defer src="illustrative_references.js?v=20261126-1"></script>
+  <script defer src="illustrative_native_references.js?v=20261126-1"></script>
   <script defer src="report_pdf.js?v=20261125-2"></script>
   <script defer src="analyse_pdf.js?v=20261125-1"></script>
   <script defer src="raw_data_ui.js?v=20261125-1"></script>
-  <script defer src="app.js?v=20261125-4"></script>
+  <script defer src="app.js?v=20261126-1"></script>
 </head>
 <body>
   <main class="shell">
@@ -612,6 +612,13 @@
       <button id="close-populations" type="button" class="close-button" aria-label="Close population controls">×</button>
     </div>
     <div class="population-panel-body">
+      <label id="illustrative-space-control" class="reference-switch-option">
+        <span class="reference-switch-label">Coordinate space</span>
+        <select id="illustrative-space" aria-label="Coordinate space">
+          <option value="g25">G25</option>
+          <option value="illustrative">Illustrative</option>
+        </select>
+      </label>
       <label class="reference-switch-option switch-label">
         <span class="reference-switch-label">Turkish references</span>
         <input id="turkish-toggle" class="switch-input" type="checkbox" role="switch" aria-label="Turkish references">
@@ -621,13 +628,6 @@
         <span class="reference-switch-label">Illustrative references</span>
         <input id="illustrative-toggle" class="switch-input" type="checkbox" role="switch" aria-label="Illustrative references">
         <span class="switch-track" aria-hidden="true"></span>
-      </label>
-      <label id="illustrative-space-control" class="reference-switch-option" hidden>
-        <span class="reference-switch-label">Coordinate space</span>
-        <select id="illustrative-space" aria-label="Illustrative reference coordinate space">
-          <option value="g25">G25</option>
-          <option value="illustrative">Illustrative</option>
-        </select>
       </label>
       <label class="reference-switch-option switch-label">
         <span class="reference-switch-label">Use custom references</span>

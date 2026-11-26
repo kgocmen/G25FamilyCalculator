@@ -46,6 +46,7 @@ test("deep mode keeps the main selection and shows one level of clusters", () =>
   const deep = [row("GroupA: First", 0), row("GroupA: Second", 0.1),
     row("GroupB: First", 1)];
   const window = { G25Core: core, G25ModernPca: modernPca,
+    G25Illustrative: require("../calculator/illustrative.js"),
     G25MedievalModule() {}, G25ModernPcaModule() {},
     G25_REFERENCES: main,
     G25_MODERN_PCAS: [
@@ -254,5 +255,15 @@ test("deep mode keeps the main selection and shows one level of clusters", () =>
   ]);
   assert.equal(window.lastPcaOptions.groupStyle, "mixed");
   assert.equal(document.querySelector("#pca-heading-title").textContent, "Mixed · Deep");
+
+  document.querySelector("#illustrative-space").listeners.change({
+    currentTarget: { value: "illustrative" },
+  });
+  assert.equal(state.deepAnalysis, false);
+  assert.deepEqual(Array.from(lastWorker.data.target.values),
+    window.G25Illustrative.toIllustrative([0.6, ...Array(24).fill(0)]));
+  const ordinaryPca = lastWorker.data.modernPcas.find((pca) => pca.id === "ordinary");
+  assert.deepEqual(Array.from(ordinaryPca.references[0].slice(2)),
+    window.G25Illustrative.toIllustrative(main[0].slice(2)));
 
 });

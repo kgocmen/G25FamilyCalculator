@@ -193,8 +193,6 @@ def build_illustrative_data(directory: Path = ILLUSTRATIVE_DIRECTORY,
             converted = [offset[j] + sum(values[i] * matrix[i][j] for i in range(25))
                          for j in range(25)]
             references.append(["modern", label, *converted])
-    if len(references) != 643:
-        raise ValueError(f"{path}: expected 643 references, found {len(references)}")
     write_data_bundle(references, references_output, "G25_ILLUSTRATIVE_REFERENCES")
     write_data_bundle(native_references, native_output, "G25_ILLUSTRATIVE_NATIVE_REFERENCES")
     print(f"Bundled IllustrativeDNA conversion into {output}")

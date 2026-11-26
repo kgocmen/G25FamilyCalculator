@@ -4,6 +4,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const vm = require("node:vm");
 const neolithic = require("../calculator/neolithic.js");
+const illustrative = require("../calculator/illustrative.js");
 
 test("browser scripts load the fitter and Breakdown tabs follow chronological order", () => {
   const html = fs.readFileSync(path.join(__dirname, "../calculator/index.html"), "utf8");
@@ -35,6 +36,13 @@ test("an exact ancient proxy fits its own Neolithic model", () => {
     assert.ok(result.components.find((entry) => entry.name === reference.name).weight > 0.999, scope);
     assert.ok(Math.abs(result.components.reduce((sum, entry) => sum + entry.weight, 0) - 1) < 1e-8);
   }
+});
+
+test("Neolithic fit uses converted proxies in Illustrative space", () => {
+  const proxy = neolithic.references.global[0].samples[0];
+  const result = neolithic.calculate({ values: illustrative.toIllustrative(proxy.values) },
+    "global", illustrative.toIllustrative);
+  assert.ok(result.distance < 0.001);
 });
 
 test("a source is fitted individually before its weight is assigned to a Neolithic group", () => {

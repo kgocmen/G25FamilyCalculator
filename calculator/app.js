@@ -165,14 +165,42 @@
     return state.illustrative && state.mode !== 10;
   }
 
-  function usesNativeIllustrativeSpace() {
-    return usesIllustrativeReferences() && state.illustrativeSpace === "illustrative";
+  function usesIllustrativeSpace() {
+    return state.illustrativeSpace === "illustrative";
+  }
+
+  const convertedRowCache = new WeakMap();
+  const convertedPcaCache = new WeakMap();
+
+  function convertedG25Row(row) {
+    if (!usesIllustrativeSpace()) return row;
+    if (!convertedRowCache.has(row)) convertedRowCache.set(row,
+      [row[0], row[1], ...window.G25Illustrative.toIllustrative(row.slice(2))]);
+    return convertedRowCache.get(row);
+  }
+
+  function convertedG25Rows(rows) {
+    return usesIllustrativeSpace() ? rows.map(convertedG25Row) : rows;
+  }
+
+  function convertedG25Pca(pca) {
+    if (!pca || !usesIllustrativeSpace()) return pca;
+    if (!convertedPcaCache.has(pca)) convertedPcaCache.set(pca, { ...pca,
+      references: convertedG25Rows(pca.references || []),
+      deepReferences: convertedG25Rows(pca.deepReferences || []),
+      deepMixedReferences: convertedG25Rows(pca.deepMixedReferences || []),
+    });
+    return convertedPcaCache.get(pca);
+  }
+
+  function activeMedievalReferences(period) {
+    return convertedG25Rows(medievalReferences[period] || []);
   }
 
   let currentCoordinateSpace = "g25";
 
   function syncCoordinateSpace() {
-    const nextSpace = usesNativeIllustrativeSpace() ? "illustrative" : "g25";
+    const nextSpace = usesIllustrativeSpace() ? "illustrative" : "g25";
     if (nextSpace === currentCoordinateSpace) return;
     const convert = nextSpace === "illustrative"
       ? window.G25Illustrative.toIllustrative : window.G25Illustrative.convert;
@@ -197,25 +225,25 @@
   }
 
   function baseReferenceRows() {
-    return usesNativeIllustrativeSpace() ? illustrativeNativeReferences
+    return usesIllustrativeReferences() && usesIllustrativeSpace() ? illustrativeNativeReferences
       : usesIllustrativeReferences() ? illustrativeReferences
-      : state.turkish ? turkishReferences : globalReferences;
+      : convertedG25Rows(state.turkish ? turkishReferences : globalReferences);
   }
 
   function breakdownReferenceRows() {
-    return state.turkish ? turkishReferences : globalReferences;
+    return convertedG25Rows(state.turkish ? turkishReferences : globalReferences);
   }
 
   function activeReferenceLabel() {
-    return usesNativeIllustrativeSpace() ? "Illustrative references · Illustrative space"
-      : usesIllustrativeReferences() ? "Illustrative references"
+    const name = usesIllustrativeReferences() ? "Illustrative references"
       : state.turkish ? "Turkish references" : "Global references";
+    return usesIllustrativeSpace() ? `${name} · Illustrative space` : name;
   }
 
   function activeReferenceRows() {
     return [...baseReferenceRows(),
       ...(customEnabled ? [...customReferences.values()].map((row) => {
-        if (!usesNativeIllustrativeSpace()) return row;
+        if (!usesIllustrativeSpace()) return row;
         const key = populationKey(row);
         return [row[0], row[1], ...(customNativeValues.get(key) ||
           window.G25Illustrative.toIllustrative(row.slice(2)))];
@@ -223,11 +251,12 @@
   }
 
   function activeModernPcas() {
-    return state.turkish ? modernPcas : globalModernPcas;
+    const pcas = state.turkish ? modernPcas : globalModernPcas;
+    return usesIllustrativeSpace() ? pcas.map(convertedG25Pca) : pcas;
   }
 
   function activeMixedPca() {
-    return state.turkish ? turkishMixedPca : globalMixedPca;
+    return convertedG25Pca(state.turkish ? turkishMixedPca : globalMixedPca);
   }
 
   function onlyUseReferenceRows() {
@@ -235,8 +264,8 @@
     const pool = [...activeReferenceRows(),
       ...(!usesIllustrativeReferences() ? activeModernPcas().flatMap((pca) => pca.references) : []),
       ...(!usesIllustrativeReferences() ? activeMixedPca()?.references || [] : []),
-      ...(!usesIllustrativeReferences() ? [...(medievalReferences.early || []),
-        ...(medievalReferences.late || [])] : [])];
+      ...(!usesIllustrativeReferences() ? [...activeMedievalReferences("early"),
+        ...activeMedievalReferences("late")] : [])];
     const seenLabels = new Set();
     const seenCoordinates = new Set();
     return allowedReferences(pool).filter((row) => {
@@ -281,9 +310,12 @@
       ...illustrativeNativeReferences, ...customReferences.values(), ...activeReferenceRows(),
       ...modernPcas.flatMap((pca) => pca.references),
       ...globalModernPcas.flatMap((pca) => pca.references),
+      ...activeModernPcas().flatMap((pca) => pca.references),
       ...(turkishMixedPca?.references || []),
       ...(globalMixedPca?.references || []),
-      ...(medievalReferences.early || []), ...(medievalReferences.late || [])];
+      ...(activeMixedPca()?.references || []),
+      ...(medievalReferences.early || []), ...(medievalReferences.late || []),
+      ...activeMedievalReferences("early"), ...activeMedievalReferences("late")];
     for (const row of rows) {
       if (excludedGroupKeys.has(ancestryGroupKey(row))) excludedGroupCoordinates.add(groupCoordinateKey(row));
     }
@@ -488,7 +520,7 @@
     const lines = $("#custom-paste").value.split(/\r?\n/).filter((line) => line.trim());
     const status = $("#custom-status");
     if (!lines.length) {
-      status.textContent = `Paste at least one named ${usesNativeIllustrativeSpace() ? "Illustrative" : "G25"} row.`;
+      status.textContent = `Paste at least one named ${usesIllustrativeSpace() ? "Illustrative" : "G25"} row.`;
       return;
     }
     const existing = new Set([...globalReferences, ...turkishReferences, ...illustrativeReferences,
@@ -499,7 +531,7 @@
       for (const line of lines) {
         const parsed = core.parseLine(line);
         if (parsed.label === "Pasted_sample") throw new Error("Give every custom reference a name.");
-        const native = usesNativeIllustrativeSpace();
+        const native = usesIllustrativeSpace();
         const row = [category, parsed.label, ...(native
           ? window.G25Illustrative.convert(parsed.values) : parsed.values)];
         const key = populationKey(row);
@@ -525,7 +557,7 @@
     const field = $("#custom-paste");
     const status = $("#custom-status");
     try {
-      const native = usesNativeIllustrativeSpace();
+      const native = usesIllustrativeSpace();
       const converted = native
         ? window.G25Illustrative.convertRowsToIllustrative(field.value)
         : window.G25Illustrative.convertRows(field.value);
@@ -562,8 +594,8 @@
     const pool = [...activeReferenceRows(),
       ...(!usesIllustrativeReferences() ? activeModernPcas().flatMap((pca) => pca.references) : []),
       ...(!usesIllustrativeReferences() ? activeMixedPca()?.references || [] : []),
-      ...(!usesIllustrativeReferences() ? [...(medievalReferences.early || []),
-        ...(medievalReferences.late || [])] : [])];
+      ...(!usesIllustrativeReferences() ? [...activeMedievalReferences("early"),
+        ...activeMedievalReferences("late")] : [])];
     const seen = new Set();
     const matches = [];
     for (const row of pool) {
@@ -1120,9 +1152,8 @@
     $("#turkish-toggle").checked = state.turkish;
     $("#illustrative-toggle").checked = usesIllustrativeReferences();
     $("#illustrative-toggle").disabled = mode === 10;
-    $("#illustrative-space-control").hidden = !usesIllustrativeReferences();
     $("#illustrative-space").value = state.illustrativeSpace;
-    $("#custom-convert").textContent = usesNativeIllustrativeSpace()
+    $("#custom-convert").textContent = usesIllustrativeSpace()
       ? "Convert from G25" : "Convert from IllustrativeDNA";
     const hasCustomAncient = customEnabled && [...customReferences.values()]
       .some((row) => row[0] === "ancient");
@@ -1567,7 +1598,7 @@
       neighborMode: state.visualisePcView ? "hide" : neighborMode,
       nearestCount: state.visualiseNearestCount,
       neighborGlobalRows: !state.visualisePcView && globalMode
-        ? (state.illustrative ? baseReferenceRows() : globalReferences)
+        ? (state.illustrative ? baseReferenceRows() : convertedG25Rows(globalReferences))
           .filter((row) => neighborCategories.has(row[0])) : [] });
     visualiseNeighborRankContext = !state.visualisePcView && neighborMode !== "hide" &&
       Array.isArray(neighborPairs) ? { rows, pairs: neighborPairs } : null;
@@ -1606,7 +1637,7 @@
       neighborMode: state.visualisePcView ? "hide" : neighborMode,
       nearestCount: state.visualiseNearestCount,
       neighborGlobalRows: !state.visualisePcView && globalMode
-        ? (state.illustrative ? baseReferenceRows() : globalReferences)
+        ? (state.illustrative ? baseReferenceRows() : convertedG25Rows(globalReferences))
           .filter((row) => neighborCategories.has(row[0])) : [] });
     visualiseNeighborRankContext = !state.visualisePcView && neighborMode !== "hide" &&
       Array.isArray(neighborPairs) ? { rows, pairs: neighborPairs } : null;
@@ -1884,7 +1915,8 @@
     distance.hidden = true;
     try {
       const scope = state.turkish ? "turkish" : "global";
-      const fit = window.G25Neolithic.calculate(state.single, scope);
+      const fit = window.G25Neolithic.calculate(state.single, scope,
+        usesIllustrativeSpace() ? window.G25Illustrative.toIllustrative : null);
       const parts = fit.components;
       status.textContent = `${scope === "turkish" ? "Turkish" : "All"} references`;
       distance.textContent = `Fit distance ${fit.distance.toFixed(3)}`;
@@ -2162,7 +2194,7 @@
         if (!canRunDeep) return;
       }
     } else {
-      periodReferences = allowedReferences(medievalReferences[state.analysisView] || []);
+      periodReferences = allowedReferences(activeMedievalReferences(state.analysisView));
       $("#medieval-breakdown-title").textContent = period;
       status.textContent = `Calculating ${period} fit…`;
       renderMedievalPca(periodReferences, period, false);
@@ -3832,6 +3864,6 @@
     render();
   }, () => ({ rows: allowedReferences(activeReferenceRows()),
     label: activeReferenceLabel(),
-    space: usesNativeIllustrativeSpace() ? "illustrative" : "g25" }));
+    space: state.illustrativeSpace }));
   render();
 })();

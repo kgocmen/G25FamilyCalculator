@@ -36,12 +36,14 @@ class IllustrativeDataTests(unittest.TestCase):
                              (ROOT / "calculator" / "illustrative_native_references.js").read_bytes())
             bundle = references_output.read_text(encoding="utf-8")
             rows = json.loads(bundle.partition("const data = ")[2].partition(";\n")[0])
-            self.assertEqual(len(rows), 643)
-            self.assertEqual(len({row[1] for row in rows}), 643)
+            with (ROOT / "data" / "illu" / "IllustrativeDNA.csv").open() as source:
+                source_count = sum(1 for _ in csv.reader(source))
+            self.assertEqual(len(rows), source_count)
+            self.assertEqual(len({row[1] for row in rows}), source_count)
             self.assertTrue(all(row[0] == "modern" and len(row) == 27 for row in rows))
             native_rows = json.loads(native_output.read_text(encoding="utf-8")
                                      .partition("const data = ")[2].partition(";\n")[0])
-            self.assertEqual(len(native_rows), 643)
+            self.assertEqual(len(native_rows), source_count)
             self.assertEqual([row[1] for row in native_rows], [row[1] for row in rows])
             with (ROOT / "data" / "illu" / "IllustrativeDNA.csv").open() as handle:
                 first = next(csv.reader(handle))

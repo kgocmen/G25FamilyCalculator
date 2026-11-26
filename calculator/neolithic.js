@@ -7,7 +7,7 @@ function G25NeolithicModule(root) {
     (typeof module !== "undefined" && module.exports ? require("./medieval.js") : null);
   if (!data || !medieval) throw new Error("Neolithic reference data or fitting module was not loaded.");
 
-  function calculate(target, scope) {
+  function calculate(target, scope, convert = null) {
     if (scope !== "turkish" && scope !== "global") throw new Error("Unknown Neolithic reference set.");
     const entries = data[scope];
     if (!Array.isArray(entries) || !entries.length) throw new Error("Neolithic references are unavailable.");
@@ -15,7 +15,7 @@ function G25NeolithicModule(root) {
     const groupByIndex = [];
     entries.forEach(({ name, samples }, groupIndex) => {
       for (const { source, values } of samples) {
-        rows.push(["ancient", `${name}:${source}`, ...values]);
+        rows.push(["ancient", `${name}:${source}`, ...(convert ? convert(values) : values)]);
         groupByIndex.push(groupIndex);
       }
     });
