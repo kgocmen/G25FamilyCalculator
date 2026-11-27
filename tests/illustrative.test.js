@@ -32,10 +32,12 @@ test('G25 conversion into native Illustrative space uses the inverse matrix', ()
   converter.toIllustrative(first).forEach((value, index) =>
     assert.ok(Math.abs(value - (inverseOffset[index] + inverseMatrix[0][index])) < 1e-12));
   const input = `G25_sample,${first.join(',')}`;
-  const parsed = core.parseLine(converter.convertRowsToIllustrative(input));
+  const formatted = converter.convertRowsToIllustrative(input);
+  const parsed = core.parseLine(formatted);
   assert.equal(parsed.label, 'G25_sample');
   parsed.values.forEach((value, index) =>
-    assert.ok(Math.abs(value - converter.toIllustrative(first)[index]) < 1e-10));
+    assert.ok(Math.abs(value - converter.toIllustrative(first)[index]) <= 5e-9));
+  assert.ok(formatted.split(',').slice(1).every((cell) => !cell.includes('.') || cell.split('.')[1].length <= 8));
 });
 
 test('IllustrativeDNA conversion applies coordinates × matrix + offset', () => {
@@ -51,7 +53,10 @@ test('batch conversion preserves names and rejects an invalid row atomically', (
   const input = `First,${Array(25).fill(0).join(',')}\nSecond,${[1, ...Array(24).fill(0)].join(',')}`;
   const rows = converter.convertRows(input).split('\n').map(core.parseLine);
   assert.deepEqual(rows.map((row) => row.label), ['First', 'Second']);
-  assert.ok(rows[0].values.every((value, index) => Math.abs(value - offset[index]) < 1e-11));
+  assert.ok(rows[0].values.every((value, index) => Math.abs(value - offset[index]) <= 5e-7));
+  assert.ok(converter.convertRows(input).split('\n').every((line) =>
+    line.split(',').slice(1).every((cell) =>
+      !cell.includes('.') || cell.split('.')[1].length <= 6)));
   assert.throws(() => converter.convertRows(`${input}\nBroken,1,2`), /25 numbers/);
   assert.throws(() => converter.convertRows(Array(25).fill(0).join(',')), /name/);
 });

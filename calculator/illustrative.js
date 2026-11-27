@@ -30,18 +30,18 @@
     return applyConversion(values, data?.inverseMatrix, data?.inverseOffset, "G25");
   }
 
-  function convertRows(text, converter = convert, source = "IllustrativeDNA") {
+  function convertRows(text, converter = convert, source = "IllustrativeDNA", decimals = 6) {
     const lines = String(text).split(/\r?\n/).filter((line) => line.trim());
     if (!lines.length) throw new Error(`Paste at least one named ${source} row.`);
     return lines.map((line) => {
       const parsed = core.parseLine(line);
       if (parsed.label === "Pasted_sample") throw new Error("Give every custom reference a name.");
-      return core.formatLine(parsed.label, converter(parsed.values));
+      return core.formatLine(parsed.label, converter(parsed.values), decimals);
     }).join("\n");
   }
 
   function convertRowsToIllustrative(text) {
-    return convertRows(text, toIllustrative, "G25");
+    return convertRows(text, toIllustrative, "G25", 8);
   }
 
   const api = { convert, toIllustrative, convertRows, convertRowsToIllustrative };

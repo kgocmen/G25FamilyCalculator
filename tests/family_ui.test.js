@@ -521,7 +521,7 @@ assert.equal(api.activeReferenceRows()[0][2], window.G25_ILLUSTRATIVE_NATIVE_REF
 customPaste.value = ['G25_to_native', ...g25Target].join(',');
 document.querySelector('#custom-convert').listeners.click();
 core.parseLine(customPaste.value).values.forEach((value, index) =>
-  assert.ok(Math.abs(value - window.G25Illustrative.toIllustrative(g25Target)[index]) < 1e-11));
+  assert.ok(Math.abs(value - window.G25Illustrative.toIllustrative(g25Target)[index]) <= 5e-9));
 const nativeCustom = Array(25).fill(.025);
 customPaste.value = ['Native_Custom', ...nativeCustom].join(',');
 document.querySelector('#custom-add').listeners.click();

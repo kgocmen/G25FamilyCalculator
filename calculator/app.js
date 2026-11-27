@@ -169,6 +169,10 @@
     return state.illustrativeSpace === "illustrative";
   }
 
+  function coordinatePrecision() {
+    return usesIllustrativeSpace() ? 8 : 6;
+  }
+
   const convertedRowCache = new WeakMap();
   const convertedPcaCache = new WeakMap();
 
@@ -1108,7 +1112,7 @@
     if (item || derived) {
       actions.append(makeButton("Copy", (event) => {
         const record = item || derived;
-        copyText(core.formatLine(record.label, record.values), event.currentTarget);
+        copyText(core.formatLine(record.label, record.values, coordinatePrecision()), event.currentTarget);
       }));
     }
     if (item) {
@@ -1294,19 +1298,19 @@
     let output = "";
     if (targetComparison) {
       message = `Comparing entered and calculated ${selectedName}.`;
-      output = core.formatLine(targetComparison.calculated.label, targetComparison.calculated.values);
+      output = core.formatLine(targetComparison.calculated.label, targetComparison.calculated.values, coordinatePrecision());
     } else if (result.kind === "offspring") {
       message = "Child calculated.";
-      output = core.formatLine(core.resultLabel(state.offspring, ancestors, male), result.values);
+      output = core.formatLine(core.resultLabel(state.offspring, ancestors, male), result.values, coordinatePrecision());
     } else if (result.kind === "residual") {
       const count = result.missing.length;
       if (count === 1) {
         const missingIndex = result.missing[0];
         message = `Missing ${names[mode][missingIndex].toLowerCase()} calculated.`;
-        output = core.formatLine(core.missingAncestorLabel(state.offspring, ancestors, male), result.inferred);
+        output = core.formatLine(core.missingAncestorLabel(state.offspring, ancestors, male), result.inferred, coordinatePrecision());
       } else {
         message = `Combined average of ${count} missing ancestors.`;
-        output = core.formatLine(core.resultLabel(state.offspring, ancestors, male), result.combined);
+        output = core.formatLine(core.resultLabel(state.offspring, ancestors, male), result.combined, coordinatePrecision());
       }
     } else if (state.offspring) {
       message = "Add an ancestor.";
@@ -2663,7 +2667,7 @@
     };
     const inputLabelWidth = marker ? fitInputLabel(204) + 16 : 0;
     if (inputLabelBackground) inputLabelBackground.setAttribute("width", inputLabelWidth);
-    const inputLabelKey = marker ? core.formatLine(inputName, state.single.values) : null;
+    const inputLabelKey = marker ? core.formatLine(inputName, state.single.values, coordinatePrecision()) : null;
     const defaultInputLabelOffset = {
       x: bounds.right - targetX >= inputLabelWidth + 28 ? 24 : -inputLabelWidth - 24, y: -12,
     };
@@ -2992,7 +2996,7 @@
   }
 
   function prepareAdmixedCopy(fit) {
-    admixedOutput = core.formatLine(`${state.single.label}_admixed`, fit.values);
+    admixedOutput = core.formatLine(`${state.single.label}_admixed`, fit.values, coordinatePrecision());
     $("#copy-admixed").disabled = false;
   }
 

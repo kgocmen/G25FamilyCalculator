@@ -475,16 +475,16 @@
     return { ancestors: result, distance: calculate(offspring, result, male).distance };
   }
 
-  function formatNumber(value) {
-    const rounded = value.toFixed(12).replace(/\.?0+$/, "");
+  function formatNumber(value, decimals = 12) {
+    const rounded = value.toFixed(decimals).replace(/\.?0+$/, "");
     return rounded === "-0" || rounded === "" ? "0" : rounded;
   }
 
-  function formatLine(label, values) {
+  function formatLine(label, values, decimals = 12) {
     if (!validateVector(values)) throw new Error("Invalid G25 coordinates.");
     const safeLabel = String(label).replaceAll('"', '""');
     const csvLabel = /[",\r\n]/.test(safeLabel) ? `"${safeLabel}"` : safeLabel;
-    return [csvLabel, ...values.map(formatNumber)].join(",");
+    return [csvLabel, ...values.map((value) => formatNumber(value, decimals))].join(",");
   }
 
   const api = { optimiseFamily, ancestorWeights, calculate, calculateComparison, closestMatches, distance,

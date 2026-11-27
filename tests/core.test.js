@@ -327,6 +327,13 @@ test("pasted rows parse and copy as 25-coordinate G25 rows", () => {
   assert.throws(() => parseLine(`Sample,${Array(24).fill("0").join(",")},oops`), /finite number/);
 });
 
+test("coordinate rows can be rounded for display without changing calculations", () => {
+  const values = [0.12345678912, ...Array(24).fill(0)];
+  assert.match(formatLine("Sample", values, 6), /^Sample,0\.123457,0,/);
+  assert.match(formatLine("Sample", values, 8), /^Sample,0\.12345679,0,/);
+  assert.equal(values[0], 0.12345678912);
+});
+
 test("one input ranks references by Euclidean distance without a cutoff", () => {
   const target = person("Sample", 0);
   const references = [
